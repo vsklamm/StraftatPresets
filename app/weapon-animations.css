@@ -1,0 +1,119 @@
+/* Weapon atmosphere motion patterns share --float-x, --float-y, and --float-rot. */
+
+/* Pattern 1: figure eight with a Y-axis turn. */
+@keyframes weapon-float-1 {
+  0%   { transform: translate(-50%, -50%) scale(1) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  25%  { transform: translate(calc(-50% + var(--float-x) * 1.5), calc(-50% - var(--float-y) * 1.2)) scale(0.8) rotateX(10deg) rotateY(90deg) rotateZ(var(--float-rot)); }
+  50%  { transform: translate(calc(-50% - var(--float-x) * 1.2), calc(-50% + var(--float-y) * 1.5)) scale(1.15) rotateX(0deg) rotateY(180deg) rotateZ(0deg); }
+  75%  { transform: translate(calc(-50% + var(--float-x) * 1.0), calc(-50% + var(--float-y) * 1.6)) scale(0.9) rotateX(-10deg) rotateY(270deg) rotateZ(calc(var(--float-rot) * -0.7)); }
+  100% { transform: translate(-50%, -50%) scale(1) rotateX(0deg) rotateY(360deg) rotateZ(0deg); }
+}
+
+/* Pattern 2: vertical movement with an X-axis turn. */
+@keyframes weapon-float-2 {
+  0%   { transform: translate(-50%, -50%) scale(1.1) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  20%  { transform: translate(calc(-50% + var(--float-x) * 0.8), calc(-50% - var(--float-y) * 1.8)) scale(0.7) rotateX(72deg) rotateY(15deg) rotateZ(calc(var(--float-rot) * .5)); }
+  40%  { transform: translate(calc(-50% - var(--float-x) * 0.5), calc(-50% - var(--float-y) * 0.5)) scale(1.2) rotateX(144deg) rotateY(0deg) rotateZ(0deg); }
+  60%  { transform: translate(calc(-50% - var(--float-x) * 1.4), calc(-50% + var(--float-y) * 1.2)) scale(0.8) rotateX(216deg) rotateY(-15deg) rotateZ(calc(var(--float-rot) * -0.4)); }
+  80%  { transform: translate(calc(-50% + var(--float-x) * 1.0), calc(-50% + var(--float-y) * 1.7)) scale(1.15) rotateX(288deg) rotateY(0deg) rotateZ(calc(var(--float-rot) * .3)); }
+  100% { transform: translate(-50%, -50%) scale(1.1) rotateX(360deg) rotateY(0deg) rotateZ(0deg); }
+}
+
+/* Pattern 3: diagonal drift and 3D rotation. */
+@keyframes weapon-float-3 {
+  0%   { transform: translate(-50%, -50%) scale(1) rotate3d(1, 1, 0, 0deg); }
+  33%  { transform: translate(calc(-50% + var(--float-x) * 1.6), calc(-50% - var(--float-y) * 1.8)) scale(0.75) rotate3d(1, 1, 0.2, 120deg); }
+  36%  { transform: translate(calc(-50% - var(--float-x) * 1.2), calc(-50% + var(--float-y) * 0.8)) scale(1.25) rotate3d(1, 1, -0.2, 240deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotate3d(1, 1, 0, 360deg); }
+}
+
+/* Pattern 4: circular movement and Z-axis rotation. */
+@keyframes weapon-float-4 {
+  0%   { transform: translate(-50%, -50%) scale(0.9) rotateZ(0deg) rotateY(0deg) rotateX(0deg); }
+  25%  { transform: translate(calc(-50% + var(--float-x) * 1.5), calc(-50%)) scale(1.2) rotateZ(90deg) rotateY(45deg) rotateX(15deg); }
+  50%  { transform: translate(calc(-50%), calc(-50% + var(--float-y) * 1.5)) scale(0.8) rotateZ(180deg) rotateY(0deg) rotateX(-15deg); }
+  75%  { transform: translate(calc(-50% - var(--float-x) * 1.5), calc(-50%)) scale(1.1) rotateZ(270deg) rotateY(-45deg) rotateX(15deg); }
+  100% { transform: translate(-50%, -50%) scale(0.9) rotateZ(360deg) rotateY(0deg) rotateX(0deg); }
+}
+
+/* Pattern 5: irregular 3D movement. */
+@keyframes weapon-float-5 {
+  0%   { transform: translate(-50%, -50%) scale(1.1) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  15%  { transform: translate(calc(-50% + var(--float-x) * 0.8), calc(-50% - var(--float-y) * 1.0)) scale(0.85) rotateX(30deg) rotateY(54deg) rotateZ(var(--float-rot)); }
+  35%  { transform: translate(calc(-50% - var(--float-x) * 1.6), calc(-50% + var(--float-y) * 0.5)) scale(1.2) rotateX(90deg) rotateY(126deg) rotateZ(calc(var(--float-rot) * -0.5)); }
+  55%  { transform: translate(calc(-50% + var(--float-x) * 1.2), calc(-50% + var(--float-y) * 1.8)) scale(0.7) rotateX(150deg) rotateY(198deg) rotateZ(calc(var(--float-rot) * .8)); }
+  75%  { transform: translate(calc(-50% - var(--float-x) * 1.0), calc(-50% - var(--float-y) * 1.4)) scale(1.15) rotateX(270deg) rotateY(270deg) rotateZ(calc(var(--float-rot) * -0.3)); }
+  100% { transform: translate(-50%, -50%) scale(1.1) rotateX(360deg) rotateY(360deg) rotateZ(0deg); }
+}
+
+/* Pattern 6: rapid bounce. */
+@keyframes weapon-float-6 {
+  0%   { transform: translate(-50%, -50%) scale(1.1, 1.1) rotateZ(0deg); }
+  25%  { transform: translate(-50%, -50%) scale(1.3, 0.9) rotateZ(calc(var(--float-rot) * -1)); animation-timing-function: ease-out; }
+  50%  { transform: translate(-50%, calc(-50% - 25px)) scale(0.9, 1.3) rotateZ(var(--float-rot)); animation-timing-function: ease-in; }
+  75%  { transform: translate(-50%, -50%) scale(1.3, 0.9) rotateZ(calc(var(--float-rot) * -1)); animation-timing-function: ease-out; }
+  100% { transform: translate(-50%, -50%) scale(1.1, 1.1) rotateZ(0deg); }
+}
+
+/* Pattern 7: continuous horizontal rotation. */
+@keyframes weapon-float-7 {
+  0%   { transform: translate(calc(-50% - var(--float-x)), calc(-50% - var(--float-y))) scale(1) rotateX(15deg) rotateY(0deg); }
+  50%  { transform: translate(calc(-50% + var(--float-x)), calc(-50% + var(--float-y))) scale(1.1) rotateX(25deg) rotateY(180deg); }
+  100% { transform: translate(calc(-50% - var(--float-x)), calc(-50% - var(--float-y))) scale(1) rotateX(15deg) rotateY(360deg); }
+}
+
+/* Pattern 8: alternating side bounce. */
+@keyframes weapon-float-8 {
+  0%   { transform: translate(-50%, -50%) rotateZ(0deg) scale(1); animation-timing-function: ease-out; }
+  25%  { transform: translate(calc(-50% - 20px), calc(-50% + 15px)) rotateZ(-25deg) scale(1.15); animation-timing-function: ease-in; }
+  50%  { transform: translate(-50%, -50%) rotateZ(0deg) scale(1); animation-timing-function: ease-out; }
+  75%  { transform: translate(calc(-50% + 20px), calc(-50% + 15px)) rotateZ(25deg) scale(1.15); animation-timing-function: ease-in; }
+  100% { transform: translate(-50%, -50%) rotateZ(0deg) scale(1); }
+}
+
+/* Pattern 9: repeated vertical jump. */
+@keyframes weapon-float-9 {
+  0%   { transform: translate(-50%, -50%) scale(1.15, 0.85); animation-timing-function: ease-out; }
+  25%  { transform: translate(-50%, calc(-50% - 50px)) scale(0.9, 1.1) rotate(-8deg); animation-timing-function: ease-in; }
+  50%  { transform: translate(-50%, -50%) scale(1.15, 0.85); animation-timing-function: ease-out; }
+  75%  { transform: translate(-50%, calc(-50% - 50px)) scale(0.9, 1.1) rotate(8deg); animation-timing-function: ease-in; }
+  100% { transform: translate(-50%, -50%) scale(1.15, 0.85); }
+}
+
+/* Pattern 10: drop, shake, and return. */
+@keyframes weapon-float-10 {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); }
+  10%  { transform: translate(-50%, calc(-50% + 40px)) rotate(-15deg); }
+  20%  { transform: translate(calc(-50% - 5px), calc(-50% + 40px)) rotate(-10deg); }
+  30%  { transform: translate(calc(-50% + 5px), calc(-50% + 40px)) rotate(-20deg); }
+  40%  { transform: translate(-50%, calc(-50% + 40px)) rotate(-15deg); }
+  50%  { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(0deg); }
+}
+
+/* Pattern 11: short recoil. */
+@keyframes weapon-float-11 {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); }
+  5%   { transform: translate(calc(-50% + 30px), calc(-50% - 20px)) rotate(25deg); }
+  15%  { transform: translate(calc(-50% + 10px), calc(-50% - 5px)) rotate(10deg); }
+  25%  { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(0deg); }
+}
+
+/* Pattern 12: fast diagonal sweep. */
+@keyframes weapon-float-12 {
+  0%   { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+  15%  { transform: translate(calc(-50% - 30px), calc(-50% - 10px)) rotate(-45deg) scale(1.1); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  25%  { transform: translate(calc(-50% + 40px), calc(-50% + 20px)) rotate(60deg) scale(0.9); animation-timing-function: ease-out; }
+  40%  { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+  100% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+}
+
+/* Pattern 13: vertical rotation with scale transition. */
+@keyframes weapon-float-13 {
+  0%   { transform: translate(-50%, -50%) rotateX(0deg) scale(1); }
+  20%  { transform: translate(-50%, calc(-50% + 30px)) rotateX(90deg) scale(0); }
+  30%  { transform: translate(-50%, calc(-50% + 30px)) rotateX(90deg) scale(0); }
+  50%  { transform: translate(-50%, -50%) rotateX(0deg) scale(1); }
+  100% { transform: translate(-50%, -50%) rotateX(0deg) scale(1); }
+}

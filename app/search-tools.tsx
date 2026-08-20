@@ -1,0 +1,295 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { weaponAssetUrl } from "@/src/domain/game-catalog";
+import { type TagCatalogEntry } from "@/src/domain/tag-catalog";
+
+export function RadialWeaponPicker({
+  weapons,
+  onSelect,
+  onClose,
+}: {
+  weapons: readonly { name: string; image: string }[];
+  onSelect: (name: string) => void;
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
+  const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+
+  useEffect(() => {
+    function updateSize() {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+  // Fit below the search bar on laptop-height viewports.
+  const dishDimension = useMemo(() => {
+    const availableH = Math.max(340, windowSize.height - 140);
+    const availableW = Math.max(340, windowSize.width * 0.65);
+    return Math.min(520, Math.min(availableH, availableW));
+  }, [windowSize]);
+
+  // Calculate ring geometry from the available area and weapon count.
+  const { positionedWeapons, ringRadii, imgW, imgH } = useMemo(() => {
+    const total = weapons.length;
+    if (!total) return { positionedWeapons: [], ringRadii: [], imgW: 44, imgH: 44 };
+
+    const minRadius = Math.max(42, dishDimension * 0.12);
+    const maxRadius = dishDimension - 34;
+    const Sr = maxRadius - minRadius;
+    const r_avg = (minRadius + maxRadius) / 2;
+
+    // Choose enough rings to keep neighboring weapon buttons from overlapping.
+    const arcSpanRad = (82 * Math.PI) / 180;
+    const targetR2 = (1.1 * total * Sr) / (arcSpanRad * r_avg);
+    const numRings = Math.max(4, Math.round((1 + Math.sqrt(1 + 4 * targetR2)) / 2));
+    const radialStep = Sr / (numRings - 1);
+
+    const radii: number[] = [];
+    for (let k = 0; k < numRings; k++) {
+      radii.push(minRadius + k * radialStep);
+    }
+
+    const radiusSum = radii.reduce((sum, r) => sum + r, 0);
+    const ringCounts = radii.map((r) => Math.max(1, Math.round((total * r) / radiusSum)));
+
+    // Balance to match exact weapon count
+    let allocated = ringCounts.reduce((sum, c) => sum + c, 0);
+    while (allocated !== total) {
+      if (allocated < total) {
+        let best = 0;
+        for (let i = 1; i < ringCounts.length; i++) {
+          if (radii[i] / ringCounts[i] > radii[best] / ringCounts[best]) best = i;
+        }
+        ringCounts[best]++;
+        allocated++;
+      } else {
+        let best = -1;
+        for (let i = 0; i < ringCounts.length; i++) {
+          if (ringCounts[i] > 1 && (best === -1 || radii[i] / ringCounts[i] < radii[best] / ringCounts[best])) best = i;
+        }
+        if (best === -1) break;
+        ringCounts[best]--;
+        allocated--;
+      }
+    }
+
+    // Square normalized weapon button size
+    const calcImgW = Math.round(radialStep * 1.18);
+    const calcImgH = calcImgW;
+
+    const originX = dishDimension - 6;
+    const originY = 6;
+
+    const sliceOffsets = ringCounts.reduce<number[]>((acc, count, i) => {
+      acc.push(i === 0 ? 0 : acc[i - 1] + ringCounts[i - 1]);
+      return acc;
+    }, []);
+
+    const items = ringCounts.flatMap((count, ringIdx) => {
+      const offset = sliceOffsets[ringIdx];
+      const ringWeapons = weapons.slice(offset, offset + count);
+      const radius = radii[ringIdx];
+      const isOdd = ringIdx % 2 === 1;
+
+      // Tight, symmetrical angular padding
+      const padStartDeg = Math.asin(Math.min(0.85, (calcImgW / 2 + 1) / radius)) * (180 / Math.PI);
+      const padEndDeg = Math.asin(Math.min(0.85, (calcImgH / 2 + 1) / radius)) * (180 / Math.PI);
+      const startDeg = 90 + padStartDeg;
+      const endDeg = 180 - padEndDeg;
+      const spanDeg = Math.max(10, endDeg - startDeg);
+
+      return ringWeapons.map((weapon, idx) => {
+        let angleDeg: number;
+        if (count === 1) {
+          angleDeg = (startDeg + endDeg) / 2;
+        } else {
+          const stepDeg = spanDeg / count;
+          const phase = isOdd ? stepDeg * 0.75 : stepDeg * 0.25;
+          angleDeg = startDeg + phase + idx * stepDeg;
+        }
+        const angleRad = (angleDeg * Math.PI) / 180;
+
+        const x = originX + radius * Math.cos(angleRad);
+        const y = originY + radius * Math.sin(angleRad);
+
+        // Slide-in animation along the arc
+        const prevRad = ((angleDeg - 20) * Math.PI) / 180;
+        const slideDx = radius * Math.cos(prevRad) - radius * Math.cos(angleRad);
+        const slideDy = radius * Math.sin(prevRad) - radius * Math.sin(angleRad);
+
+        return {
+          weapon,
+          x,
+          y,
+          slideDx,
+          slideDy,
+          delay: ringIdx * 18 + idx * 4,
+          radius,
+        };
+      });
+    });
+
+    return { positionedWeapons: items, ringRadii: radii, imgW: calcImgW, imgH: calcImgH };
+  }, [weapons, dishDimension]);
+
+  const originX = dishDimension - 6;
+  const originY = 6;
+
+  return (
+    <div
+      ref={containerRef}
+      className="radial-weapon-picker"
+      style={{ width: `${dishDimension}px`, height: `${dishDimension}px`, borderBottomLeftRadius: `${dishDimension}px` }}
+      role="dialog"
+      aria-label="Weapon radial picker"
+    >
+      <svg className="radial-guide-tracks" viewBox={`0 0 ${dishDimension} ${dishDimension}`} aria-hidden="true">
+        {ringRadii.map((radius) => (
+          <path
+            key={radius}
+            d={`M ${originX} ${originY + radius} A ${radius} ${radius} 0 0 1 ${originX - radius} ${originY}`}
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.035)"
+            strokeDasharray="3 4"
+          />
+        ))}
+      </svg>
+
+      <div className="radial-items-container">
+        {positionedWeapons.map(({ weapon, x, y, slideDx, slideDy, delay }) => (
+          <button
+            key={weapon.name}
+            type="button"
+            className="radial-weapon-btn"
+            style={
+              {
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${imgW}px`,
+                height: `${imgH}px`,
+                "--slide-dx": `${slideDx}px`,
+                "--slide-dy": `${slideDy}px`,
+                animationDelay: `${delay}ms`,
+              } as React.CSSProperties
+            }
+            onMouseEnter={() => setHoveredWeapon(weapon.name)}
+            onMouseLeave={() => setHoveredWeapon(null)}
+            onClick={() => {
+              onSelect(weapon.name);
+            }}
+            title={weapon.name}
+            aria-label={weapon.name}
+          >
+            <Image src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
+            {hoveredWeapon === weapon.name ? <span className="radial-item-tooltip">{weapon.name}</span> : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function SearchTagPicker({
+  tags,
+  onSelect,
+  onClose,
+}: {
+  tags: readonly TagCatalogEntry[];
+  onSelect: (label: string) => void;
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+  const filteredTags = useMemo(() => {
+    if (!filter.trim()) return tags;
+    const lower = filter.trim().toLowerCase();
+    return tags.filter((tag) => tag.label.toLowerCase().includes(lower) || tag.category.toLowerCase().includes(lower));
+  }, [tags, filter]);
+
+  const categories = ["lobby", "maps", "weapons", "experience"] as const;
+
+  return (
+    <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">
+      <div className="search-tag-input-box">
+        <input
+          autoFocus
+          placeholder="Filter tags..."
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          aria-label="Filter tags"
+        />
+      </div>
+
+      <div className="search-tag-categories">
+        {categories.map((category) => {
+          const categoryTags = filteredTags.filter((tag) => tag.category === category);
+          if (!categoryTags.length) return null;
+          return (
+            <div key={category} className="search-tag-group">
+              <span className="search-tag-group-title">{category}</span>
+              <div className="search-tag-group-list">
+                {categoryTags.map((tag) => (
+                  <button
+                    key={tag.slug}
+                    type="button"
+                    className="search-tag-pill"
+                    onClick={() => {
+                      onSelect(tag.label);
+                    }}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

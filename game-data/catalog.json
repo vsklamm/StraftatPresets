@@ -1,0 +1,1802 @@
+{
+  "schemaVersion": 1,
+  "supportedRelease": {
+    "version": "1.4.8",
+    "publishedAt": "2026-07-22",
+    "sourceUrl": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1839041357022934"
+  },
+  "sources": {
+    "weapons": {
+      "url": "https://straftat.wiki/index.php?title=Weapons",
+      "revision": {
+        "revid": 2088,
+        "parentid": 2069,
+        "timestamp": "2026-06-11T23:54:34Z"
+      }
+    },
+    "maps": {
+      "url": "https://straftat.wiki/wiki/Maps",
+      "revision": {
+        "revid": 2090,
+        "parentid": 2053,
+        "timestamp": "2026-06-11T23:57:18Z"
+      }
+    },
+    "versions": {
+      "url": "https://straftat.wiki/wiki/Versions_and_Patch-Notes",
+      "revision": {
+        "revid": 2167,
+        "parentid": 2095,
+        "timestamp": "2026-07-24T09:42:11Z"
+      }
+    }
+  },
+  "weapons": [
+    {
+      "name": "AAA-12",
+      "image": "/weapons/aaa-12.webp"
+    },
+    {
+      "name": "AK",
+      "image": "/weapons/ak.webp"
+    },
+    {
+      "name": "AP Mine",
+      "image": "/weapons/ap-mine.webp"
+    },
+    {
+      "name": "AR",
+      "image": "/weapons/ar.webp"
+    },
+    {
+      "name": "Baseball Bat",
+      "image": "/weapons/baseball-bat.webp"
+    },
+    {
+      "name": "Bayshore",
+      "image": "/weapons/bayshore.webp"
+    },
+    {
+      "name": "Beam Load",
+      "image": "/weapons/beam-load.webp"
+    },
+    {
+      "name": "Bender",
+      "image": "/weapons/bender.webp"
+    },
+    {
+      "name": "Blank State",
+      "image": "/weapons/blank-state.webp"
+    },
+    {
+      "name": "Blister",
+      "image": "/weapons/blister.webp"
+    },
+    {
+      "name": "Bublee",
+      "image": "/weapons/bublee.webp"
+    },
+    {
+      "name": "Bukanee",
+      "image": "/weapons/bukanee.webp"
+    },
+    {
+      "name": "Claymore",
+      "image": "/weapons/claymore.webp"
+    },
+    {
+      "name": "Couperet",
+      "image": "/weapons/couperet.webp"
+    },
+    {
+      "name": "Crisis",
+      "image": "/weapons/crisis.webp"
+    },
+    {
+      "name": "Curved Knife",
+      "image": "/weapons/curved-knife.webp"
+    },
+    {
+      "name": "Cyst",
+      "image": "/weapons/cyst.webp"
+    },
+    {
+      "name": "Dispenser",
+      "image": "/weapons/dispenser.webp"
+    },
+    {
+      "name": "Dual Launcher",
+      "image": "/weapons/dual-launcher.webp"
+    },
+    {
+      "name": "Elephant",
+      "image": "/weapons/elephant.webp"
+    },
+    {
+      "name": "FG42",
+      "image": "/weapons/fg42.webp"
+    },
+    {
+      "name": "Flamberge",
+      "image": "/weapons/flamberge.webp"
+    },
+    {
+      "name": "Flashlight",
+      "image": "/weapons/flashlight.webp"
+    },
+    {
+      "name": "Gamma",
+      "image": "/weapons/gamma.webp"
+    },
+    {
+      "name": "Gamma Gen 2",
+      "image": "/weapons/gamma-gen-2.webp"
+    },
+    {
+      "name": "Glaive Gun",
+      "image": "/weapons/glaive-gun.webp"
+    },
+    {
+      "name": "Gland Grenade",
+      "image": "/weapons/gland-grenade.webp"
+    },
+    {
+      "name": "Glock",
+      "image": "/weapons/glock.webp"
+    },
+    {
+      "name": "GodSword",
+      "image": "/weapons/godsword.webp"
+    },
+    {
+      "name": "Gust",
+      "image": "/weapons/gust.webp"
+    },
+    {
+      "name": "Hand Canon",
+      "image": "/weapons/hand-canon.webp"
+    },
+    {
+      "name": "Hand Grenade",
+      "image": "/weapons/hand-grenade.webp"
+    },
+    {
+      "name": "Havoc",
+      "image": "/weapons/havoc.webp"
+    },
+    {
+      "name": "Hill H15",
+      "image": "/weapons/hill-h15.webp"
+    },
+    {
+      "name": "HK Caws",
+      "image": "/weapons/hk-caws.webp"
+    },
+    {
+      "name": "HK G11",
+      "image": "/weapons/hk-g11.webp"
+    },
+    {
+      "name": "Impetus",
+      "image": "/weapons/impetus.webp"
+    },
+    {
+      "name": "Javal Mahmaerd",
+      "image": "/weapons/javal-mahmaerd.webp"
+    },
+    {
+      "name": "Kanye",
+      "image": "/weapons/kanye.webp"
+    },
+    {
+      "name": "Keso",
+      "image": "/weapons/keso.webp"
+    },
+    {
+      "name": "Kusma",
+      "image": "/weapons/kusma.webp"
+    },
+    {
+      "name": "M2000",
+      "image": "/weapons/m2000.webp"
+    },
+    {
+      "name": "MAC10",
+      "image": "/weapons/mac10.webp"
+    },
+    {
+      "name": "Minigun",
+      "image": "/weapons/minigun.webp"
+    },
+    {
+      "name": "Mortini",
+      "image": "/weapons/mortini.webp"
+    },
+    {
+      "name": "Nizeh",
+      "image": "/weapons/nizeh.webp"
+    },
+    {
+      "name": "Oklahoma",
+      "image": "/weapons/oklahoma.webp"
+    },
+    {
+      "name": "Phoenix",
+      "image": "/weapons/phoenix.webp"
+    },
+    {
+      "name": "Pistol",
+      "image": "/weapons/pistol.webp"
+    },
+    {
+      "name": "Propeller",
+      "image": "/weapons/propeller.webp"
+    },
+    {
+      "name": "Prophet",
+      "image": "/weapons/prophet.webp"
+    },
+    {
+      "name": "Proximity Mine",
+      "image": "/weapons/proximity-mine.webp"
+    },
+    {
+      "name": "QCW05",
+      "image": "/weapons/qcw05.webp"
+    },
+    {
+      "name": "Repulsar",
+      "image": "/weapons/repulsar.webp"
+    },
+    {
+      "name": "Revolver",
+      "image": "/weapons/revolver.webp"
+    },
+    {
+      "name": "Rocket Launcher",
+      "image": "/weapons/rocket-launcher.webp"
+    },
+    {
+      "name": "Sawed Off",
+      "image": "/weapons/sawed-off.webp"
+    },
+    {
+      "name": "Serac",
+      "image": "/weapons/serac.webp"
+    },
+    {
+      "name": "Shotgun",
+      "image": "/weapons/shotgun.webp"
+    },
+    {
+      "name": "Silenzzio",
+      "image": "/weapons/silenzzio.webp"
+    },
+    {
+      "name": "SMG",
+      "image": "/weapons/smg.webp"
+    },
+    {
+      "name": "Smith Carbine",
+      "image": "/weapons/smith-carbine.webp"
+    },
+    {
+      "name": "Stun Grenade",
+      "image": "/weapons/stun-grenade.webp"
+    },
+    {
+      "name": "Stun Mine",
+      "image": "/weapons/stun-mine.webp"
+    },
+    {
+      "name": "Stylus",
+      "image": "/weapons/stylus.webp"
+    },
+    {
+      "name": "Taser",
+      "image": "/weapons/taser.webp"
+    },
+    {
+      "name": "The Katana",
+      "image": "/weapons/the-katana.webp"
+    },
+    {
+      "name": "Torrent",
+      "image": "/weapons/torrent.webp"
+    },
+    {
+      "name": "Tromblonj",
+      "image": "/weapons/tromblonj.webp"
+    },
+    {
+      "name": "Warden",
+      "image": "/weapons/warden.webp"
+    },
+    {
+      "name": "Webley",
+      "image": "/weapons/webley.webp"
+    },
+    {
+      "name": "Yangtse",
+      "image": "/weapons/yangtse.webp"
+    }
+  ],
+  "maps": [
+    {
+      "name": "Adobe_00",
+      "kind": "core"
+    },
+    {
+      "name": "Adobe_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Adobe_01",
+      "kind": "core"
+    },
+    {
+      "name": "Adobe_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Adobe_02",
+      "kind": "core"
+    },
+    {
+      "name": "Adobe_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Adread_00",
+      "kind": "core"
+    },
+    {
+      "name": "Appartment_00",
+      "kind": "core"
+    },
+    {
+      "name": "Aquatic_00",
+      "kind": "core"
+    },
+    {
+      "name": "Aquatic_01",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_00",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_01",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_02",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_03",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_03_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_04",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_05",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_05_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_06",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_06_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_07",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_07_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_08",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_09",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_09_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_10",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_10_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_11",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_11_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_12",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_12_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_13",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_13_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_14",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_14_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_16",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_16_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_20",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_21",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_22",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_23",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_24",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_25",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_25_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_26",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_27",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_27_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_28",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_29",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_30",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_00",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_Shadow_01",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_02",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_Shadow_03",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_04",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_Shadow_05",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_05_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Arena_Shadow_06",
+      "kind": "dlc"
+    },
+    {
+      "name": "Arena_Shadow_07",
+      "kind": "core"
+    },
+    {
+      "name": "Arena_Shadow_08",
+      "kind": "dlc"
+    },
+    {
+      "name": "Autobahn_00",
+      "kind": "core"
+    },
+    {
+      "name": "Backrooms_00",
+      "kind": "dlc"
+    },
+    {
+      "name": "Backrooms_01",
+      "kind": "dlc"
+    },
+    {
+      "name": "Backrooms_02",
+      "kind": "core"
+    },
+    {
+      "name": "Barren_00",
+      "kind": "core"
+    },
+    {
+      "name": "Barren_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Barren_01",
+      "kind": "core"
+    },
+    {
+      "name": "Barren_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Barren_02",
+      "kind": "core"
+    },
+    {
+      "name": "Barren_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_00",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_01",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_02",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Borular",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Borular_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Chahar",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Chahar_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Crosshair",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Crosshair_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Dochehar",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Dochehar_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Duvar",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Junglegym",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Junglegym_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Shesh",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Shesh_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Swirly",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Swirly_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Basket_Yek",
+      "kind": "core"
+    },
+    {
+      "name": "Basket_Yek_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_00",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_01",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_02",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_03",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_03_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Alleyway",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Alleyway_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Apt",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Apt_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Balcony",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Balcony_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Canal",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Canal_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Charshi",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Charshi_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Chati",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Chati_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Hideout",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Hideout_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Marketplace",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Marketplace_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Overhang",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Overhang_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Bazaar_Refuge",
+      "kind": "core"
+    },
+    {
+      "name": "Bazaar_Refuge_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Cage_Fight_00_Day",
+      "kind": "core"
+    },
+    {
+      "name": "Cage_Fight_00_Night",
+      "kind": "core"
+    },
+    {
+      "name": "Cage_Fight_00_Sunset",
+      "kind": "core"
+    },
+    {
+      "name": "Canliferous_fluorspar",
+      "kind": "core"
+    },
+    {
+      "name": "Canliferous_fluorspar_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Canliferous_map",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_01",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_02",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_03",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_04",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_05",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_06_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Chateaux_06_NoGrass",
+      "kind": "dlc"
+    },
+    {
+      "name": "Chateaux_07_NoGrass_01",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_09",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_10",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_11",
+      "kind": "core"
+    },
+    {
+      "name": "Chateaux_12",
+      "kind": "dlc"
+    },
+    {
+      "name": "Chateaux_13",
+      "kind": "dlc"
+    },
+    {
+      "name": "Chateaux_13_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Chateaux_13_Alt_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Corridor_00",
+      "kind": "dlc"
+    },
+    {
+      "name": "Corridor_00_alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Corridor_01",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_02",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_02_alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Corridor_03",
+      "kind": "dlc"
+    },
+    {
+      "name": "Corridor_03_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Corridor_04",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Corridor_05",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_07",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_07_alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Corridor_08",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_08_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Corridor_10",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_11",
+      "kind": "core"
+    },
+    {
+      "name": "Corridor_12",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Abduction",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Abduction_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_ADifferentPlace_01",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_ADifferentPlace_01_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_ADifferentPlace_02",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_ADifferentPlace_02_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_BarrelBattle",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_BarrelBattle_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Basalt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Basalt_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Bowl",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Bowl_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Cliffs",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Cliffs_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Crusher",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Crusher_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Crusher_Underwater_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Depths",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Depths_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Earthscraper",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Earthscraper_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Fracture",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Fracture_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Helicopter",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Helicopter_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_IceSlide_01",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_IceSlide_02",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Lancer",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Lancer_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Neighbourhood",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Neighbourhood_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Pillars",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Pillars_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Pit",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Pit_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Sewer",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Sewer_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Sewer_Alt_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Shrine",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Shrine_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Shrine_Alt_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Space",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Space_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Stairway",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Stairway_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Streets",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Streets_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Tunnel",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Tunnel_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Vestige",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Vestige_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Vestige_Underwater_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Dragonfly_Waterway",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Waterway_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Dragonfly_Xanthate",
+      "kind": "core"
+    },
+    {
+      "name": "Dragonfly_Xanthate_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Drain_00",
+      "kind": "core"
+    },
+    {
+      "name": "Drain_01",
+      "kind": "core"
+    },
+    {
+      "name": "EndGame",
+      "kind": "core"
+    },
+    {
+      "name": "Factory_00",
+      "kind": "core"
+    },
+    {
+      "name": "Factory_01",
+      "kind": "core"
+    },
+    {
+      "name": "Fortinayt_02",
+      "kind": "core"
+    },
+    {
+      "name": "Fortinayt_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Fortinayt_04",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_00",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_01",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Garden_02",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_03",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_04",
+      "kind": "core"
+    },
+    {
+      "name": "Garden_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Gobi_00",
+      "kind": "dlc"
+    },
+    {
+      "name": "Gutenberg_00",
+      "kind": "core"
+    },
+    {
+      "name": "Gutenberg_01",
+      "kind": "core"
+    },
+    {
+      "name": "Gutenberg_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "HighWall_00",
+      "kind": "core"
+    },
+    {
+      "name": "Hinterland_00",
+      "kind": "core"
+    },
+    {
+      "name": "Hinterland_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Hinterland_01",
+      "kind": "dlc"
+    },
+    {
+      "name": "Hinterland_01_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "HK_02",
+      "kind": "core"
+    },
+    {
+      "name": "HK_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "HK_03",
+      "kind": "dlc"
+    },
+    {
+      "name": "HK_03_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "HK_04",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Bereket",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Bereket_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Hushardzan_Burdock",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Burdock_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Hushardzan_Ikiz",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Ikiz_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Hushardzan_Jrambar",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Jrambar_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Hushardzan_Orion",
+      "kind": "core"
+    },
+    {
+      "name": "Hushardzan_Orion_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "ICE_01",
+      "kind": "core"
+    },
+    {
+      "name": "ICE_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "ICE_02",
+      "kind": "dlc"
+    },
+    {
+      "name": "ICE_03",
+      "kind": "core"
+    },
+    {
+      "name": "ICE_04",
+      "kind": "dlc"
+    },
+    {
+      "name": "ICE_05",
+      "kind": "dlc"
+    },
+    {
+      "name": "ICE_06",
+      "kind": "dlc"
+    },
+    {
+      "name": "Impasse01",
+      "kind": "core"
+    },
+    {
+      "name": "JF_Poolrooms_01",
+      "kind": "core"
+    },
+    {
+      "name": "JF_Space",
+      "kind": "core"
+    },
+    {
+      "name": "JF_Statue",
+      "kind": "core"
+    },
+    {
+      "name": "JF_Statue_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "LostCity_00",
+      "kind": "core"
+    },
+    {
+      "name": "LostCity_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "LostCity_01",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_00",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Neo_Arena_01",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_02",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_03",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_04_0",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_04_1",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_05_0",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_05_1",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_05_1_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_06",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_07",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_07_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Neo_Arena_08",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_09",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_10",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_10_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Neo_Arena_11",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_11_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Neo_Arena_12",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_12_Alt",
+      "kind": "dlc"
+    },
+    {
+      "name": "Neo_Arena_14",
+      "kind": "core"
+    },
+    {
+      "name": "Neo_Arena_14_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Parking",
+      "kind": "core"
+    },
+    {
+      "name": "Parking_1_alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Parking_alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Patio_00",
+      "kind": "core"
+    },
+    {
+      "name": "PigFarm_00",
+      "kind": "dlc"
+    },
+    {
+      "name": "PlageTymoes_00",
+      "kind": "core"
+    },
+    {
+      "name": "Prison_00",
+      "kind": "core"
+    },
+    {
+      "name": "ReeperBahn_00",
+      "kind": "core"
+    },
+    {
+      "name": "ReeperBahn_01",
+      "kind": "core"
+    },
+    {
+      "name": "Republic_00",
+      "kind": "core"
+    },
+    {
+      "name": "Republic_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Republic_01",
+      "kind": "dlc"
+    },
+    {
+      "name": "Republic_02",
+      "kind": "core"
+    },
+    {
+      "name": "Republic_03",
+      "kind": "dlc"
+    },
+    {
+      "name": "Republic_04",
+      "kind": "dlc"
+    },
+    {
+      "name": "Republic_05",
+      "kind": "dlc"
+    },
+    {
+      "name": "Republic_07",
+      "kind": "core"
+    },
+    {
+      "name": "Republic_07_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Republic_08",
+      "kind": "dlc"
+    },
+    {
+      "name": "Scaffoldingue_00",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_Bankment",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_Chimney",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_Chimney_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Sonova_RoadSide",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_RoadSide_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Sonova_Sewage",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_Skatepark",
+      "kind": "core"
+    },
+    {
+      "name": "Sonova_TheDome",
+      "kind": "core"
+    },
+    {
+      "name": "Stadium_00",
+      "kind": "core"
+    },
+    {
+      "name": "Stadium_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Stadium_01",
+      "kind": "core"
+    },
+    {
+      "name": "Stadium_01_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Stadium_02",
+      "kind": "core"
+    },
+    {
+      "name": "Stadium_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "StLucia_00",
+      "kind": "core"
+    },
+    {
+      "name": "StLucia_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "StLucia_01",
+      "kind": "core"
+    },
+    {
+      "name": "StLucia_02",
+      "kind": "core"
+    },
+    {
+      "name": "StLucia_02_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "StLucia_03",
+      "kind": "core"
+    },
+    {
+      "name": "StLucia_03_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "StLucia_04",
+      "kind": "core"
+    },
+    {
+      "name": "StLucia_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "Stroke_01",
+      "kind": "core"
+    },
+    {
+      "name": "Stroke_03",
+      "kind": "core"
+    },
+    {
+      "name": "TerminalPalace_00",
+      "kind": "core"
+    },
+    {
+      "name": "TerminalPalace_02",
+      "kind": "dlc"
+    },
+    {
+      "name": "TheSamePlace_00",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_01",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_02",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_03",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_04",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_04_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "TheSamePlace_05",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_06",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_07",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_08",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_09",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_10",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_11",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_12",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_13",
+      "kind": "core"
+    },
+    {
+      "name": "TheSamePlace_14",
+      "kind": "core"
+    },
+    {
+      "name": "Toilets_00",
+      "kind": "core"
+    },
+    {
+      "name": "Toilets_00_Alt",
+      "kind": "alt"
+    },
+    {
+      "name": "valhalla_00",
+      "kind": "core"
+    },
+    {
+      "name": "valhalla_01",
+      "kind": "core"
+    },
+    {
+      "name": "valhalla_02",
+      "kind": "core"
+    },
+    {
+      "name": "valhalla_03",
+      "kind": "core"
+    },
+    {
+      "name": "valhalla_04",
+      "kind": "core"
+    },
+    {
+      "name": "valhalla_05",
+      "kind": "core"
+    },
+    {
+      "name": "WestVillage_04",
+      "kind": "core"
+    },
+    {
+      "name": "WestVillage_04_Alt",
+      "kind": "alt"
+    }
+  ]
+}

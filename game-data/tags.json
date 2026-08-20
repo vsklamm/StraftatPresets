@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "tags": [
+    {
+      "slug": "1v1",
+      "label": "1v1",
+      "category": "lobby"
+    },
+    {
+      "slug": "2v2",
+      "label": "2v2",
+      "category": "lobby"
+    },
+    {
+      "slug": "ffa",
+      "label": "FFA",
+      "category": "lobby"
+    },
+    {
+      "slug": "1v2",
+      "label": "1v2",
+      "category": "lobby"
+    },
+    {
+      "slug": "1v3",
+      "label": "1v3",
+      "category": "lobby"
+    },
+    {
+      "slug": "4-plus-players",
+      "label": "4+ Players",
+      "category": "lobby"
+    },
+    {
+      "slug": "teams",
+      "label": "Teams",
+      "category": "lobby"
+    },
+    {
+      "slug": "ice-maps",
+      "label": "Ice Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "small-maps",
+      "label": "Small Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "large-maps",
+      "label": "Large Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "open-maps",
+      "label": "Open Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "vertical-maps",
+      "label": "Vertical Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "indoor-maps",
+      "label": "Indoor Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "outdoor-maps",
+      "label": "Outdoor Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "arena-maps",
+      "label": "Arena Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "corridor-maps",
+      "label": "Corridor Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "silly-maps",
+      "label": "Silly Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "alt-maps",
+      "label": "Alt Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "dlc-maps",
+      "label": "DLC Maps",
+      "category": "maps"
+    },
+    {
+      "slug": "long-sightlines",
+      "label": "Long Sightlines",
+      "category": "maps"
+    },
+    {
+      "slug": "close-quarters",
+      "label": "Close Quarters",
+      "category": "maps"
+    },
+    {
+      "slug": "explosives",
+      "label": "Explosives",
+      "category": "weapons"
+    },
+    {
+      "slug": "snipers",
+      "label": "Snipers",
+      "category": "weapons"
+    },
+    {
+      "slug": "melee",
+      "label": "Melee",
+      "category": "weapons"
+    },
+    {
+      "slug": "mines",
+      "label": "Mines",
+      "category": "weapons"
+    },
+    {
+      "slug": "grenades",
+      "label": "Grenades",
+      "category": "weapons"
+    },
+    {
+      "slug": "projectile-weapons",
+      "label": "Projectile Weapons",
+      "category": "weapons"
+    },
+    {
+      "slug": "dual-wield",
+      "label": "Dual Wield",
+      "category": "weapons"
+    },
+    {
+      "slug": "full-auto",
+      "label": "Full Auto",
+      "category": "weapons"
+    },
+    {
+      "slug": "burst-fire",
+      "label": "Burst Fire",
+      "category": "weapons"
+    },
+    {
+      "slug": "aim",
+      "label": "Aim",
+      "category": "experience"
+    },
+    {
+      "slug": "movement",
+      "label": "Movement",
+      "category": "experience"
+    },
+    {
+      "slug": "fun",
+      "label": "Fun",
+      "category": "experience"
+    },
+    {
+      "slug": "random",
+      "label": "Random",
+      "category": "experience"
+    },
+    {
+      "slug": "placement",
+      "label": "Placement",
+      "category": "experience"
+    },
+    {
+      "slug": "setups",
+      "label": "Setups",
+      "category": "experience"
+    },
+    {
+      "slug": "patience",
+      "label": "Patience",
+      "category": "experience"
+    },
+    {
+      "slug": "chill",
+      "label": "Chill",
+      "category": "experience"
+    },
+    {
+      "slug": "chaos",
+      "label": "Chaos",
+      "category": "experience"
+    },
+    {
+      "slug": "competitive",
+      "label": "Competitive",
+      "category": "experience"
+    },
+    {
+      "slug": "mods",
+      "label": "mods",
+      "category": "experience"
+    },
+    {
+      "slug": "gun-game",
+      "label": "Gun Game",
+      "category": "experience"
+    },
+    {
+      "slug": "prop-hunt",
+      "label": "Prop Hunt",
+      "category": "experience"
+    },
+    {
+      "slug": "aim-training",
+      "label": "Aim Training",
+      "category": "experience"
+    },
+    {
+      "slug": "movement-training",
+      "label": "Movement Training",
+      "category": "experience"
+    },
+    {
+      "slug": "aggressive",
+      "label": "Aggressive",
+      "category": "experience"
+    },
+    {
+      "slug": "training",
+      "label": "Training",
+      "category": "experience"
+    },
+    {
+      "slug": "balanced",
+      "label": "Balanced",
+      "category": "experience"
+    },
+    {
+      "slug": "casual",
+      "label": "Casual",
+      "category": "experience"
+    }
+  ]
+}

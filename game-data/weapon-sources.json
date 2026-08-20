@@ -1,0 +1,1154 @@
+[
+  {
+    "name": "AAA-12",
+    "sourcePage": "https://straftat.wiki/wiki/AAA-12",
+    "sourceFile": "File:AAA12.png",
+    "originalUrl": "https://straftat.wiki/images/0/05/AAA12.png",
+    "originalSha1": "e113e030c95369727f6689fa6d82d0547fa87c1d",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/aaa-12.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 358116,
+      "partialPixels": 2404
+    }
+  },
+  {
+    "name": "AK",
+    "sourcePage": "https://straftat.wiki/wiki/AK",
+    "sourceFile": "File:AK.png",
+    "originalUrl": "https://straftat.wiki/images/b/b7/AK.png",
+    "originalSha1": "b8963e1dcb1904a1dba02995d556806787d34767",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/ak.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 369619,
+      "partialPixels": 4496
+    }
+  },
+  {
+    "name": "AP Mine",
+    "sourcePage": "https://straftat.wiki/wiki/AP_Mine",
+    "sourceFile": "File:ap mine.png",
+    "originalUrl": "https://straftat.wiki/images/4/45/Ap_mine.png",
+    "originalSha1": "24035050587dee0443742dcfa92cd17fa4f272da",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/ap-mine.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 355576,
+      "partialPixels": 3285
+    }
+  },
+  {
+    "name": "AR",
+    "sourcePage": "https://straftat.wiki/wiki/AR",
+    "sourceFile": "File:AR.png",
+    "originalUrl": "https://straftat.wiki/images/b/b8/AR.png",
+    "originalSha1": "edd5159139516bc73659fc24091fa0bf29e41a9e",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/ar.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 370370,
+      "partialPixels": 5429
+    }
+  },
+  {
+    "name": "Baseball Bat",
+    "sourcePage": "https://straftat.wiki/wiki/Baseball_Bat",
+    "sourceFile": "File:Bat.png",
+    "originalUrl": "https://straftat.wiki/images/a/ad/Bat.png",
+    "originalSha1": "f38ac95a57c4bce325ac010241a479b233b1bc70",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/baseball-bat.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 373919,
+      "partialPixels": 1238
+    }
+  },
+  {
+    "name": "Bayshore",
+    "sourcePage": "https://straftat.wiki/wiki/Bayshore",
+    "sourceFile": "File:bayshore.png",
+    "originalUrl": "https://straftat.wiki/images/1/1b/Bayshore.png",
+    "originalSha1": "ca6212b2116ff0767f585b213b3df58ff677f75f",
+    "width": 734,
+    "height": 734,
+    "output": "/weapons/bayshore.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 478273,
+      "partialPixels": 6586
+    }
+  },
+  {
+    "name": "Beam Load",
+    "sourcePage": "https://straftat.wiki/wiki/Beam_Load",
+    "sourceFile": "File:BeamLoad.png",
+    "originalUrl": "https://straftat.wiki/images/0/0b/BeamLoad.png",
+    "originalSha1": "0797568adc41f1750cfa61877b5a2a0d1c167912",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/beam-load.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 329175,
+      "partialPixels": 643
+    }
+  },
+  {
+    "name": "Bender",
+    "sourcePage": "https://straftat.wiki/wiki/Bender",
+    "sourceFile": "File:Bender.png",
+    "originalUrl": "https://straftat.wiki/images/4/43/Bender.png",
+    "originalSha1": "b9a5a7f779b5bf58628fe86480ddeef390225ab7",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/bender.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 323213,
+      "partialPixels": 2986
+    }
+  },
+  {
+    "name": "Blank State",
+    "sourcePage": "https://straftat.wiki/wiki/Blank_State",
+    "sourceFile": "File:BlankState.png",
+    "originalUrl": "https://straftat.wiki/images/a/a0/BlankState.png",
+    "originalSha1": "1c5375124db409d33d25e2e3abb5bad0d045d4bd",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/blank-state.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 332865,
+      "partialPixels": 3545
+    }
+  },
+  {
+    "name": "Blister",
+    "sourcePage": "https://straftat.wiki/wiki/Blister",
+    "sourceFile": "File:df_blister.png",
+    "originalUrl": "https://straftat.wiki/images/5/5f/Df_blister.png",
+    "originalSha1": "8e4b65fe670eedd5709612fd9963defa6ea0bbfd",
+    "width": 961,
+    "height": 961,
+    "output": "/weapons/blister.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 772614,
+      "partialPixels": 3336
+    }
+  },
+  {
+    "name": "Bublee",
+    "sourcePage": "https://straftat.wiki/wiki/Bublee",
+    "sourceFile": "File:Bublee.png",
+    "originalUrl": "https://straftat.wiki/images/7/75/Bublee.png",
+    "originalSha1": "2548a029b616582eae8d8010c0cbbf5ea645e407",
+    "width": 972,
+    "height": 972,
+    "output": "/weapons/bublee.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 842819,
+      "partialPixels": 228
+    }
+  },
+  {
+    "name": "Bukanee",
+    "sourcePage": "https://straftat.wiki/wiki/Bukanee",
+    "sourceFile": "File:Bukanee.png",
+    "originalUrl": "https://straftat.wiki/images/3/32/Bukanee.png",
+    "originalSha1": "63c1e98d469b47595e886e12749602710ff139a3",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/bukanee.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 412162,
+      "partialPixels": 4495
+    }
+  },
+  {
+    "name": "Claymore",
+    "sourcePage": "https://straftat.wiki/wiki/Claymore",
+    "sourceFile": "File:claymore.png",
+    "originalUrl": "https://straftat.wiki/images/0/0c/Claymore.png",
+    "originalSha1": "6882825307b7cb4d0b051d9c36fc063632f58f56",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/claymore.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 334693,
+      "partialPixels": 1599
+    }
+  },
+  {
+    "name": "Couperet",
+    "sourcePage": "https://straftat.wiki/wiki/Couperet",
+    "sourceFile": "File:Cleaver.png",
+    "originalUrl": "https://straftat.wiki/images/d/df/Cleaver.png",
+    "originalSha1": "11b67fe6ea3e8fa6fe64474533e6d263bcb10038",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/couperet.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 334847,
+      "partialPixels": 5989
+    }
+  },
+  {
+    "name": "Crisis",
+    "sourcePage": "https://straftat.wiki/wiki/Crisis",
+    "sourceFile": "File:crisis.png",
+    "originalUrl": "https://straftat.wiki/images/9/9f/Crisis.png",
+    "originalSha1": "120d4ea1b78084ba54d5b0185beab3392c1c7fa5",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/crisis.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 360887,
+      "partialPixels": 3802
+    }
+  },
+  {
+    "name": "Curved Knife",
+    "sourcePage": "https://straftat.wiki/wiki/Curved_Knife",
+    "sourceFile": "File:Curved_Knife.png",
+    "originalUrl": "https://straftat.wiki/images/2/25/Curved_Knife.png",
+    "originalSha1": "b8044520e6293799294bed51e876d96d29d47d6c",
+    "width": 837,
+    "height": 837,
+    "output": "/weapons/curved-knife.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 654447,
+      "partialPixels": 1907
+    }
+  },
+  {
+    "name": "Cyst",
+    "sourcePage": "https://straftat.wiki/wiki/Cyst",
+    "sourceFile": "File:df_cyst.png",
+    "originalUrl": "https://straftat.wiki/images/7/7b/Df_cyst.png",
+    "originalSha1": "ce0469ae7605d34c3e403c4871f09049f70cfb95",
+    "width": 868,
+    "height": 868,
+    "output": "/weapons/cyst.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 643680,
+      "partialPixels": 4511
+    }
+  },
+  {
+    "name": "Dispenser",
+    "sourcePage": "https://straftat.wiki/wiki/Dispenser",
+    "sourceFile": "File:Dispenser.png",
+    "originalUrl": "https://straftat.wiki/images/a/a6/Dispenser.png",
+    "originalSha1": "6b17a93e7a20bdde6eab0cb36482957b3ba82d12",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/dispenser.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 359904,
+      "partialPixels": 3870
+    }
+  },
+  {
+    "name": "Dual Launcher",
+    "sourcePage": "https://straftat.wiki/wiki/Dual_Launcher",
+    "sourceFile": "File:GrenadeLauncher.png",
+    "originalUrl": "https://straftat.wiki/images/0/0e/GrenadeLauncher.png",
+    "originalSha1": "6a44c6cb4db1ad43b39bab89124c09c5653eea3e",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/dual-launcher.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 354734,
+      "partialPixels": 3645
+    }
+  },
+  {
+    "name": "Elephant",
+    "sourcePage": "https://straftat.wiki/wiki/Elephant",
+    "sourceFile": "File:Elephant.png",
+    "originalUrl": "https://straftat.wiki/images/6/60/Elephant.png",
+    "originalSha1": "d500752c22e20ffa5f00f997a6085409da68cecd",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/elephant.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 366451,
+      "partialPixels": 3291
+    }
+  },
+  {
+    "name": "FG42",
+    "sourcePage": "https://straftat.wiki/wiki/FG42",
+    "sourceFile": "File:fg42.png",
+    "originalUrl": "https://straftat.wiki/images/e/e1/Fg42.png",
+    "originalSha1": "31d4bb5528f43156f94871f56afdde84bfc087ae",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/fg42.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 444284,
+      "partialPixels": 3575
+    }
+  },
+  {
+    "name": "Flamberge",
+    "sourcePage": "https://straftat.wiki/wiki/Flamberge",
+    "sourceFile": "File:Flamberge.png",
+    "originalUrl": "https://straftat.wiki/images/5/52/Flamberge.png",
+    "originalSha1": "f961caf8442285d05f5deecf52996447c665f476",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/flamberge.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 379864,
+      "partialPixels": 3411
+    }
+  },
+  {
+    "name": "Flashlight",
+    "sourcePage": "https://straftat.wiki/wiki/Flashlight",
+    "sourceFile": "File:Flashlight.png",
+    "originalUrl": "https://straftat.wiki/images/4/4d/Flashlight.png",
+    "originalSha1": "f1e0c6692fca98e5d7995c2fee282261529ad4f2",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/flashlight.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 314137,
+      "partialPixels": 465
+    }
+  },
+  {
+    "name": "Gamma",
+    "sourcePage": "https://straftat.wiki/wiki/Gamma",
+    "sourceFile": "File:Gamma.png",
+    "originalUrl": "https://straftat.wiki/images/4/4d/Gamma.png",
+    "originalSha1": "cd0abc32928918df1ef26c2f020f50826a99031c",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/gamma.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 364483,
+      "partialPixels": 1280
+    }
+  },
+  {
+    "name": "Gamma Gen 2",
+    "sourcePage": "https://straftat.wiki/wiki/Gamma_Gen_2",
+    "sourceFile": "File:GammaGen2.png",
+    "originalUrl": "https://straftat.wiki/images/4/4e/GammaGen2.png",
+    "originalSha1": "696787cd7ee4939f48554a06d243c1f7a755a5c0",
+    "width": 658,
+    "height": 658,
+    "output": "/weapons/gamma-gen-2.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 386587,
+      "partialPixels": 4412
+    }
+  },
+  {
+    "name": "Glaive Gun",
+    "sourcePage": "https://straftat.wiki/wiki/Glaive_Gun",
+    "sourceFile": "File:GlaiveGun.png",
+    "originalUrl": "https://straftat.wiki/images/7/72/GlaiveGun.png",
+    "originalSha1": "304ce56e4106abc7b975cf8da1ee27a37c388d7a",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/glaive-gun.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 362009,
+      "partialPixels": 2159
+    }
+  },
+  {
+    "name": "Gland Grenade",
+    "sourcePage": "https://straftat.wiki/wiki/Gland_Grenade",
+    "sourceFile": "File:GlandGrenade.png",
+    "originalUrl": "https://straftat.wiki/images/7/7d/GlandGrenade.png",
+    "originalSha1": "d5921e7be3fe2bc31a292f6b587f3c3b216add0e",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/gland-grenade.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 309434,
+      "partialPixels": 1292
+    }
+  },
+  {
+    "name": "Glock",
+    "sourcePage": "https://straftat.wiki/wiki/Glock",
+    "sourceFile": "File:GLock.png",
+    "originalUrl": "https://straftat.wiki/images/d/d3/GLock.png",
+    "originalSha1": "fc0ff589eda2a1610b82348de87fb7889fa5f4db",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/glock.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 320081,
+      "partialPixels": 3744
+    }
+  },
+  {
+    "name": "GodSword",
+    "sourcePage": "https://straftat.wiki/wiki/GodSword",
+    "sourceFile": "File:df_GodSword.png",
+    "originalUrl": "https://straftat.wiki/images/f/f2/Df_GodSword.png",
+    "originalSha1": "13b3b3d3d92cc21af7bb88629b514a0a137ed028",
+    "width": 848,
+    "height": 848,
+    "output": "/weapons/godsword.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 682687,
+      "partialPixels": 265
+    }
+  },
+  {
+    "name": "Gust",
+    "sourcePage": "https://straftat.wiki/wiki/Gust",
+    "sourceFile": "File:Gust.png",
+    "originalUrl": "https://straftat.wiki/images/b/bd/Gust.png",
+    "originalSha1": "57ff5a9ec5d2b29562ef4cd42afd66e27adc350a",
+    "width": 883,
+    "height": 883,
+    "output": "/weapons/gust.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 693008,
+      "partialPixels": 2742
+    }
+  },
+  {
+    "name": "Hand Canon",
+    "sourcePage": "https://straftat.wiki/wiki/Hand_Canon",
+    "sourceFile": "File:HandCannon.png",
+    "originalUrl": "https://straftat.wiki/images/4/47/HandCannon.png",
+    "originalSha1": "0a9acf50c399e0aed557d0f03f70b879af86d357",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/hand-canon.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 305635,
+      "partialPixels": 757
+    }
+  },
+  {
+    "name": "Hand Grenade",
+    "sourcePage": "https://straftat.wiki/wiki/Hand_Grenade",
+    "sourceFile": "File:grenade.png",
+    "originalUrl": "https://straftat.wiki/images/f/fb/Grenade.png",
+    "originalSha1": "04a76cc789089786fdfb1903b77cb3ef8f75c323",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/hand-grenade.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 288990,
+      "partialPixels": 2724
+    }
+  },
+  {
+    "name": "Havoc",
+    "sourcePage": "https://straftat.wiki/wiki/Havoc",
+    "sourceFile": "File:Havoc.png",
+    "originalUrl": "https://straftat.wiki/images/5/5b/Havoc.png",
+    "originalSha1": "31d46fc173f43a6d1c59ce34be922a3225a95c9b",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/havoc.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 334976,
+      "partialPixels": 2230
+    }
+  },
+  {
+    "name": "Hill H15",
+    "sourcePage": "https://straftat.wiki/wiki/Hill_H15",
+    "sourceFile": "File:hill h15.png",
+    "originalUrl": "https://straftat.wiki/images/c/c8/Hill_h15.png",
+    "originalSha1": "cda8e9c66ea3bf3a2eefbabe21eaac19fbd186a9",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/hill-h15.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 423124,
+      "partialPixels": 6115
+    }
+  },
+  {
+    "name": "HK Caws",
+    "sourcePage": "https://straftat.wiki/wiki/HK_Caws",
+    "sourceFile": "File:HK CAWS.png",
+    "originalUrl": "https://straftat.wiki/images/2/2e/HK_CAWS.png",
+    "originalSha1": "831c154110818f7df6d8d0942c1d5c0a8d74415a",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/hk-caws.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 419811,
+      "partialPixels": 4259
+    }
+  },
+  {
+    "name": "HK G11",
+    "sourcePage": "https://straftat.wiki/wiki/HK_G11",
+    "sourceFile": "File:hk g11.png",
+    "originalUrl": "https://straftat.wiki/images/7/7b/Hk_g11.png",
+    "originalSha1": "8e53659ec5bd6ebd3352d9d4c491ab1fba4e076a",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/hk-g11.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 405933,
+      "partialPixels": 5192
+    }
+  },
+  {
+    "name": "Impetus",
+    "sourcePage": "https://straftat.wiki/wiki/Impetus",
+    "sourceFile": "File:Impetus.png",
+    "originalUrl": "https://straftat.wiki/images/a/ac/Impetus.png",
+    "originalSha1": "ff26ceafe8e6c8a72e2899ef006a8ed3ab07fc6f",
+    "width": 844,
+    "height": 844,
+    "output": "/weapons/impetus.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 664062,
+      "partialPixels": 859
+    }
+  },
+  {
+    "name": "Javal Mahmaerd",
+    "sourcePage": "https://straftat.wiki/wiki/Javal_Mahmaerd",
+    "sourceFile": "File:Javal Mahmaerd.png",
+    "originalUrl": "https://straftat.wiki/images/d/db/Javal_Mahmaerd.png",
+    "originalSha1": "29af7cca4f8f1a7929e56489bcc7d53a7785fb31",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/javal-mahmaerd.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 383528,
+      "partialPixels": 2673
+    }
+  },
+  {
+    "name": "Kanye",
+    "sourcePage": "https://straftat.wiki/wiki/Kanye",
+    "sourceFile": "File:kanye.png",
+    "originalUrl": "https://straftat.wiki/images/9/90/Kanye.png",
+    "originalSha1": "5f02b1b8a127069ec1dfdca22b6b600574819f83",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/kanye.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 365647,
+      "partialPixels": 4014
+    }
+  },
+  {
+    "name": "Keso",
+    "sourcePage": "https://straftat.wiki/wiki/Keso",
+    "sourceFile": "File:Keso.png",
+    "originalUrl": "https://straftat.wiki/images/a/a9/Keso.png",
+    "originalSha1": "4345c9463d2d40c293b93fb1ccb5c2afdeb1ee2f",
+    "width": 633,
+    "height": 633,
+    "output": "/weapons/keso.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 311220,
+      "partialPixels": 10835
+    }
+  },
+  {
+    "name": "Kusma",
+    "sourcePage": "https://straftat.wiki/wiki/Kusma",
+    "sourceFile": "File:Kusma.png",
+    "originalUrl": "https://straftat.wiki/images/b/b8/Kusma.png",
+    "originalSha1": "6cc996874ef31a3d67bacbef9cc4131818cb9ba0",
+    "width": 756,
+    "height": 756,
+    "output": "/weapons/kusma.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 506298,
+      "partialPixels": 6251
+    }
+  },
+  {
+    "name": "M2000",
+    "sourcePage": "https://straftat.wiki/wiki/M2000",
+    "sourceFile": "File:M2000.png",
+    "originalUrl": "https://straftat.wiki/images/5/51/M2000.png",
+    "originalSha1": "050677c8c6a59319a026d80505afa624e07bde97",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/m2000.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 370605,
+      "partialPixels": 4982
+    }
+  },
+  {
+    "name": "MAC10",
+    "sourcePage": "https://straftat.wiki/wiki/MAC10",
+    "sourceFile": "File:mac10.png",
+    "originalUrl": "https://straftat.wiki/images/c/ce/Mac10.png",
+    "originalSha1": "1c27759b267d2a0c7723d41da84f1c3e92cfc009",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/mac10.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 322300,
+      "partialPixels": 4283
+    }
+  },
+  {
+    "name": "Minigun",
+    "sourcePage": "https://straftat.wiki/wiki/Minigun",
+    "sourceFile": "File:Minigun.png",
+    "originalUrl": "https://straftat.wiki/images/e/eb/Minigun.png",
+    "originalSha1": "9cbc3ca6ec47d03200b0a1e48b6448d3157cfff0",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/minigun.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 346066,
+      "partialPixels": 4368
+    }
+  },
+  {
+    "name": "Mortini",
+    "sourcePage": "https://straftat.wiki/wiki/Mortini",
+    "sourceFile": "File:Mortini.png",
+    "originalUrl": "https://straftat.wiki/images/b/bb/Mortini.png",
+    "originalSha1": "e0b516b934fb47d97445594c4d0f23b8fc4cd413",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/mortini.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 360421,
+      "partialPixels": 7033
+    }
+  },
+  {
+    "name": "Nizeh",
+    "sourcePage": "https://straftat.wiki/wiki/Nizeh",
+    "sourceFile": "File:Nizeh.png",
+    "originalUrl": "https://straftat.wiki/images/1/11/Nizeh.png",
+    "originalSha1": "3edf7e5b26758823bad1397ded01dbf543bcdbb5",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/nizeh.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 390573,
+      "partialPixels": 1347
+    }
+  },
+  {
+    "name": "Oklahoma",
+    "sourcePage": "https://straftat.wiki/wiki/Oklahoma",
+    "sourceFile": "File:Oklahoma.png",
+    "originalUrl": "https://straftat.wiki/images/1/14/Oklahoma.png",
+    "originalSha1": "2e8eec05bd12c7b4b1a55a0ef1dcb5aec9aa959f",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/oklahoma.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 378912,
+      "partialPixels": 3639
+    }
+  },
+  {
+    "name": "Phoenix",
+    "sourcePage": "https://straftat.wiki/wiki/Phoenix",
+    "sourceFile": "File:Phoenix.png",
+    "originalUrl": "https://straftat.wiki/images/c/c1/Phoenix.png",
+    "originalSha1": "5a282e2cc5930c9acee066f07fa4c2999d6ae768",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/phoenix.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 350532,
+      "partialPixels": 799
+    }
+  },
+  {
+    "name": "Pistol",
+    "sourcePage": "https://straftat.wiki/wiki/Pistol",
+    "sourceFile": "File:Pistol.png",
+    "originalUrl": "https://straftat.wiki/images/a/a2/Pistol.png",
+    "originalSha1": "4353536f74e65b2c83a8c9c83a70f50085b60505",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/pistol.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 330937,
+      "partialPixels": 3524
+    }
+  },
+  {
+    "name": "Propeller",
+    "sourcePage": "https://straftat.wiki/wiki/Propeller",
+    "sourceFile": "File:Propeller.png",
+    "originalUrl": "https://straftat.wiki/images/9/97/Propeller.png",
+    "originalSha1": "87b466a58630535e2f4f872bd0b41b167aca060f",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/propeller.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 384890,
+      "partialPixels": 3519
+    }
+  },
+  {
+    "name": "Prophet",
+    "sourcePage": "https://straftat.wiki/wiki/Prophet",
+    "sourceFile": "File:Prophet.png",
+    "originalUrl": "https://straftat.wiki/images/4/4a/Prophet.png",
+    "originalSha1": "2f80276d5420118f1d9d6bcf4a1615821e4741fa",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/prophet.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 381525,
+      "partialPixels": 7813
+    }
+  },
+  {
+    "name": "Proximity Mine",
+    "sourcePage": "https://straftat.wiki/wiki/Proximity_Mine",
+    "sourceFile": "File:ProximityMine.png",
+    "originalUrl": "https://straftat.wiki/images/c/c6/ProximityMine.png",
+    "originalSha1": "554a16444481a908672d01a191d5cc44ee30a612",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/proximity-mine.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 359327,
+      "partialPixels": 2853
+    }
+  },
+  {
+    "name": "QCW05",
+    "sourcePage": "https://straftat.wiki/wiki/QCW05",
+    "sourceFile": "File:QCW05.png",
+    "originalUrl": "https://straftat.wiki/images/6/63/QCW05.png",
+    "originalSha1": "702bc3da4321a67521c94276acc926c11fce4f27",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/qcw05.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 427446,
+      "partialPixels": 4760
+    }
+  },
+  {
+    "name": "Repulsar",
+    "sourcePage": "https://straftat.wiki/wiki/Repulsar",
+    "sourceFile": "File:Repulsar.png",
+    "originalUrl": "https://straftat.wiki/images/a/aa/Repulsar.png",
+    "originalSha1": "6bdc95fc6c2c962352112eeacb2fb0ade0e3a321",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/repulsar.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 305570,
+      "partialPixels": 1067
+    }
+  },
+  {
+    "name": "Revolver",
+    "sourcePage": "https://straftat.wiki/wiki/Revolver",
+    "sourceFile": "File:Revolver.png",
+    "originalUrl": "https://straftat.wiki/images/6/6d/Revolver.png",
+    "originalSha1": "bba70c1926764ff27c500d803872a8650dde6d62",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/revolver.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 353736,
+      "partialPixels": 2926
+    }
+  },
+  {
+    "name": "Rocket Launcher",
+    "sourcePage": "https://straftat.wiki/wiki/Rocket_Launcher",
+    "sourceFile": "File:RocketLauncher.png",
+    "originalUrl": "https://straftat.wiki/images/8/88/RocketLauncher.png",
+    "originalSha1": "57378c8c2b3f43e5e9a8605005a12e7312559a7b",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/rocket-launcher.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 336314,
+      "partialPixels": 3500
+    }
+  },
+  {
+    "name": "Sawed Off",
+    "sourcePage": "https://straftat.wiki/wiki/Sawed_Off",
+    "sourceFile": "File:SawedOff.png",
+    "originalUrl": "https://straftat.wiki/images/b/b0/SawedOff.png",
+    "originalSha1": "98bf160657604d5af2cab46cba5766a23e3fa439",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/sawed-off.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 343875,
+      "partialPixels": 2725
+    }
+  },
+  {
+    "name": "Serac",
+    "sourcePage": "https://straftat.wiki/wiki/Serac",
+    "sourceFile": "File:serac.png",
+    "originalUrl": "https://straftat.wiki/images/6/68/Serac.png",
+    "originalSha1": "5c7ffebfeeec802a155000c69d22073f6d30d2cb",
+    "width": 807,
+    "height": 807,
+    "output": "/weapons/serac.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 535512,
+      "partialPixels": 2913
+    }
+  },
+  {
+    "name": "Shotgun",
+    "sourcePage": "https://straftat.wiki/wiki/Shotgun",
+    "sourceFile": "File:Shotgun.png",
+    "originalUrl": "https://straftat.wiki/images/6/61/Shotgun.png",
+    "originalSha1": "5f0b2e78ae63a60c5be1b7bd9a82f0a2fb44346b",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/shotgun.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 358272,
+      "partialPixels": 3800
+    }
+  },
+  {
+    "name": "Silenzzio",
+    "sourcePage": "https://straftat.wiki/wiki/Silenzzio",
+    "sourceFile": "File:Silenzio.png",
+    "originalUrl": "https://straftat.wiki/images/9/94/Silenzio.png",
+    "originalSha1": "4720df5598a28427ea746c6e27cf846b77a31a95",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/silenzzio.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 354453,
+      "partialPixels": 2319
+    }
+  },
+  {
+    "name": "SMG",
+    "sourcePage": "https://straftat.wiki/wiki/SMG",
+    "sourceFile": "File:SMG.png",
+    "originalUrl": "https://straftat.wiki/images/d/d6/SMG.png",
+    "originalSha1": "38fd2f113f181aaff98f2cf68ff6458d2352b48f",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/smg.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 358219,
+      "partialPixels": 5127
+    }
+  },
+  {
+    "name": "Smith Carbine",
+    "sourcePage": "https://straftat.wiki/wiki/Smith_Carbine",
+    "sourceFile": "File:SmithCarbine.png",
+    "originalUrl": "https://straftat.wiki/images/b/b5/SmithCarbine.png",
+    "originalSha1": "87318806b1b17d1b352d330e270a012406816038",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/smith-carbine.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 378511,
+      "partialPixels": 2323
+    }
+  },
+  {
+    "name": "Stun Grenade",
+    "sourcePage": "https://straftat.wiki/wiki/Stun_Grenade",
+    "sourceFile": "File:stungrenade.png",
+    "originalUrl": "https://straftat.wiki/images/2/2d/Stungrenade.png",
+    "originalSha1": "be61dd29e95a465e7c7b7384cf34f7913bca0788",
+    "width": 658,
+    "height": 658,
+    "output": "/weapons/stun-grenade.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 353602,
+      "partialPixels": 2484
+    }
+  },
+  {
+    "name": "Stun Mine",
+    "sourcePage": "https://straftat.wiki/wiki/Stun_Mine",
+    "sourceFile": "File:stunmine.png",
+    "originalUrl": "https://straftat.wiki/images/c/c0/Stunmine.png",
+    "originalSha1": "98a20f1e281c22487156d29481fbc2e38cd332de",
+    "width": 578,
+    "height": 578,
+    "output": "/weapons/stun-mine.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 273900,
+      "partialPixels": 4204
+    }
+  },
+  {
+    "name": "Stylus",
+    "sourcePage": "https://straftat.wiki/wiki/Stylus",
+    "sourceFile": "File:Stylus.png",
+    "originalUrl": "https://straftat.wiki/images/6/65/Stylus.png",
+    "originalSha1": "74a046ff1834bba4d029535455d62bd2ed34249a",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/stylus.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 379735,
+      "partialPixels": 2702
+    }
+  },
+  {
+    "name": "Taser",
+    "sourcePage": "https://straftat.wiki/wiki/Taser",
+    "sourceFile": "File:Taser.png",
+    "originalUrl": "https://straftat.wiki/images/0/08/Taser.png",
+    "originalSha1": "34eda9b265d64ee1e0621e00f810ec9aa85af845",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/taser.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 332058,
+      "partialPixels": 1270
+    }
+  },
+  {
+    "name": "The Katana",
+    "sourcePage": "https://straftat.wiki/wiki/The_Katana",
+    "sourceFile": "File:the katana.png",
+    "originalUrl": "https://straftat.wiki/images/d/d0/The_katana.png",
+    "originalSha1": "89c01bec028813f9deb56a7dfda641f1afd8a03d",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/the-katana.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 459812,
+      "partialPixels": 3398
+    }
+  },
+  {
+    "name": "Torrent",
+    "sourcePage": "https://straftat.wiki/wiki/Torrent",
+    "sourceFile": "File:df_torrent.png",
+    "originalUrl": "https://straftat.wiki/images/d/da/Df_torrent.png",
+    "originalSha1": "ff1b28b6155f189ab1e695a01dbd63fb97beffea",
+    "width": 868,
+    "height": 868,
+    "output": "/weapons/torrent.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 672050,
+      "partialPixels": 3008
+    }
+  },
+  {
+    "name": "Tromblonj",
+    "sourcePage": "https://straftat.wiki/wiki/Tromblonj",
+    "sourceFile": "File:Tromblonj.png",
+    "originalUrl": "https://straftat.wiki/images/5/57/Tromblonj.png",
+    "originalSha1": "dd5704768acb1dd32c6a7d00035065b70bed190f",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/tromblonj.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 366040,
+      "partialPixels": 2885
+    }
+  },
+  {
+    "name": "Warden",
+    "sourcePage": "https://straftat.wiki/wiki/Warden",
+    "sourceFile": "File:Warden.png",
+    "originalUrl": "https://straftat.wiki/images/a/a5/Warden.png",
+    "originalSha1": "f80e770269e5f60c69b9ffb9c86c294bb52e0fbd",
+    "width": 615,
+    "height": 645,
+    "output": "/weapons/warden.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 370719,
+      "partialPixels": 3057
+    }
+  },
+  {
+    "name": "Webley",
+    "sourcePage": "https://straftat.wiki/wiki/Webley",
+    "sourceFile": "File:webley.png",
+    "originalUrl": "https://straftat.wiki/images/5/57/Webley.png",
+    "originalSha1": "ab9d26b187740eecb9ec1955db9e8d0be0031652",
+    "width": 703,
+    "height": 667,
+    "output": "/weapons/webley.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 414961,
+      "partialPixels": 3837
+    }
+  },
+  {
+    "name": "Yangtse",
+    "sourcePage": "https://straftat.wiki/wiki/Yangtse",
+    "sourceFile": "File:Yangtse.png",
+    "originalUrl": "https://straftat.wiki/images/b/bc/Yangtse.png",
+    "originalSha1": "4ff6973ed8af40a83f0bf7af76c24a504016c5e5",
+    "width": 674,
+    "height": 674,
+    "output": "/weapons/yangtse.webp",
+    "backgroundRemoval": {
+      "method": "border-connected-flat-v1",
+      "keyColor": "#313131",
+      "transparentPixels": 339774,
+      "partialPixels": 6005
+    }
+  }
+]

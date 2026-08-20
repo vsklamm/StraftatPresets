@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "straftat-presets",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-21",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "straftat-presets"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "straftat-presets",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "db/init"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "THUMBNAILS",
+      "bucket_name": "straftat-presets-thumbnails",
+      "preview_bucket_name": "straftat-presets-thumbnails-preview"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

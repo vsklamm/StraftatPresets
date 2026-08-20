@@ -1,0 +1,1502 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { signIn, useSession } from "next-auth/react";
+import { AuthControl } from "@/app/auth-control";
+import { WeaponMix } from "@/app/weapon-mix";
+import { StraftatText } from "./straftat-text";
+import { PresetContentEditor, starterPresetContent } from "@/app/preset-editor";
+import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
+import { getPresetLimitMessage, MAX_PRESETS_PER_AUTHOR } from "@/src/domain/preset-policy";
+import { gameCatalog, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-catalog";
+import { tagCatalogEntries } from "@/src/domain/tag-catalog";
+import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
+import { calculatePresetRanking, type PresetEngagementSignals } from "@/src/domain/preset-ranking";
+import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
+import { recordPresetInteraction, setPresetLike } from "@/src/lib/preset-interactions-client";
+import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
+import type { ActiveTag } from "@/src/application/ports";
+import {
+  countTextLines,
+  formatCardDescriptionPreview,
+  hasConsecutiveEmptyLines,
+  MAX_PRESET_DESCRIPTION_CHARACTERS,
+  MAX_PRESET_DESCRIPTION_LINES,
+  MAX_PRESET_TITLE_CHARACTERS,
+  normalizePresetContent,
+  type PresetRevisionContent,
+} from "@/src/domain/preset-content";
+import { formatPresetVersionLabel, sortPresetVersionsNewestFirst } from "@/src/domain/preset-version";
+import type { PresetIssue, UserPresetState } from "@/src/domain/preset-workflow";
+import { MAX_THUMBNAIL_UPLOAD_BYTES } from "@/src/domain/thumbnail-policy";
+import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization";
+import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
+import { stripColorAndFormattingTags } from "@/src/lib/moderation/strip-color-codes";
+import type { MapPlaylist, Preset, PresetVersion, SortDirection, WeaponSortKey } from "@/src/application/preset-view";
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+import {
+  localDraftKey,
+  parseLocalDraftSnapshot,
+  reconcileLocalDraftWithRemote,
+  serializeLocalDraftSnapshot,
+} from "@/src/domain/preset-local-draft";
+
+type AuthPrompt = { action: "submit" } | { action: "like"; presetId: string; opened: boolean };
+type PresetRevisionToken = { revisionId: string; editVersion: number };
+type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardItem | undefined> };
+
+function rememberPresetRevision(
+  tokens: Map<string, PresetRevisionToken>,
+  preset: Pick<Preset, "id" | "revisionId" | "editVersion"> | Pick<PresetDashboardItem, "id" | "revisionId" | "editVersion">,
+) {
+  if (!preset.revisionId || preset.editVersion === undefined) return;
+  const current = tokens.get(preset.id);
+  if (!current || current.revisionId !== preset.revisionId || preset.editVersion >= current.editVersion) {
+    tokens.set(preset.id, { revisionId: preset.revisionId, editVersion: preset.editVersion });
+  }
+}
+
+function readLocalDraft(item: PresetDashboardItem): PresetRevisionContent | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(localDraftKey(item.id));
+  const snapshot = parseLocalDraftSnapshot(raw);
+  const reconciliation = reconcileLocalDraftWithRemote(item, snapshot);
+  if (reconciliation.shouldClearLocal) {
+    window.localStorage.removeItem(localDraftKey(item.id));
+  }
+  return reconciliation.isLocalNewer ? reconciliation.effectiveContent : null;
+}
+
+function writeLocalDraft(preset: Preset, content: PresetRevisionContent) {
+  if (!preset.revisionId || preset.editVersion === undefined || typeof window === "undefined") return;
+  try {
+    const serialized = serializeLocalDraftSnapshot({
+      revisionId: preset.revisionId,
+      editVersion: preset.editVersion,
+      content,
+    });
+    window.localStorage.setItem(localDraftKey(preset.id), serialized);
+  } catch {
+    // Local storage quota or disabled
+  }
+}
+
+function clearLocalDraft(presetId: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(localDraftKey(presetId));
+}
+
+function clearMatchingLocalDraft(presetId: string, signature: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(localDraftKey(presetId));
+    const snapshot = parseLocalDraftSnapshot(raw);
+    if (snapshot && JSON.stringify(snapshot.content) === signature) {
+      clearLocalDraft(presetId);
+    }
+  } catch {
+    clearLocalDraft(presetId);
+  }
+}
+
+function mediaUrl(key: string) {
+  return `/api/media/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function labelFromSlug(slug: string, tagLabels: ReadonlyMap<string, string>) {
+  return tagLabels.get(slug) ?? slug.split("-").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+}
+
+function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap<string, string>): Preset {
+  const content = normalizePresetContent(item.content);
+  const versions: PresetVersion[] = content.versions.map((version) => ({
+    label: version.label,
+    released: item.state === "pending" ? "Waiting for review" : item.state === "draft" ? "Draft" : "Published",
+    maps: version.mapPlaylists.map((playlist) => ({ name: playlist.name, mapCount: playlist.mapNames.length, description: playlist.description, code: playlist.encodedValue })),
+    randomizedWeapons: version.weaponConfigurations.find((configuration) => configuration.kind === "randomized")?.weapons,
+    swapper: version.weaponConfigurations.filter((configuration) => configuration.kind === "swapper").map((configuration) => ({ name: configuration.name, description: "", code: configuration.encodedValue })),
+  }));
+  return {
+    id: item.id,
+    slug: item.slug,
+    title: content.title,
+    author: item.authorName,
+    image: content.thumbnailKey ? mediaUrl(content.thumbnailKey) : undefined,
+    description: content.description,
+    tags: content.tags.map((tag) => labelFromSlug(tag, tagLabels)),
+    likes: item.likes,
+    publishedDaysAgo: item.publishedAt ? Math.max(0, Math.floor((Date.now() - new Date(item.publishedAt).getTime()) / 86_400_000)) : 0,
+    versions: versions.length ? versions : [{ label: "-", released: "Draft" }],
+    persisted: true,
+    state: item.state,
+    workingStatus: item.workingStatus,
+    canEdit: item.canEdit,
+    revisionId: item.revisionId,
+    editVersion: item.editVersion,
+    hasPublishedRevision: item.hasPublishedRevision,
+    issues: item.issues,
+    content,
+  };
+}
+
+function latestVersion(preset: Preset) { return sortPresetVersionsNewestFirst(preset.versions)[0]; }
+function configLabels(version: PresetVersion) {
+  return [
+    version.maps?.length ? `${version.maps.length} Map playlist${version.maps.length === 1 ? "" : "s"}` : null,
+    version.randomizedWeapons ? "Randomized weapons" : null,
+    version.swapper?.length ? `${version.swapper.length} Swapper setting${version.swapper.length === 1 ? "" : "s"}` : null,
+  ].filter(Boolean) as string[];
+}
+
+function engagementSignals(preset: Preset): PresetEngagementSignals {
+  const uniqueAuthenticated = Math.max(1, Math.round(preset.likes * 0.35));
+  const uniqueAnonymous = Math.max(1, Math.round(preset.likes * 0.8));
+  const copies = Math.max(1, Math.round(preset.likes * 1.15));
+  return {
+    likes: preset.likes,
+    opens: { total: preset.likes * 3 + 9, uniqueAnonymous: uniqueAnonymous * 2, uniqueAuthenticated },
+    linkOpens: { total: Math.max(1, Math.round(preset.likes * 0.7)), uniqueAnonymous: Math.max(1, Math.round(uniqueAnonymous * 0.45)), uniqueAuthenticated: Math.max(0, Math.round(uniqueAuthenticated * 0.35)) },
+    copies: { total: copies, uniqueAnonymous: Math.max(1, Math.round(copies * 0.55)), uniqueAuthenticated: Math.max(1, Math.round(copies * 0.25)) },
+  };
+}
+
+function presetRanking(preset: Preset) {
+  return calculatePresetRanking({
+    title: preset.title,
+    description: preset.description,
+    hasThumbnail: Boolean(preset.image),
+    versionCount: preset.versions.length,
+    mapPlaylistCount: preset.versions.reduce((total, version) => total + (version.maps?.length ?? 0), 0),
+    mapPlaylistWithDescriptionCount: preset.versions.reduce((total, version) => total + (version.maps?.length ?? 0), 0),
+    tagCount: preset.tags.length,
+    weaponConfigurationCount: preset.versions.reduce((total, version) => total + (version.randomizedWeapons ? 1 : 0) + (version.swapper?.length ?? 0), 0),
+  }, engagementSignals(preset), -preset.publishedDaysAgo * 86_400_000, 0);
+}
+
+export default function Home() {
+  const { status: authStatus } = useSession();
+  const [query, setQuery] = useState("");
+  const [searchTagPickerOpen, setSearchTagPickerOpen] = useState(false);
+  const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
+  const [dashboardView, setDashboardView] = useState<PresetDashboardView>("popular");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      void Promise.resolve().then(() => {
+        setIsMounted(true);
+        if (window.sessionStorage.getItem("justLoggedIn") === "true") {
+          window.sessionStorage.removeItem("justLoggedIn");
+          window.sessionStorage.setItem("dashboardView", "mine");
+          setDashboardView("mine");
+        } else {
+          const stored = window.sessionStorage.getItem("dashboardView");
+          if (stored === "popular" || stored === "newest" || stored === "mine") {
+            setDashboardView(stored);
+          }
+        }
+      });
+    }
+  }, []);
+  const [itemsByView, setItemsByView] = useState<Partial<Record<PresetDashboardView, PresetDashboardItem[]>>>({});
+  const updateDashboardItems = useCallback((updater: (current: PresetDashboardItem[]) => PresetDashboardItem[]) => {
+    setItemsByView((prev) => {
+      const next: Partial<Record<PresetDashboardView, PresetDashboardItem[]>> = {};
+      for (const [viewKey, items] of Object.entries(prev) as [PresetDashboardView, PresetDashboardItem[]][]) {
+        if (items) next[viewKey] = updater(items);
+      }
+      return next;
+    });
+  }, []);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState("");
+  const [tagCatalog, setTagCatalog] = useState<ActiveTag[]>([]);
+  const [selected, setSelected] = useState<Preset | null>(null);
+  const [versionLabel, setVersionLabel] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftContent, setDraftContent] = useState<PresetRevisionContent | null>(null);
+  const [editorVersionIndex, setEditorVersionIndex] = useState(0);
+  const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "error">("idle");
+  const [thumbnailError, setThumbnailError] = useState("");
+  const [failedThumbnailIds, setFailedThumbnailIds] = useState<Set<string>>(new Set());
+  const handleThumbnailError = (presetId: string) => {
+    setFailedThumbnailIds((prev) => (prev.has(presetId) ? prev : new Set(prev).add(presetId)));
+  };
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [showSubmissionIssues, setShowSubmissionIssues] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
+  const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [likedPresets, setLikedPresets] = useState<string[]>([]);
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [weaponSort, setWeaponSort] = useState<WeaponSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [weaponCopyBurst, setWeaponCopyBurst] = useState(0);
+  const [isDialogScrolling, setIsDialogScrolling] = useState(false);
+  const weaponCopyButtonRef = useRef<HTMLButtonElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const dialogScrollTimer = useRef<number | null>(null);
+  const savedContentRef = useRef("");
+  const serverContentByPresetRef = useRef(new Map<string, string>());
+  const presetRevisionTokensRef = useRef(new Map<string, PresetRevisionToken>());
+  const saveQueueRef = useRef(new SerializedTaskQueue());
+  const queuedSaveCountsRef = useRef(new Map<string, number>());
+  const latestQueuedSaveRef = useRef(new Map<string, QueuedPresetSave>());
+  const linkedInteractionRef = useRef("");
+  const openPresetIdRef = useRef("");
+  const dialogSectionRef = useRef<HTMLElement>(null);
+  const pendingLikeHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    void Promise.allSettled(gameCatalog.weapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/tags", { credentials: "same-origin", cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ tags: ActiveTag[] }> : Promise.reject())
+      .then((result) => { if (active) setTagCatalog(result.tags); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const activeDashboardView: PresetDashboardView = (authStatus === "unauthenticated" && dashboardView === "mine") || !isMounted ? "popular" : dashboardView;
+
+  useEffect(() => {
+    if (authStatus === "loading" || (activeDashboardView === "mine" && authStatus !== "authenticated")) return;
+    const controller = new AbortController();
+    void Promise.resolve().then(() => { if (!controller.signal.aborted) { setDashboardLoading(true); setDashboardError(""); } });
+    void fetch(`/api/presets?view=${activeDashboardView}&limit=48`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Presets could not be loaded.");
+        return response.json() as Promise<{ items: PresetDashboardItem[], likedPresetIds?: string[] }>;
+      })
+      .then((result) => {
+        const recovered = result.items.map((item) => {
+          serverContentByPresetRef.current.set(item.id, JSON.stringify(item.content));
+          const localContent = readLocalDraft(item);
+          return localContent ? { ...item, content: localContent } : item;
+        });
+        setItemsByView((prev) => ({ ...prev, [activeDashboardView]: recovered }));
+        if (result.likedPresetIds) {
+          setLikedPresets((current) => Array.from(new Set([...current, ...result.likedPresetIds!])));
+        }
+      })
+      .catch((error: unknown) => { if (!controller.signal.aborted) setDashboardError(error instanceof Error ? error.message : "Presets could not be loaded."); })
+      .finally(() => { if (!controller.signal.aborted) setDashboardLoading(false); });
+    return () => controller.abort();
+  }, [activeDashboardView, authStatus]);
+
+  const tagLabels = useMemo(() => new Map(tagCatalog.map((tag) => [tag.slug, tag.label])), [tagCatalog]);
+  const dashboardItems = itemsByView[activeDashboardView];
+  const isViewLoaded = dashboardItems !== undefined;
+  const storedPresets = useMemo(() => (dashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [dashboardItems, tagLabels]);
+  const dashboardPresets = useMemo(() => {
+    if (!isViewLoaded) return [];
+    if (activeDashboardView === "mine") return storedPresets;
+    return [...storedPresets].sort((left, right) => {
+      if (activeDashboardView === "newest") return left.publishedDaysAgo - right.publishedDaysAgo || left.title.localeCompare(right.title);
+      const leftRanking = presetRanking(left);
+      const rightRanking = presetRanking(right);
+      return rightRanking.total - leftRanking.total || rightRanking.quality - leftRanking.quality || left.title.localeCompare(right.title);
+    });
+  }, [activeDashboardView, isViewLoaded, storedPresets]);
+
+  const visiblePresets = useMemo(() => dashboardPresets.filter((preset) => {
+    const versionWeapons = preset.versions.flatMap((v) => (v.randomizedWeapons ?? []).map((w) => w.name)).join(" ");
+    const searchable = `${preset.title} ${preset.author} ${preset.description} ${preset.tags.join(" ")} ${versionWeapons}`.toLowerCase();
+    return searchable.includes(query.trim().toLowerCase());
+  }), [dashboardPresets, query]);
+
+  const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
+  const weightedWeapons = useMemo(() => calculateWeaponChances(selectedVersion?.randomizedWeapons ?? []), [selectedVersion]);
+  const sortedWeapons = useMemo(() => {
+    const direction = sortDirection === "asc" ? 1 : -1;
+    return [...weightedWeapons].sort((a, b) => {
+      if (weaponSort === "name") return a.name.localeCompare(b.name) * direction;
+      return (a[weaponSort] - b[weaponSort]) * direction;
+    });
+  }, [weightedWeapons, weaponSort, sortDirection]);
+
+  const [isRevalidating, setIsRevalidating] = useState(false);
+  const [revalidationFailedId, setRevalidationFailedId] = useState<string | null>(null);
+  const revalidateTimerRef = useRef<number | null>(null);
+
+  const revalidatePreset = useCallback(async (presetId: string) => {
+    if (revalidateTimerRef.current !== null) {
+      window.clearTimeout(revalidateTimerRef.current);
+    }
+    setIsRevalidating(true);
+    setRevalidationFailedId(null);
+
+    let completed = false;
+    revalidateTimerRef.current = window.setTimeout(() => {
+      if (!completed) {
+        setIsRevalidating(false);
+        setRevalidationFailedId(presetId);
+      }
+    }, 6000);
+
+    try {
+      const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+      });
+      completed = true;
+      if (revalidateTimerRef.current !== null) {
+        window.clearTimeout(revalidateTimerRef.current);
+        revalidateTimerRef.current = null;
+      }
+      setIsRevalidating(false);
+
+      if (!response.ok) {
+        setRevalidationFailedId(presetId);
+        return;
+      }
+
+      const data = (await response.json()) as { preset?: PresetDashboardItem };
+      if (!data.preset) {
+        setRevalidationFailedId(presetId);
+        return;
+      }
+
+      const localContent = readLocalDraft(data.preset);
+      rememberPresetRevision(presetRevisionTokensRef.current, data.preset);
+      const effectiveItem = localContent ? { ...data.preset, content: localContent } : data.preset;
+      const updated = dashboardItemToPreset(effectiveItem, tagLabels);
+      const savedSignature = JSON.stringify(data.preset.content);
+      serverContentByPresetRef.current.set(data.preset.id, savedSignature);
+      updateDashboardItems((current) => [effectiveItem, ...current.filter((item) => item.id !== data.preset!.id)]);
+
+      if (openPresetIdRef.current === presetId) {
+        setSelected((current) => {
+          if (!current || current.id !== presetId) return current;
+          return updated;
+        });
+        if (localContent) {
+          setDraftContent(localContent);
+        }
+        setRevalidationFailedId(null);
+      }
+    } catch {
+      completed = true;
+      if (revalidateTimerRef.current !== null) {
+        window.clearTimeout(revalidateTimerRef.current);
+        revalidateTimerRef.current = null;
+      }
+      setIsRevalidating(false);
+      setRevalidationFailedId(presetId);
+    }
+  }, [tagLabels, updateDashboardItems]);
+
+  const selectPreset = (preset: Preset, edit = false) => {
+    rememberPresetRevision(presetRevisionTokensRef.current, preset);
+    openPresetIdRef.current = preset.id;
+    setSelected(preset);
+    setVersionLabel(latestVersion(preset).label);
+    setCopied(null);
+    setWeaponSort("name");
+    setSortDirection("asc");
+    setWeaponCopyBurst(0);
+    setIsEditing(edit && Boolean(preset.canEdit));
+    setDraftContent(preset.content ?? null);
+    setEditorVersionIndex(0);
+    setThumbnailStatus("idle");
+    setThumbnailError("");
+    savedContentRef.current = serverContentByPresetRef.current.get(preset.id) ?? (preset.content ? JSON.stringify(preset.content) : "");
+    setSaveStatus("idle");
+    setShowSubmissionIssues(false);
+    setTagPickerOpen(false);
+    setTagQuery("");
+  };
+  const openPreset = (preset: Preset) => {
+    selectPreset(preset);
+    const url = new URL(window.location.href);
+    const identifier = preset.slug || preset.id;
+    url.searchParams.set("p", identifier);
+    window.history.pushState(null, "", url);
+    if (preset.persisted) {
+      void recordPresetInteraction(preset.id, "view").catch(() => undefined);
+      void revalidatePreset(preset.id);
+    }
+  };
+  const persistDraft = useCallback((preset: Preset, content: PresetRevisionContent, signature: string) => {
+    if (!preset.revisionId || preset.editVersion === undefined) return Promise.resolve<PresetDashboardItem | undefined>(undefined);
+    const queued = latestQueuedSaveRef.current.get(preset.id);
+    if (queued?.signature === signature) return queued.promise;
+    queuedSaveCountsRef.current.set(preset.id, (queuedSaveCountsRef.current.get(preset.id) ?? 0) + 1);
+    if (openPresetIdRef.current === preset.id) setSaveStatus("saving");
+
+    const operation = saveQueueRef.current.enqueue(preset.id, async () => {
+      const token = presetRevisionTokensRef.current.get(preset.id) ?? {
+        revisionId: preset.revisionId!,
+        editVersion: preset.editVersion!,
+      };
+      const response = await fetch(`/api/presets/${encodeURIComponent(preset.id)}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...token, content }),
+        keepalive: true,
+      });
+      const result = await response.json() as { preset?: PresetDashboardItem; error?: string };
+      if (!response.ok || !result.preset) throw new Error(result.error ?? "Autosave failed.");
+
+      rememberPresetRevision(presetRevisionTokensRef.current, result.preset);
+      const updated = dashboardItemToPreset(result.preset, tagLabels);
+      const savedSignature = JSON.stringify(result.preset.content);
+      serverContentByPresetRef.current.set(result.preset.id, savedSignature);
+      updateDashboardItems((current) => [result.preset!, ...current.filter((item) => item.id !== result.preset!.id)]);
+      clearMatchingLocalDraft(result.preset.id, signature);
+      if (openPresetIdRef.current === preset.id) {
+        savedContentRef.current = savedSignature;
+        setSelected((current) => current?.id === preset.id ? updated : current);
+        setDraftContent((current) => JSON.stringify(current) === signature ? result.preset!.content : current);
+        setVersionLabel(latestVersion(updated).label);
+      }
+      return result.preset;
+    });
+
+    const completion = operation.then((result) => {
+      const remaining = (queuedSaveCountsRef.current.get(preset.id) ?? 1) - 1;
+      if (remaining > 0) queuedSaveCountsRef.current.set(preset.id, remaining);
+      else queuedSaveCountsRef.current.delete(preset.id);
+      if (remaining === 0 && openPresetIdRef.current === preset.id) setSaveStatus("saved");
+      return result;
+    }, (error) => {
+      const remaining = (queuedSaveCountsRef.current.get(preset.id) ?? 1) - 1;
+      if (remaining > 0) queuedSaveCountsRef.current.set(preset.id, remaining);
+      else queuedSaveCountsRef.current.delete(preset.id);
+      console.error("Remote autosave failed:", error);
+      if (remaining === 0 && openPresetIdRef.current === preset.id) setSaveStatus("error");
+      throw error;
+    });
+    latestQueuedSaveRef.current.set(preset.id, { signature, promise: completion });
+    const clearQueuedSave = () => {
+      if (latestQueuedSaveRef.current.get(preset.id)?.promise === completion) latestQueuedSaveRef.current.delete(preset.id);
+    };
+    void completion.then(clearQueuedSave, clearQueuedSave);
+    return completion;
+  }, [tagLabels, updateDashboardItems]);
+
+  const exitEditMode = useCallback(() => {
+    if (isEditing && selected?.persisted && selected.canEdit && draftContent && selected.revisionId && selected.editVersion !== undefined) {
+      const signature = JSON.stringify(draftContent);
+      if (signature !== savedContentRef.current) {
+        void persistDraft(selected, draftContent, signature).catch(() => undefined);
+      }
+    }
+    setIsEditing(false);
+  }, [isEditing, selected, draftContent, persistDraft]);
+
+  const enterEditMode = useCallback(() => {
+    if (!selected?.canEdit) return;
+    setIsEditing(true);
+    if (!draftContent) {
+      setDraftContent(selected.content ?? null);
+    }
+  }, [selected, draftContent]);
+
+  const closePreset = useCallback(() => {
+    if (revalidateTimerRef.current !== null) {
+      window.clearTimeout(revalidateTimerRef.current);
+      revalidateTimerRef.current = null;
+    }
+    setIsRevalidating(false);
+    setRevalidationFailedId(null);
+    if (isEditing && selected?.persisted && selected.canEdit && draftContent) {
+      const signature = JSON.stringify(draftContent);
+      const isUnmodifiedNewDraft = selected.state === "draft" &&
+        signature === serverContentByPresetRef.current.get(selected.id) &&
+        (draftContent.title === "Untitled" || draftContent.title.toLowerCase() === "untitled name") &&
+        draftContent.description === "" &&
+        draftContent.versions.length === 1 &&
+        draftContent.versions[0].mapPlaylists[0].encodedValue === "" &&
+        draftContent.versions[0].weaponConfigurations.length === 0;
+
+      if (isUnmodifiedNewDraft) {
+        void fetch(`/api/presets/${encodeURIComponent(selected.id)}`, { method: "DELETE" }).catch(() => undefined);
+        clearLocalDraft(selected.id);
+        updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
+      } else {
+        updateDashboardItems((current) => current.map((item) => item.id === selected.id ? { ...item, content: draftContent, updatedAt: new Date() } : item));
+        if (signature !== savedContentRef.current) {
+          void persistDraft(selected, draftContent, signature).catch(() => undefined);
+        }
+      }
+    }
+    openPresetIdRef.current = "";
+    setSelected(null);
+    setIsEditing(false);
+    setDraftContent(null);
+    setShowSubmissionIssues(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("p");
+    window.history.replaceState({}, "", url.toString());
+  }, [isEditing, selected, draftContent, persistDraft, updateDashboardItems]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "s" || event.code === "KeyS")) {
+        if (selected) {
+          event.preventDefault();
+          const active = document.activeElement;
+          const isInputFocused =
+            active instanceof HTMLInputElement ||
+            active instanceof HTMLTextAreaElement ||
+            active instanceof HTMLSelectElement ||
+            Boolean((active as HTMLElement)?.isContentEditable);
+
+          if (isInputFocused) {
+            (active as HTMLElement).blur();
+            dialogSectionRef.current?.focus();
+          }
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (authPrompt) {
+          setAuthPrompt(null);
+          return;
+        }
+
+        if (selected) {
+          const active = document.activeElement;
+          const isInputFocused =
+            active instanceof HTMLInputElement ||
+            active instanceof HTMLTextAreaElement ||
+            active instanceof HTMLSelectElement ||
+            Boolean((active as HTMLElement)?.isContentEditable);
+
+          if (isInputFocused) {
+            (active as HTMLElement).blur();
+            if (tagPickerOpen) setTagPickerOpen(false);
+            return;
+          }
+
+          if (tagPickerOpen) {
+            setTagPickerOpen(false);
+            return;
+          }
+
+          if (isEditing) {
+            exitEditMode();
+            return;
+          }
+
+          closePreset();
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selected, isEditing, tagPickerOpen, authPrompt, exitEditMode, closePreset]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const openLinkedPreset = async () => {
+      const url = new URL(window.location.href);
+      const identifier = url.searchParams.get("p");
+      if (!identifier) return;
+
+      let linked = dashboardPresets.find((preset) => (preset.slug && preset.slug === identifier) || preset.id === identifier);
+
+      if (linked) {
+        if (openPresetIdRef.current === linked.id) return;
+        openPresetIdRef.current = linked.id;
+        setSelected(linked);
+        setVersionLabel(latestVersion(linked).label);
+        setDraftContent(linked.content ?? null);
+        setEditorVersionIndex(0);
+        savedContentRef.current = serverContentByPresetRef.current.get(linked.id) ?? (linked.content ? JSON.stringify(linked.content) : "");
+        setCopied(null);
+        setWeaponSort("name");
+        setSortDirection("asc");
+        setWeaponCopyBurst(0);
+        if (linked.persisted && linkedInteractionRef.current !== linked.id) {
+          linkedInteractionRef.current = linked.id;
+          void recordPresetInteraction(linked.id, "link_open").catch(() => undefined);
+        }
+        void revalidatePreset(linked.id);
+      } else {
+        if (openPresetIdRef.current === identifier) return;
+        openPresetIdRef.current = identifier;
+        try {
+          const response = await fetch(`/api/presets/${encodeURIComponent(identifier)}`, {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" },
+          });
+          if (response.ok) {
+            const data = (await response.json()) as { preset?: PresetDashboardItem };
+            if (data.preset && !isCancelled) {
+              const localContent = readLocalDraft(data.preset);
+              const effectiveItem = localContent ? { ...data.preset, content: localContent } : data.preset;
+              linked = dashboardItemToPreset(effectiveItem, tagLabels);
+              openPresetIdRef.current = linked.id;
+              updateDashboardItems((current) => [effectiveItem, ...current.filter((item) => item.id !== data.preset!.id)]);
+              setSelected(linked);
+              setVersionLabel(latestVersion(linked).label);
+              setDraftContent(linked.content ?? null);
+              setEditorVersionIndex(0);
+              savedContentRef.current = serverContentByPresetRef.current.get(linked.id) ?? (linked.content ? JSON.stringify(linked.content) : "");
+              setCopied(null);
+              setWeaponSort("name");
+              setSortDirection("asc");
+              setWeaponCopyBurst(0);
+              if (linked.persisted && linkedInteractionRef.current !== linked.id) {
+                linkedInteractionRef.current = linked.id;
+                void recordPresetInteraction(linked.id, "link_open").catch(() => undefined);
+              }
+            }
+          } else if (response.status === 404 && !isCancelled) {
+            openPresetIdRef.current = "";
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete("p");
+            window.history.replaceState(null, "", cleanUrl);
+            setActionError("This preset does not exist or has been removed.");
+          } else {
+            openPresetIdRef.current = "";
+          }
+        } catch {
+          openPresetIdRef.current = "";
+          if (!isCancelled && typeof window !== "undefined") {
+            try {
+              const raw = window.localStorage.getItem(localDraftKey(identifier));
+              const snapshot = parseLocalDraftSnapshot(raw);
+              if (snapshot) {
+                const localContent = snapshot.content;
+                const fallbackItem: PresetDashboardItem = {
+                  id: identifier,
+                  slug: identifier,
+                  authorId: "local",
+                  authorName: "Local Draft",
+                  workingStatus: "draft",
+                  hasPublishedRevision: false,
+                  canEdit: true,
+                  revisionId: snapshot.revisionId || "local",
+                  revisionNumber: 1,
+                  editVersion: snapshot.editVersion ?? 0,
+                  content: localContent,
+                  issues: [],
+                  likes: 0,
+                  updatedAt: new Date(snapshot.updatedAt || Date.now()),
+                  publishedAt: null,
+                };
+                linked = dashboardItemToPreset(fallbackItem, tagLabels);
+                openPresetIdRef.current = linked.id;
+                setSelected(linked);
+                setVersionLabel(latestVersion(linked).label);
+                setDraftContent(localContent);
+                setEditorVersionIndex(0);
+                setIsEditing(true);
+              }
+            } catch {
+              // Local storage fallback failed
+            }
+          }
+        }
+      }
+    };
+    void openLinkedPreset();
+    window.addEventListener("popstate", openLinkedPreset);
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("popstate", openLinkedPreset);
+    };
+  }, [dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
+
+  // Ensure local draft is always updated in localStorage synchronously on change
+  useEffect(() => {
+    if (!isEditing || !selected?.persisted || !selected.canEdit || !draftContent) return;
+    writeLocalDraft(selected, draftContent);
+  }, [draftContent, isEditing, selected]);
+
+  // Periodic remote autosave (every 1 minute if there are local unsaved changes)
+  useEffect(() => {
+    if (!isEditing || !selected?.persisted || !selected.canEdit || !selected.revisionId || selected.editVersion === undefined || !draftContent) return;
+    const interval = window.setInterval(() => {
+      const signature = JSON.stringify(draftContent);
+      if (signature !== savedContentRef.current) {
+        void persistDraft(selected, draftContent, signature).catch(() => {
+          if (openPresetIdRef.current === selected.id) setSaveStatus("error");
+        });
+      }
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [draftContent, isEditing, persistDraft, selected]);
+
+  // Flush remote autosave on tab backgrounding or page unload
+  useEffect(() => {
+    if (!isEditing || !selected?.persisted || !selected.canEdit || !draftContent || !selected.revisionId || selected.editVersion === undefined) return;
+
+    const flushRemoteSave = () => {
+      const signature = JSON.stringify(draftContent);
+      if (signature !== savedContentRef.current && !saveQueueRef.current.hasPending(selected.id)) {
+        const token = presetRevisionTokensRef.current.get(selected.id) ?? {
+          revisionId: selected.revisionId!,
+          editVersion: selected.editVersion!,
+        };
+        fetch(`/api/presets/${encodeURIComponent(selected.id)}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...token, content: draftContent }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") flushRemoteSave();
+    };
+
+    window.addEventListener("pagehide", flushRemoteSave);
+    window.addEventListener("beforeunload", flushRemoteSave);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("pagehide", flushRemoteSave);
+      window.removeEventListener("beforeunload", flushRemoteSave);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [isEditing, selected, draftContent]);
+
+  const updateDraftContent = (content: PresetRevisionContent) => {
+    setDraftContent(content);
+    if (selected?.persisted && selected.canEdit) {
+      writeLocalDraft(selected, content);
+      const signature = JSON.stringify(content);
+      if (signature === savedContentRef.current) {
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("idle");
+      }
+    }
+  };
+  const changeWeaponSort = (key: WeaponSortKey) => { if (weaponSort === key) setSortDirection((current) => current === "asc" ? "desc" : "asc"); else { setWeaponSort(key); setSortDirection("asc"); } };
+  const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
+  const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
+  const isLiked = (presetId: string) => likedPresets.includes(presetId);
+  const likeCount = (preset: Preset) => likeCounts[preset.id] ?? preset.likes;
+  const toggleLike = async (preset: Preset) => {
+    if (authStatus !== "authenticated") {
+      if (authStatus !== "loading") setAuthPrompt({ action: "like", presetId: preset.id, opened: selected?.id === preset.id });
+      return;
+    }
+    const wasLiked = isLiked(preset.id);
+    const nextLiked = !wasLiked;
+    const previousCount = likeCount(preset);
+    const optimisticCount = Math.max(0, previousCount + (nextLiked ? 1 : -1));
+
+    setLikedPresets((current) => nextLiked ? (current.includes(preset.id) ? current : [...current, preset.id]) : current.filter((id) => id !== preset.id));
+    setLikeCounts((current) => ({ ...current, [preset.id]: optimisticCount }));
+    if (!preset.persisted) return;
+    try {
+      const result = await setPresetLike(preset.id, nextLiked);
+      setLikeCounts((current) => ({ ...current, [preset.id]: result.likes }));
+    } catch {
+      setLikedPresets((current) => wasLiked ? (current.includes(preset.id) ? current : [...current, preset.id]) : current.filter((id) => id !== preset.id));
+      setLikeCounts((current) => ({ ...current, [preset.id]: previousCount }));
+    }
+  };
+  const copyText = async (key: string, text: string, target: string) => {
+    if (!navigator.clipboard) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    window.setTimeout(() => setCopied(null), 1800);
+    if (selected?.persisted) void recordPresetInteraction(selected.id, "copy", { target, presetVersionId: selectedVersion?.id }).catch(() => undefined);
+  };
+  const copyWeapons = (weapons: WeightedWeapon[]) => {
+    setWeaponCopyBurst((burst) => burst + 1);
+    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), `weapons:${selectedVersion?.id ?? selectedVersion?.label ?? "current"}`).catch(() => undefined);
+  };
+  const handleDialogScroll = () => {
+    setIsDialogScrolling(true);
+    if (dialogScrollTimer.current !== null) window.clearTimeout(dialogScrollTimer.current);
+    dialogScrollTimer.current = window.setTimeout(() => setIsDialogScrolling(false), 650);
+  };
+  const submitPreset = () => {
+    if (authStatus !== "authenticated") {
+      if (authStatus !== "loading") setAuthPrompt({ action: "submit" });
+      return;
+    }
+    if (itemsByView.mine && itemsByView.mine.length >= MAX_PRESETS_PER_AUTHOR) {
+      setActionError(getPresetLimitMessage());
+      if (activeDashboardView !== "mine") {
+        chooseDashboardView("mine");
+      }
+      return;
+    }
+    if (!isCreating) void createPreset();
+  };
+  const chooseDashboardView = (view: PresetDashboardView) => {
+    if (typeof window !== "undefined") window.sessionStorage.setItem("dashboardView", view);
+    setDashboardView(view);
+  };
+  const createPreset = async () => {
+    setIsCreating(true);
+    setActionError("");
+    try {
+      const response = await fetch("/api/presets", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Untitled" }) });
+      const result = await response.json() as { preset?: PresetDashboardItem; error?: string; code?: string };
+      if (!response.ok || !result.preset) {
+        if (result.code === "preset_limit_reached" && activeDashboardView !== "mine") {
+          chooseDashboardView("mine");
+        }
+        throw new Error(result.error ?? "The preset could not be created.");
+      }
+      serverContentByPresetRef.current.set(result.preset.id, JSON.stringify(result.preset.content));
+      const created = dashboardItemToPreset(result.preset, tagLabels);
+      setItemsByView((prev) => {
+        const next: Partial<Record<PresetDashboardView, PresetDashboardItem[]>> = {};
+        for (const [viewKey, items] of Object.entries(prev) as [PresetDashboardView, PresetDashboardItem[]][]) {
+          if (items) next[viewKey] = [result.preset!, ...items.filter((item) => item.id !== result.preset!.id)];
+        }
+        if (!next.mine) next.mine = [result.preset!];
+        return next;
+      });
+      if (typeof window !== "undefined") window.sessionStorage.setItem("dashboardView", "mine");
+      setDashboardView("mine");
+      selectPreset(created, true);
+      setDraftContent(starterPresetContent(result.preset.content));
+      const url = new URL(window.location.href);
+      const identifier = created.slug || created.id;
+      url.searchParams.set("p", identifier);
+      window.history.pushState(null, "", url);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "The preset could not be created.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+  useEffect(() => {
+    if (authStatus !== "authenticated" || isCreating) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("create") !== "1") return;
+    url.searchParams.delete("create");
+    window.history.replaceState(null, "", url);
+    window.queueMicrotask(() => void createPreset());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, isCreating]);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    const url = new URL(window.location.href);
+    const likePresetId = url.searchParams.get("like") || (typeof window !== "undefined" ? window.sessionStorage.getItem("pendingLikePresetId") : null);
+    if (!likePresetId || pendingLikeHandledRef.current === likePresetId) return;
+    pendingLikeHandledRef.current = likePresetId;
+
+    if (url.searchParams.has("like")) {
+      url.searchParams.delete("like");
+      window.history.replaceState(null, "", url);
+    }
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("pendingLikePresetId");
+    }
+
+    setLikedPresets((current) => current.includes(likePresetId) ? current : [...current, likePresetId]);
+    setLikeCounts((current) => ({
+      ...current,
+      [likePresetId]: (current[likePresetId] !== undefined ? current[likePresetId] : 0) + 1,
+    }));
+
+    void setPresetLike(likePresetId, true)
+      .then((result) => {
+        setLikeCounts((current) => ({ ...current, [likePresetId]: result.likes }));
+      })
+      .catch(() => {
+        setLikedPresets((current) => current.filter((id) => id !== likePresetId));
+      });
+  }, [authStatus]);
+  const submitSelectedPreset = async () => {
+    if (!selected?.revisionId || selected.editVersion === undefined) return;
+
+    if (draftContent && isEditing) {
+      const signature = JSON.stringify(draftContent);
+      if (signature !== savedContentRef.current) {
+        try {
+          await persistDraft(selected, draftContent, signature);
+        } catch {
+          setActionError("Could not save draft before submitting. Please check your connection.");
+          return;
+        }
+      }
+    }
+
+    try {
+      const token = presetRevisionTokensRef.current.get(selected.id) ?? {
+        revisionId: selected.revisionId,
+        editVersion: selected.editVersion,
+      };
+      const response = await fetch(`/api/presets/${encodeURIComponent(selected.id)}/submit`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(token),
+      });
+      const result = await response.json() as { preset?: PresetDashboardItem; issues?: PresetIssue[]; error?: string };
+      if (!response.ok || !result.preset) {
+        if (result.issues) {
+          setSelected((current) => current ? { ...current, issues: result.issues } : current);
+          setShowSubmissionIssues(true);
+          return;
+        }
+        throw new Error(result.error ?? "The preset could not be submitted.");
+      }
+      const submitted = dashboardItemToPreset(result.preset, tagLabels);
+      clearLocalDraft(result.preset.id);
+      serverContentByPresetRef.current.set(result.preset.id, JSON.stringify(result.preset.content));
+      updateDashboardItems((current) => [result.preset!, ...current.filter((item) => item.id !== result.preset!.id)]);
+      setShowSubmissionIssues(false);
+      selectPreset(submitted, false);
+    } catch {
+      setActionError("The preset could not be submitted. Try again.");
+    }
+  };
+  const deleteSelectedPreset = async () => {
+    if (!selected?.persisted || !selected.canEdit) return;
+    if (!window.confirm("Are you sure you want to remove this preset? This action cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`/api/presets/${encodeURIComponent(selected.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(result.error ?? "The preset could not be deleted.");
+      }
+
+      clearLocalDraft(selected.id);
+      serverContentByPresetRef.current.delete(selected.id);
+      presetRevisionTokensRef.current.delete(selected.id);
+      updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
+      setShowSubmissionIssues(false);
+      closePreset();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "The preset could not be deleted. Try again.");
+    }
+  };
+  const addTag = (slug: string) => {
+    if (!draftContent || draftContent.tags.includes(slug) || draftContent.tags.length >= 8) return;
+    updateDraftContent({ ...draftContent, tags: [...draftContent.tags, slug] });
+    setTagPickerOpen(false);
+    setTagQuery("");
+  };
+  const removeTag = (slug: string) => {
+    if (draftContent) updateDraftContent({ ...draftContent, tags: draftContent.tags.filter((tag) => tag !== slug) });
+  };
+  const uploadThumbnail = async (file: File) => {
+    if (!selected?.persisted || !isEditing) return;
+    if (file.size > MAX_THUMBNAIL_UPLOAD_BYTES) {
+      setThumbnailStatus("error");
+      setThumbnailError("Pic must be no larger than 2 MB.");
+      return;
+    }
+    setThumbnailStatus("uploading");
+    setThumbnailError("");
+    try {
+      const optimizedBlob = await optimizeThumbnailForUpload(file);
+      const body = new FormData();
+      body.set("image", optimizedBlob, file.name.replace(/\.[^.]+$/, ".webp"));
+      const response = await fetch(`/api/presets/${encodeURIComponent(selected.id)}/thumbnail`, { method: "POST", credentials: "same-origin", body });
+      const result = await response.json() as { key?: string; url?: string; error?: string };
+      if (!response.ok || !result.key || !result.url) throw new Error(result.error ?? "Pic could not be uploaded.");
+      setFailedThumbnailIds((prev) => {
+        if (!prev.has(selected.id)) return prev;
+        const next = new Set(prev);
+        next.delete(selected.id);
+        return next;
+      });
+      setSelected((current) => current ? { ...current, image: result.url } : current);
+      if (draftContent) updateDraftContent({ ...draftContent, thumbnailKey: result.key });
+      setThumbnailStatus("idle");
+    } catch (error) {
+      setThumbnailStatus("error");
+      setThumbnailError(error instanceof Error ? error.message : "Pic could not be uploaded.");
+    } finally {
+      if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+    }
+  };
+  const removeThumbnail = () => {
+    if (!selected || !draftContent?.thumbnailKey || thumbnailStatus === "uploading") return;
+    const nextContent = { ...draftContent, thumbnailKey: null };
+    updateDraftContent(nextContent);
+    setSelected((current) => current ? { ...current, image: undefined } : current);
+    setFailedThumbnailIds((current) => {
+      if (!current.has(selected.id)) return current;
+      const next = new Set(current);
+      next.delete(selected.id);
+      return next;
+    });
+    setThumbnailStatus("idle");
+    setThumbnailError("");
+    void persistDraft(selected, nextContent, JSON.stringify(nextContent)).catch(() => undefined);
+  };
+  const matchingTags = tagCatalog.filter((tag) => !draftContent?.tags.includes(tag.slug) && tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase()));
+  const revalidationIssues: PresetIssue[] = revalidationFailedId === selected?.id ? [
+    { source: "validation", field: "revalidation", code: "outdated", message: "Update failed - showing cached version that may be outdated." }
+  ] : [];
+  const visibleSubmissionIssues = [
+    ...(selected?.state === "draft" && (showSubmissionIssues || selected.workingStatus === "rejected") ? selected.issues ?? [] : []),
+    ...revalidationIssues,
+  ];
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
+        <nav className="tool-tabs" aria-label="StraftatPresets sections">
+          <button className="active" type="button">Community Presets</button><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a><a href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+        </nav>
+        <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl /></div>
+      </header>
+
+      <div className="workspace">
+        <section className="preset-browser" aria-label="Community presets">
+          <div className="dashboard-toolbar">
+            <div className="dashboard-views" role="group" aria-label="Preset order">
+              <button className={activeDashboardView === "popular" ? "active" : ""} type="button" onClick={() => chooseDashboardView("popular")}>Popular</button>
+              <button className={activeDashboardView === "newest" ? "active" : ""} type="button" onClick={() => chooseDashboardView("newest")}>Newest</button>
+              {authStatus === "authenticated" ? <button className={activeDashboardView === "mine" ? "active" : ""} type="button" onClick={() => chooseDashboardView("mine")}>My Presets</button> : null}
+            </div>
+            <div className="search-row">
+              <div className="search-input-wrap">
+                <input aria-label="Search community presets" placeholder="Search presets, creators, tags, weapons..." value={query} onChange={(event) => setQuery(event.target.value)} />
+                <div className="search-tools-right">
+                  {query ? <button className="search-clear-inline" type="button" aria-label="Clear search" onClick={() => setQuery("")}>×</button> : null}
+                  <button className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  </button>
+                  <button className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
+                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="15" width="15" xmlns="http://www.w3.org/2000/svg"><path d="M11 5.07089C7.93431 5.5094 5.5094 7.93431 5.07089 11H7V13H5.07089C5.5094 16.0657 7.93431 18.4906 11 18.9291V17H13V18.9291C16.0657 18.4906 18.4906 16.0657 18.9291 13H17V11H18.9291C18.4906 7.93431 16.0657 5.5094 13 5.07089V7H11V5.07089ZM3.05493 11C3.51608 6.82838 6.82838 3.51608 11 3.05493V1H13V3.05493C17.1716 3.51608 20.4839 6.82838 20.9451 11H23V13H20.9451C20.4839 17.1716 17.1716 20.4839 13 20.9451V23H11V20.9451C6.82838 20.4839 3.51608 17.1716 3.05493 13H1V11H3.05493ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" /></svg>
+                  </button>
+                </div>
+                {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(label) => { setQuery(label); setSearchTagPickerOpen(false); }} onClose={() => setSearchTagPickerOpen(false)} /> : null}
+                {weaponPickerOpen ? <RadialWeaponPicker weapons={gameCatalog.weapons} onSelect={(weaponName) => { setQuery(weaponName); setWeaponPickerOpen(false); }} onClose={() => setWeaponPickerOpen(false)} /> : null}
+              </div>
+            </div>
+            <button className="submit-preset" type="button" disabled={authStatus === "loading" || isCreating} onClick={submitPreset}>{isCreating ? "Opening draft…" : "＋ Submit preset"}</button>
+          </div>
+          {actionError ? <div className="action-toast" role="status"><Image src="/barrel.png" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
+
+          {visiblePresets.length ? <div className="preset-grid">{(() => {
+            type GridItem = { type: "single"; preset: typeof visiblePresets[0]; index: number } | { type: "group"; presets: [typeof visiblePresets[0], typeof visiblePresets[0]]; indices: [number, number] };
+            const items: GridItem[] = [];
+            let i = 0;
+            while (i < visiblePresets.length) {
+              const p1 = visiblePresets[i];
+              if (!p1.image && i + 1 < visiblePresets.length && !visiblePresets[i + 1].image) {
+                items.push({ type: "group", presets: [p1, visiblePresets[i + 1]], indices: [i, i + 1] });
+                i += 2;
+              } else {
+                items.push({ type: "single", preset: p1, index: i });
+                i += 1;
+              }
+            }
+
+            const renderCard = (preset: typeof visiblePresets[0], presetIndex: number, compact: boolean) => {
+              const version = latestVersion(preset); const labels = configLabels(version);
+              const isOwner = Boolean(preset.canEdit);
+              const showStateBadge = activeDashboardView === "mine" && Boolean(preset.state);
+              const hasValidImage = Boolean(preset.image && !failedThumbnailIds.has(preset.id));
+              return <article className={`preset-card ${compact ? "compact" : ""} ${isOwner ? "is-owner" : ""}`} key={preset.id}>
+                <button className="card-open" type="button" onClick={() => openPreset(preset)} aria-label={`Open ${preset.title} ${version.label}`}>
+                  {!compact ? (hasValidImage ? <div className="preset-image"><Image src={preset.image!} alt="" fill priority={presetIndex < 4} sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw" onError={() => handleThumbnailError(preset.id)} /></div> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" /></div>) : null}
+                  <div className="preset-card-body">
+                    <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{showStateBadge && preset.state ? <PresetStateBadge state={preset.state} /> : null}<span className="version-badge">{formatPresetVersionLabel(version.label)}</span></div></div>
+                    <p>{formatCardDescriptionPreview(preset.description)}</p>
+                    <div className="content-labels">{labels.map((label) => <span key={label}>{label}</span>)}</div>
+                    <div className="tag-row">{preset.tags.slice(0, compact ? 3 : MAX_VISIBLE_PRESET_TAGS).map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    <div className="preset-author"><span>by {preset.author}</span></div>
+                  </div>
+                </button>
+                {!preset.state || preset.state === "published" ? <button className={`like-button ${isLiked(preset.id) ? "liked" : ""}`} type="button" aria-label={`${isLiked(preset.id) ? "Unlike" : "Like"} ${preset.title}`} aria-pressed={isLiked(preset.id)} onClick={() => void toggleLike(preset)}><span aria-hidden="true">♥</span><b>{likeCount(preset).toLocaleString()}</b></button> : null}
+              </article>;
+            };
+
+            const showCreateSlot = activeDashboardView === "mine" && authStatus === "authenticated" && !query && storedPresets.length < MAX_PRESETS_PER_AUTHOR;
+
+            return (
+              <>
+                {items.map((item, idx) => {
+                  if (item.type === "group") {
+                    return <div className="preset-card-group" key={`group-${idx}`}>
+                      {renderCard(item.presets[0], item.indices[0], true)}
+                      {renderCard(item.presets[1], item.indices[1], true)}
+                    </div>;
+                  }
+                  return renderCard(item.preset, item.index, false);
+                })}
+                {showCreateSlot ? (
+                  <button className="create-preset-slot" type="button" disabled={isCreating} onClick={submitPreset} aria-label="Create preset">
+                    <span className="create-slot-icon" aria-hidden="true"><PlusIcon /></span>
+                    <span className="create-slot-title">{isCreating ? "Opening draft…" : "Create preset"}</span>
+                    <span className="create-slot-desc">Draft custom weapon pools &amp; map rotations</span>
+                  </button>
+                ) : null}
+              </>
+            );
+          })()}</div> : !isViewLoaded || dashboardLoading
+            ? <div className="empty-state"><h2>Loading presets…</h2><p>{dashboardError || ""}</p></div>
+            : activeDashboardView === "mine" && authStatus === "authenticated" && !query
+            ? <div className="preset-grid">
+                <button className="create-preset-slot" type="button" disabled={isCreating} onClick={submitPreset} aria-label="Create preset">
+                  <span className="create-slot-icon" aria-hidden="true"><PlusIcon /></span>
+                  <span className="create-slot-title">{isCreating ? "Opening draft…" : "Create preset"}</span>
+                  <span className="create-slot-desc">Draft custom weapon pools &amp; map rotations</span>
+                </button>
+              </div>
+            : <div className="empty-state"><h2>No presets found</h2><p>{dashboardError || (activeDashboardView === "mine" ? "No presets matched your search." : "Try a different search.")}</p></div>}
+        </section>
+      </div>
+
+      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
+        <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
+        <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+          <button className="dialog-close" type="button" aria-label="Close preset" onClick={closePreset}>×</button>
+          {(() => {
+            const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
+            return (
+              <div className={`dialog-hero ${selectedHasValidImage ? "" : "no-image"}`}>
+                {selectedHasValidImage ? (
+                  <div className="dialog-hero-image">
+                    <Image src={selected.image!} alt="" fill loading="eager" sizes="290px" onError={() => handleThumbnailError(selected.id)} />
+                  </div>
+                ) : (
+                  <ThumbnailPlaceholder title={selected.title} mode="hero" />
+                )}
+                {isEditing ? (
+                  <div className="thumbnail-editor">
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-label="Upload pic"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadThumbnail(file);
+                      }}
+                    />
+                    <div className="thumbnail-actions">
+                      <button
+                        type="button"
+                        className="thumbnail-btn"
+                        title={thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change pic" : "Add pic"}
+                        aria-label={thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change pic" : "Add pic"}
+                        disabled={thumbnailStatus === "uploading"}
+                        onClick={() => thumbnailInputRef.current?.click()}
+                      >
+                        <ReplacePicIcon />
+                        <span>{thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change picture" : "Add picture"}</span>
+                      </button>
+                      {draftContent?.thumbnailKey ? (
+                        <button
+                          type="button"
+                          className="thumbnail-btn"
+                          title="Remove pic"
+                          aria-label="Remove pic"
+                          disabled={thumbnailStatus === "uploading"}
+                          onClick={removeThumbnail}
+                        >
+                          <RemoveIcon />
+                          <span>Remove picture</span>
+                        </button>
+                      ) : null}
+                    </div>
+                    {thumbnailError ? (
+                      <p className="thumbnail-error field-error-message">{thumbnailError}</p>
+                    ) : (
+                      <div className="thumbnail-hint">
+                        <span>STRAFTAT-themed only.</span>
+                        <span>No NSFW, gore, or graphic violence.</span>
+                        <span>JPEG/PNG/WebP, 2 MB max.</span>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()}
+          <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
+            {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}<span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span></div><p>by {selected.author}<span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</p></div><div className="dialog-actions">
+              <div className="dialog-actions-main">
+                {selected.state ? <PresetStateBadge state={selected.state} /> : null}
+                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
+                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString(), "link").catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={saveStatus === "saving"} onClick={() => void submitSelectedPreset()}>Submit</button> : null}
+                {!selected.state || selected.state === "published" ? <button className={`like-button dialog-like ${isLiked(selected.id) ? "liked" : ""}`} type="button" aria-label={`${isLiked(selected.id) ? "Unlike" : "Like"} ${selected.title}`} aria-pressed={isLiked(selected.id)} onClick={() => void toggleLike(selected)}><span aria-hidden="true">♥</span><b>{likeCount(selected).toLocaleString()}</b></button> : null}
+              </div>
+              {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
+            </div></div>
+            {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Could not save - reload before continuing" : "Changes autosave"}</p> : null}
+            {!isEditing && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { setVersionLabel(version.label); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
+            {isEditing && draftContent ? (
+              <div className="editable-field">
+                <textarea
+                  className="dialog-description-input"
+                  aria-label="Preset description"
+                  maxLength={MAX_PRESET_DESCRIPTION_CHARACTERS}
+                  placeholder="Describe how this preset plays."
+                  value={draftContent.description}
+                  onChange={(event) => updateDraftContent({ ...draftContent, description: event.target.value })}
+                />
+                <div className="field-meta">
+                  {hasConsecutiveEmptyLines(draftContent.description) ? (
+                    <small className="field-error-message">Cannot have consecutive empty lines</small>
+                  ) : countTextLines(draftContent.description) > MAX_PRESET_DESCRIPTION_LINES ? (
+                    <small className="field-error-message">Must be 10 lines or fewer</small>
+                  ) : <span />}
+                  <span className="field-counts">
+                    <span>{draftContent.description.length}/{MAX_PRESET_DESCRIPTION_CHARACTERS}</span>
+                    <span>{countTextLines(draftContent.description)}/{MAX_PRESET_DESCRIPTION_LINES} lines</span>
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="dialog-description">{selected.description}</p>
+            )}
+
+            {isEditing && draftContent ? <div className="editable-tags"><small>{draftContent.tags.length}/8 tags</small>
+              <div className="tag-row">{draftContent.tags.map((slug) => <button key={slug} type="button" title="Remove tag" onClick={() => removeTag(slug)}>{labelFromSlug(slug, tagLabels)}<span aria-hidden="true">×</span></button>)}{draftContent.tags.length < 8 ? <button className="add-tag" type="button" aria-label="Add tag" aria-expanded={tagPickerOpen} onClick={() => setTagPickerOpen((open) => !open)}><PlusIcon /></button> : null}</div>
+              {tagPickerOpen ? <div className="tag-picker"><input autoFocus aria-label="Search tags" placeholder="Search tags" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} /> <div>{matchingTags.map((tag) => <button key={tag.slug} type="button" onClick={() => addTag(tag.slug)}>{tag.label}</button>)}</div></div> : null}
+            </div> : <div className="tag-row">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
+
+            {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} /> : null}
+
+            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <><CheckIcon /> Copied</> : "▣ Copy list"}</button>}>
+              <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
+                const imageUrl = getWeaponImage(weapon.name);
+                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <Image src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
+              })}</tbody></table></div>
+            </PresetSection> : null}
+
+            {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper settings" count={selectedVersion.swapper.length}>
+              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, `swapper:${selectedVersion.id ?? selectedVersion.label}:${index}`).catch(() => undefined)} />)}</div>
+            </PresetSection> : null}
+
+            {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map playlists" count={selectedVersion.maps.length}>
+              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, `map:${selectedVersion.id ?? selectedVersion.label}:${index}`).catch(() => undefined)} />)}</div>
+            </PresetSection> : null}
+            <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
+          </div>
+        </section>
+        {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} /> : null}
+        </div>
+      </div>}
+      {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
+        const callbackUrl = new URL(window.location.href);
+        if (authPrompt.action === "submit") {
+          callbackUrl.searchParams.set("create", "1");
+          callbackUrl.searchParams.delete("like");
+          window.sessionStorage.setItem("justLoggedIn", "true");
+        } else if (authPrompt.action === "like") {
+          callbackUrl.searchParams.set("like", authPrompt.presetId);
+          callbackUrl.searchParams.delete("create");
+          window.sessionStorage.setItem("pendingLikePresetId", authPrompt.presetId);
+          if (authPrompt.opened) {
+            callbackUrl.searchParams.set("p", authPrompt.presetId);
+          } else {
+            callbackUrl.searchParams.delete("p");
+          }
+        }
+        void signIn("discord", { callbackUrl: callbackUrl.toString() });
+      }} /> : null}
+    </main>
+  );
+}
+
+function PresetSection({ title, count, action, children }: { title: string; count: number; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
+}
+function ExpandableName({ text }: { text: string }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  const checkTruncation = useCallback(() => {
+    if (textRef.current) {
+      setIsTruncated(textRef.current.scrollWidth > textRef.current.clientWidth);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkTruncation();
+    const handleResize = () => checkTruncation();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [text, checkTruncation]);
+
+  return (
+    <strong
+      className={`playlist-name-text ${isTruncated ? "is-truncated" : ""}`}
+      onMouseEnter={checkTruncation}
+    >
+      <span ref={textRef} className="name-truncated">
+        <StraftatText text={text} />
+      </span>
+      {isTruncated ? (
+        <span className="name-expanded" aria-hidden="true">
+          <StraftatText text={text} />
+        </span>
+      ) : null}
+    </strong>
+  );
+}
+
+function ExportRow({ title, description, code, copied, onCopy }: { title: string; description: string; code: string; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="export-item playlist-item">
+      <div className="export-copy">
+        <div className="playlist-name">
+          <ExpandableName text={title} />
+        </div>
+        {description ? <p>{description}</p> : null}
+        <code>{code}</code>
+      </div>
+      <button type="button" onClick={onCopy}>{copied ? <><CheckIcon /> Copied</> : "▣ Copy"}</button>
+    </div>
+  );
+}
+function PlaylistRow({ playlist, copied, onCopy }: { playlist: MapPlaylist; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="export-item playlist-item">
+      <div className="export-copy">
+        <div className="playlist-name">
+          <ExpandableName text={playlist.name} />
+          <span>{playlist.mapCount} maps</span>
+        </div>
+        <p>{playlist.description}</p>
+        <code>{playlist.code}</code>
+      </div>
+      <button type="button" onClick={onCopy}>{copied ? <><CheckIcon /> Copied</> : "▣ Copy"}</button>
+    </div>
+  );
+}
+function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: "card" | "hero" }) {
+  const plainTitle = useMemo(() => stripColorAndFormattingTags(title), [title]);
+  const visibleLength = plainTitle.length;
+  const maxWordLength = useMemo(() => {
+    const words = plainTitle.split(/\s+/).filter(Boolean);
+    return words.reduce((max, w) => Math.max(max, w.length), 0);
+  }, [plainTitle]);
+
+  const style = useMemo<React.CSSProperties>(() => {
+    if (mode === "hero") {
+      let targetPx: number;
+      if (visibleLength <= 4) targetPx = 68;
+      else if (visibleLength <= 8) targetPx = 54;
+      else if (visibleLength <= 14) targetPx = 44;
+      else if (visibleLength <= 22) targetPx = 36;
+      else if (visibleLength <= 34) targetPx = 28;
+      else if (visibleLength <= 48) targetPx = 22;
+      else if (visibleLength <= 65) targetPx = 18;
+      else targetPx = 15;
+
+      if (maxWordLength > 0) {
+        const maxFitPx = Math.floor(270 / (maxWordLength * 0.57));
+        targetPx = Math.min(targetPx, Math.max(14, maxFitPx));
+      }
+
+      const lineHeight = targetPx >= 40 ? 1.04 : targetPx >= 28 ? 1.08 : targetPx >= 20 ? 1.14 : 1.2;
+      return {
+        fontSize: `${targetPx}px`,
+        lineHeight,
+        width: "100%",
+        maxWidth: "100%",
+      };
+    }
+
+    // card mode (16:9 aspect)
+    let targetPx: number;
+    if (visibleLength <= 6) targetPx = 24;
+    else if (visibleLength <= 12) targetPx = 19;
+    else if (visibleLength <= 22) targetPx = 15.5;
+    else if (visibleLength <= 36) targetPx = 13;
+    else if (visibleLength <= 52) targetPx = 11;
+    else targetPx = 9.5;
+
+    if (maxWordLength > 0) {
+      const maxFitPx = Math.floor(230 / (maxWordLength * 0.64));
+      targetPx = Math.min(targetPx, Math.max(9, maxFitPx));
+    }
+
+    const lineHeight = targetPx >= 20 ? 1.12 : targetPx >= 14 ? 1.18 : 1.25;
+    return {
+      fontSize: `${targetPx}px`,
+      lineHeight,
+      width: "100%",
+      maxWidth: "100%",
+    };
+  }, [mode, visibleLength, maxWordLength]);
+
+  return (
+    <strong style={style}>
+      <StraftatText text={title} />
+    </strong>
+  );
+}
+
+function SubmissionIssueRail({ issues }: { issues: PresetIssue[] }) {
+  return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.png" alt="" width={40} height={40} /><span>{issue.message}</span></li>)}</ul></aside>;
+}
+function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) {
+  return (
+    <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
+        <h2 id="auth-title">Quick sign-in</h2>
+        <p>We only store your Discord user ID and display name. No email, server list, or messages.</p>
+        <button className="discord-signin" type="button" onClick={onContinue}>
+          <Image src="/discord-symbol.svg" alt="" width={20} height={15} />
+          Continue with Discord
+        </button>
+      </section>
+    </div>
+  );
+}
+function PresetStateBadge({ state }: { state: UserPresetState }) {
+  return <span className={`preset-state ${state}`}>{state[0].toUpperCase() + state.slice(1)}</span>;
+}
+function EditIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+}
+function ViewIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+}
+function RemoveIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+}
+function LinkIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+}
+function PlusIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+}
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+function ReplacePicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-4-4a2 2 0 0 0-2.83 0L6 19" />
+      <path d="M14 7h3a1.5 1.5 0 0 1 1.5 1.5V10" />
+      <path d="m15.5 5.5 1.5 1.5-1.5 1.5" />
+      <path d="M18 13h-3a1.5 1.5 0 0 1-1.5-1.5V10" />
+      <path d="m16.5 14.5-1.5-1.5 1.5-1.5" />
+    </svg>
+  );
+}

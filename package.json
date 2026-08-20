@@ -1,0 +1,86 @@
+{
+  "name": "straftat-presets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@12.0.2",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "npm": ">=12.0.2 <13"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs && npm run db:setup:local && npm run game:sync && npm run tags:sync",
+    "dev": "npm run setup && next dev",
+    "build": "next build",
+    "preview": "npm run setup && npm run cf:build && wrangler dev --local",
+    "deploy": "npm run env:check && npm run cf:build && wrangler deploy --secrets-file .env.production",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --env-interface CloudflareEnv --include-runtime false cloudflare-env.d.ts",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
+    "check": "npm run game:check && npm run tags:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "check:cloudflare": "npm run check && npm run cf:build",
+    "db:schema": "drizzle-kit generate",
+    "db:setup": "npm run db:setup:local",
+    "db:setup:local": "wrangler d1 migrations apply DB --local",
+    "db:setup:remote": "wrangler d1 migrations apply DB --remote",
+    "db:backup": "node scripts/backup.mjs local",
+    "db:backup:remote": "node scripts/backup.mjs remote",
+    "db:query": "wrangler d1 execute DB --local",
+    "db:query:remote": "wrangler d1 execute DB --remote",
+    "game:check": "tsx scripts/check-game-catalog.ts",
+    "game:sync": "npm run game:check && tsx scripts/sync-game-catalog.ts local",
+    "game:sync:remote": "npm run game:check && tsx scripts/sync-game-catalog.ts remote",
+    "game:update": "node scripts/update-game-catalog.mjs --write",
+    "weapons:normalize": "tsx scripts/normalize-weapons.ts",
+    "tags": "node scripts/tags.mjs local",
+    "tags:remote": "node scripts/tags.mjs remote",
+    "tags:check": "tsx scripts/check-tag-catalog.ts",
+    "tags:sync": "npm run tags:check && tsx scripts/sync-tag-catalog.ts local",
+    "tags:sync:remote": "npm run tags:check && tsx scripts/sync-tag-catalog.ts remote",
+    "stats": "tsx scripts/preset-stats.ts local",
+    "stats:remote": "tsx scripts/preset-stats.ts remote",
+    "review": "node scripts/review.mjs local",
+    "review:remote": "node scripts/review.mjs remote",
+    "env:check": "node scripts/check-env.mjs .env.production"
+  },
+  "dependencies": {
+    "@2toad/profanity": "3.3.0",
+    "@opennextjs/cloudflare": "1.20.2",
+    "drizzle-orm": "0.45.2",
+    "franc-min": "6.2.0",
+    "next": "16.3.1",
+    "next-auth": "4.24.15",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sharp": "0.35.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260821.1",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.1",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "wrangler": "4.125.0"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.28.2"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.25.4": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "unrs-resolver@1.12.2": true,
+    "workerd@1.20260820.1": true
+  }
+}

@@ -1,0 +1,4 @@
+/_next/static/*
+  Cache-Control: public,max-age=31536000,immutable
+/weapons/*
+  Cache-Control: public,max-age=7776000,immutable
