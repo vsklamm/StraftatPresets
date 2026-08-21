@@ -1,141 +1,190 @@
+import type { TelegramModerationMessage } from "@/src/application/ports";
+import {
+  appendTelegramDecision,
+  buildTelegramModerationMessage,
+  TELEGRAM_PHOTO_CAPTION_LIMIT,
+  TELEGRAM_TEXT_LIMIT,
+} from "@/src/application/telegram-moderation-message";
+import type { PresetRevisionContent } from "@/src/domain/preset-content";
 import { env } from "@/src/env";
-import type { PresetRevisionContent } from "@/src/domain/preset-workflow";
 
 type TelegramKeyboard = {
   inline_keyboard: { text: string; callback_data: string }[][];
 };
 
-async function sendTelegramPhoto(
-  chatId: string | number,
-  imageUrl: string,
-  caption: string,
-  replyMarkup?: TelegramKeyboard,
-): Promise<Response | undefined> {
-  if (!env.TELEGRAM_BOT_TOKEN) return undefined;
+type TelegramSendResult = {
+  ok?: boolean;
+  result?: {
+    message_id?: number;
+    chat?: { id?: number | string };
+  };
+};
 
-  let absoluteUrl = imageUrl;
-  if (imageUrl.startsWith("/")) {
-    const base = env.NEXTAUTH_URL && !env.NEXTAUTH_URL.includes("localhost")
-      ? env.NEXTAUTH_URL.replace(/\/$/, "")
-      : "http://127.0.0.1:3000";
-    absoluteUrl = `${base}${imageUrl}`;
-  }
+const moderationKeyboard = (revisionId: string): TelegramKeyboard => ({
+  inline_keyboard: [
+    [{ text: "✅ Approve", callback_data: `mod:approve:${revisionId}` }],
+    [
+      { text: "❌ Text", callback_data: `mod:reject:text:${revisionId}` },
+      { text: "❌ Picture", callback_data: `mod:reject:picture:${revisionId}` },
+      { text: "❌ Spam", callback_data: `mod:reject:spam:${revisionId}` },
+    ],
+  ],
+});
 
-  try {
-    const res = await fetch(absoluteUrl);
-    if (res.ok) {
-      const blob = await res.blob();
-      const formData = new FormData();
-      formData.append("chat_id", chatId.toString());
-      formData.append("photo", blob, "thumbnail.webp");
-      formData.append("caption", caption.substring(0, 1024));
-      formData.append("parse_mode", "Markdown");
-      if (replyMarkup) formData.append("reply_markup", JSON.stringify(replyMarkup));
-
-      return await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-        method: "POST",
-        body: formData,
-      });
-    }
-  } catch (e) {
-    console.error("Failed to fetch image for Telegram sendPhoto:", e);
-  }
-
-  if (absoluteUrl.startsWith("https://")) {
-    try {
-      return await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: absoluteUrl,
-          caption: caption.substring(0, 1024),
-          parse_mode: "Markdown",
-          reply_markup: replyMarkup,
-        }),
-      });
-    } catch (e) {
-      console.error("Failed to send remote photo URL to Telegram:", e);
-    }
-  }
-
-  return undefined;
+function telegramUrl(method: string) {
+  return `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`;
 }
 
-export async function notifyModeratorOfPendingPreset(presetId: string, revisionId: string, content: PresetRevisionContent, thumbnailUrl?: string) {
+async function logTelegramFailure(operation: string, response: Response) {
+  const details = (await response.text().catch(() => "")).slice(0, 1_000);
+  console.error(JSON.stringify({ message: `Telegram ${operation} failed`, status: response.status, details }));
+}
+
+async function parseSentMessage(
+  response: Response,
+  revisionId: string,
+  kind: "text" | "photo",
+  html: string,
+): Promise<TelegramModerationMessage | undefined> {
+  if (!response.ok) {
+    await logTelegramFailure(kind === "photo" ? "sendPhoto" : "sendMessage", response);
+    return undefined;
+  }
+  const payload = await response.json() as TelegramSendResult;
+  const messageId = payload.result?.message_id;
+  const chatId = payload.result?.chat?.id;
+  if (!payload.ok || typeof messageId !== "number" || chatId === undefined) {
+    console.error(JSON.stringify({ message: "Telegram returned an invalid moderation message response" }));
+    return undefined;
+  }
+  return { revisionId, chatId: String(chatId), messageId, kind, html, resolvedAt: null };
+}
+
+function absoluteThumbnailUrl(imageUrl: string) {
+  if (!imageUrl.startsWith("/")) return imageUrl;
+  const base = env.NEXTAUTH_URL && !env.NEXTAUTH_URL.includes("localhost")
+    ? env.NEXTAUTH_URL.replace(/\/$/, "")
+    : "http://127.0.0.1:3000";
+  return `${base}${imageUrl}`;
+}
+
+async function sendPhoto(
+  revisionId: string,
+  imageUrl: string,
+  html: string,
+  keyboard: TelegramKeyboard,
+): Promise<TelegramModerationMessage | undefined> {
+  const absoluteUrl = absoluteThumbnailUrl(imageUrl);
+  try {
+    const imageResponse = await fetch(absoluteUrl);
+    if (imageResponse.ok) {
+      const formData = new FormData();
+      formData.append("chat_id", env.TELEGRAM_CHAT_ID!);
+      formData.append("photo", await imageResponse.blob(), "thumbnail.webp");
+      formData.append("caption", html);
+      formData.append("parse_mode", "HTML");
+      formData.append("reply_markup", JSON.stringify(keyboard));
+      return parseSentMessage(await fetch(telegramUrl("sendPhoto"), { method: "POST", body: formData }), revisionId, "photo", html);
+    }
+  } catch (error) {
+    console.error(JSON.stringify({ message: "Telegram thumbnail fetch failed", error: error instanceof Error ? error.message : String(error) }));
+  }
+
+  if (!absoluteUrl.startsWith("https://")) return undefined;
+  const response = await fetch(telegramUrl("sendPhoto"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: env.TELEGRAM_CHAT_ID,
+      photo: absoluteUrl,
+      caption: html,
+      parse_mode: "HTML",
+      reply_markup: keyboard,
+    }),
+  });
+  return parseSentMessage(response, revisionId, "photo", html);
+}
+
+export async function notifyModeratorOfPendingPreset(input: {
+  revisionId: string;
+  content: PresetRevisionContent;
+  previousContent?: PresetRevisionContent | null;
+  requiresTextReview: boolean;
+  thumbnailUrl?: string;
+}): Promise<TelegramModerationMessage | undefined> {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
     console.warn("Telegram moderation not configured. Skipping notification.");
-    return;
+    return undefined;
   }
 
-  const mapPlaylistsText = content.versions.flatMap((v) => v.mapPlaylists.map((p) => `• *${p.name}*: ${p.description || "_No description_"}`)).join("\n");
-  const text = `🚨 *New Preset Pending Review*\n\n*Title:* ${content.title}\n*Description:* ${content.description}\n\n*Map Playlists:*\n${mapPlaylistsText || "_None_"}\n\n*Preset ID:* ${presetId}\n*Revision:* ${revisionId}`;
+  const message = buildTelegramModerationMessage({
+    content: input.content,
+    previousContent: input.previousContent,
+    requiresTextReview: input.requiresTextReview,
+    hasThumbnail: Boolean(input.thumbnailUrl),
+  });
+  const keyboard = moderationKeyboard(input.revisionId);
 
-  const keyboard: TelegramKeyboard = {
-    inline_keyboard: [
-      [{ text: "✅ Approve", callback_data: `mod:approve:${revisionId}` }],
-      [
-        { text: "❌ Reject (Profanity)", callback_data: `mod:reject:profanity:${revisionId}` },
-        { text: "❌ Reject (Quality)", callback_data: `mod:reject:quality:${revisionId}` },
-      ],
-      [
-        { text: "❌ Reject (Spam)", callback_data: `mod:reject:spam:${revisionId}` },
-      ],
-    ],
-  };
-
-  try {
-    let sent = false;
-    if (thumbnailUrl) {
-      const photoResponse = await sendTelegramPhoto(env.TELEGRAM_CHAT_ID, thumbnailUrl, text, keyboard);
-      if (photoResponse && photoResponse.ok) {
-        sent = true;
-      } else {
-        console.warn("Telegram sendPhoto was unsuccessful, falling back to text notification.");
-      }
-    }
-
-    if (!sent) {
-      const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: env.TELEGRAM_CHAT_ID,
-          text,
-          parse_mode: "Markdown",
-          reply_markup: keyboard,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to send Telegram notification:", await response.text());
-      }
-    }
-  } catch (error) {
-    console.error("Error sending Telegram notification:", error);
+  if (input.thumbnailUrl) {
+    const sentPhoto = await sendPhoto(input.revisionId, input.thumbnailUrl, message.html, keyboard);
+    if (sentPhoto) return sentPhoto;
   }
+
+  const response = await fetch(telegramUrl("sendMessage"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: env.TELEGRAM_CHAT_ID,
+      text: message.html,
+      parse_mode: "HTML",
+      reply_markup: keyboard,
+    }),
+  });
+  return parseSentMessage(response, input.revisionId, "text", message.html);
 }
 
-export async function editTelegramMessage(chatId: number | string, messageId: number, text: string) {
-  if (!env.TELEGRAM_BOT_TOKEN) return;
-
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: [] },
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to edit Telegram message:", await response.text());
-    }
-  } catch (error) {
-    console.error("Error editing Telegram message:", error);
+export async function editTelegramModerationDecision(message: TelegramModerationMessage, decision: string) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const limit = message.kind === "photo" ? TELEGRAM_PHOTO_CAPTION_LIMIT : TELEGRAM_TEXT_LIMIT;
+  const content = appendTelegramDecision(message.html, decision, limit);
+  const method = message.kind === "photo" ? "editMessageCaption" : "editMessageText";
+  const body = message.kind === "photo"
+    ? { chat_id: message.chatId, message_id: message.messageId, caption: content, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } }
+    : { chat_id: message.chatId, message_id: message.messageId, text: content, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } };
+  const response = await fetch(telegramUrl(method), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const details = (await response.text().catch(() => "")).slice(0, 1_000);
+    if (response.status === 400 && details.includes("message is not modified")) return true;
+    console.error(JSON.stringify({ message: `Telegram ${method} failed`, status: response.status, details }));
+    return false;
   }
+  return true;
+}
+
+export async function deleteTelegramModerationMessage(message: TelegramModerationMessage) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const response = await fetch(telegramUrl("deleteMessage"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: message.chatId, message_id: message.messageId }),
+  });
+  if (!response.ok) {
+    await logTelegramFailure("deleteMessage", response);
+    return false;
+  }
+  return true;
+}
+
+export async function answerTelegramCallbackQuery(callbackQueryId: string, text?: string) {
+  if (!env.TELEGRAM_BOT_TOKEN) return;
+  const response = await fetch(telegramUrl("answerCallbackQuery"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQueryId, ...(text ? { text } : {}) }),
+  });
+  if (!response.ok) await logTelegramFailure("answerCallbackQuery", response);
 }

@@ -53,29 +53,19 @@ export function getChangedModeratableFields(
     return nextFields;
   }
 
-  const prevFields = extractModeratableFields(previous);
-  const prevByPath = new Map<string, ModeratableField>();
-  const prevCleanTexts = new Set<string>();
+  const previousFields = extractModeratableFields(previous);
+  const directPaths = new Set(["title", "description"]);
+  const previousDirect = new Map(previousFields.filter((field) => directPaths.has(field.path)).map((field) => [field.path, field.cleanText]));
+  const previousNestedTexts = new Set<string>();
 
-  for (const prevField of prevFields) {
-    prevByPath.set(prevField.path, prevField);
-    if (prevField.cleanText) {
-      prevCleanTexts.add(prevField.cleanText);
-    }
+  for (const field of previousFields) {
+    if (directPaths.has(field.path)) continue;
+    previousNestedTexts.add(`${field.label}\u0000${field.cleanText}`);
   }
 
-  const changedFields: ModeratableField[] = [];
-
-  for (const field of nextFields) {
-    const prevField = prevByPath.get(field.path);
-    if (prevField) {
-      if (field.rawText !== prevField.rawText) {
-        changedFields.push(field);
-      }
-    } else if (!prevCleanTexts.has(field.cleanText)) {
-      changedFields.push(field);
-    }
-  }
-
-  return changedFields;
+  return nextFields.filter((field) => {
+    if (directPaths.has(field.path)) return previousDirect.get(field.path) !== field.cleanText;
+    const key = `${field.label}\u0000${field.cleanText}`;
+    return !previousNestedTexts.has(key);
+  });
 }

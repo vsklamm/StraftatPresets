@@ -37,6 +37,10 @@ test("the initializer creates the application tables in D1", () => {
     assert.equal(userColumns.results.some((column) => column.name === "is_active"), true);
     assert.equal(userColumns.results.some((column) => column.name === "last_login_at"), true);
     assert.equal(userColumns.results.some((column) => column.name === "role"), true);
+    const revisionColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_revisions)");
+    for (const column of ["telegram_chat_id", "telegram_message_id", "telegram_message_kind", "telegram_message_html", "telegram_decision", "telegram_resolved_at"]) {
+      assert.equal(revisionColumns.results.some((entry) => entry.name === column), true);
+    }
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('user-1', 'Tester'); INSERT INTO presets (id, slug, author_id, title) VALUES ('preset-1', 'preset-1', 'user-1', 'Preset')"]);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_versions (id, preset_id, label) VALUES ('version-1', 'preset-1', 'v1'); INSERT INTO weapon_configurations (id, preset_version_id, kind, name) VALUES ('weapons-1', 'version-1', 'randomized', 'Weapons'); INSERT INTO game_weapons (name, image_path, is_active) VALUES ('Retired Weapon', '/weapons/retired.webp', 0); INSERT INTO game_maps (name, kind, is_active) VALUES ('Retired_Map', 'core', 0); INSERT INTO map_playlists (id, preset_version_id, name, encoded_value, decoded_map_count) VALUES ('maps-1', 'version-1', 'Maps', 'code', 1)"]);
     assert.throws(

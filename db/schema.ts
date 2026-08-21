@@ -75,6 +75,12 @@ export const presetRevisions = sqliteTable("preset_revisions", {
   submittedAt: integer("submitted_at", { mode: "timestamp_ms" }),
   reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
   reviewerId: text("reviewer_id").references(() => users.id, { onDelete: "set null" }),
+  telegramChatId: text("telegram_chat_id"),
+  telegramMessageId: integer("telegram_message_id"),
+  telegramMessageKind: text("telegram_message_kind", { enum: ["text", "photo"] }),
+  telegramMessageHtml: text("telegram_message_html"),
+  telegramDecision: text("telegram_decision", { enum: ["approve", "text", "picture", "spam"] }),
+  telegramResolvedAt: integer("telegram_resolved_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(now),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
 }, (table) => [

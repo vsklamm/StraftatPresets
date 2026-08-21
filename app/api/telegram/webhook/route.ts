@@ -1,121 +1,117 @@
+import type { PresetIssue } from "@/src/domain/preset-workflow";
 import { env } from "@/src/env";
 import { getApplicationServices } from "@/src/infrastructure/runtime";
+import {
+  answerTelegramCallbackQuery,
+  deleteTelegramModerationMessage,
+  editTelegramModerationDecision,
+} from "@/src/infrastructure/telegram";
+import { constantTimeStringEqual } from "@/src/lib/crypto-utils";
 import { cleanupThumbnailKeys } from "@/src/lib/thumbnail-cleanup";
-import { editTelegramMessage } from "@/src/infrastructure/telegram";
-import type { PresetIssue } from "@/src/domain/preset-workflow";
+
+type RejectionReason = "text" | "picture" | "spam";
 
 type TelegramUpdate = {
   callback_query?: {
+    id?: string;
     data?: string;
-    message?: {
-      chat: { id: number | string };
-      message_id: number;
-      text: string;
-    };
-    from?: {
-      id?: number | string;
-      username?: string;
-    };
   };
 };
 
+const rejectionIssues: Record<RejectionReason, PresetIssue> = {
+  text: { source: "moderation", field: "content", code: "text_rejected", message: "Fix the preset text before submitting again." },
+  picture: { source: "moderation", field: "thumbnail", code: "picture_rejected", message: "Replace or remove the picture before submitting again." },
+  spam: { source: "moderation", field: "content", code: "spam", message: "Remove spam or promotional content before submitting again." },
+};
+
+const decisionLabels = {
+  approve: "✅ Approved",
+  text: "❌ Text",
+  picture: "❌ Picture",
+  spam: "❌ Spam",
+} as const;
+
+function parseDecision(data: string) {
+  const approve = /^mod:approve:([0-9a-f-]{36})$/i.exec(data);
+  if (approve) return { revisionId: approve[1], decision: "approve" as const };
+  const reject = /^mod:reject:(text|picture|spam):([0-9a-f-]{36})$/i.exec(data);
+  if (!reject) return undefined;
+  return { revisionId: reject[2], decision: reject[1] as RejectionReason };
+}
+
 export async function POST(request: Request) {
-  // Verify secret token if configured
   if (env.TELEGRAM_WEBHOOK_SECRET) {
-    const secret = request.headers.get("x-telegram-bot-api-secret-token");
-    if (secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+    const suppliedSecret = request.headers.get("x-telegram-bot-api-secret-token") ?? "";
+    if (!await constantTimeStringEqual(suppliedSecret, env.TELEGRAM_WEBHOOK_SECRET)) {
       return new Response("Unauthorized", { status: 401 });
     }
   }
 
+  let callbackQueryId: string | undefined;
+  let callbackAnswer: string | undefined;
+
   try {
     const body = (await request.json().catch(() => null)) as TelegramUpdate | null;
-    if (!body || !body.callback_query) {
-      return new Response("OK"); // Acknowledge to Telegram to stop retries
-    }
-
-    const { callback_query } = body;
-    const { data, message, from } = callback_query;
-
-    if (!data || !message) {
-      return new Response("OK");
-    }
-
-    const moderatorName = from?.username ? `@${from.username}` : `User ${from?.id || 'Unknown'}`;
-
-    // Expected data format: mod:approve:presetId:revisionId or mod:reject:reason:presetId:revisionId
-    const parts = data.split(":");
-    if (parts[0] !== "mod") {
-      return new Response("OK");
-    }
+    const callback = body?.callback_query;
+    callbackQueryId = callback?.id;
+    const parsed = callback?.data ? parseDecision(callback.data) : undefined;
+    if (!callback || !parsed) return new Response("OK");
 
     const { repository, thumbnails } = await getApplicationServices();
-
-    if (parts[1] === "approve") {
-      const revisionId = parts[2];
-      const presetId = await repository.getPresetIdForRevision(revisionId);
-
-      if (!presetId) {
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n⚠️ *Failed to approve. Preset not found.*`);
-        return new Response("OK");
-      }
-
-      const result = await repository.reviewPreset({
-        presetId,
-        revisionId,
-        reviewerId: null,
-        decision: "approve",
-        issues: []
-      });
-
-      if (result.result === "updated") {
-        await cleanupThumbnailKeys(thumbnails, result.thumbnailKeysToDelete, "telegram approve preset");
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n✅ *Approved by ${moderatorName}*`);
-      } else {
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n⚠️ *Failed to approve. Preset might have changed.*`);
-      }
-    } else if (parts[1] === "reject") {
-      const reasonCode = parts[2];
-      const revisionId = parts[3];
-      const presetId = await repository.getPresetIdForRevision(revisionId);
-
-      if (!presetId) {
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n⚠️ *Failed to reject. Preset not found.*`);
-        return new Response("OK");
-      }
-
-      let reasonText = "Rejected";
-      const issues: PresetIssue[] = [];
-
-      if (reasonCode === "profanity") {
-        reasonText = "Rejected (Profanity)";
-        issues.push({ source: "moderation", field: "content", code: "profanity", message: "Preset contains inappropriate language." });
-      } else if (reasonCode === "quality") {
-        reasonText = "Rejected (Low Quality)";
-        issues.push({ source: "moderation", field: "content", code: "low_quality", message: "Preset description does not meet quality standards." });
-      } else if (reasonCode === "spam") {
-        reasonText = "Rejected (Spam)";
-        issues.push({ source: "moderation", field: "content", code: "spam", message: "Preset flagged as spam." });
-      }
-
-      const result = await repository.reviewPreset({
-        presetId,
-        revisionId,
-        reviewerId: null,
-        decision: "reject",
-        issues
-      });
-
-      if (result.result === "updated") {
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n❌ *${reasonText} by ${moderatorName}*`);
-      } else {
-        await editTelegramMessage(message.chat.id, message.message_id, `${message.text}\n\n⚠️ *Failed to reject. Preset might have changed.*`);
-      }
+    const context = await repository.getRevisionModerationContext(parsed.revisionId);
+    if (!context) {
+      callbackAnswer = "No longer available";
+      return new Response("OK");
     }
 
-    return new Response("OK");
+    if (context.decision) {
+      if (context.message) await editTelegramModerationDecision(context.message, decisionLabels[context.decision]);
+      callbackAnswer = "Already reviewed";
+      return new Response("OK");
+    }
+
+    if (context.status !== "pending") {
+      if (context.message && await deleteTelegramModerationMessage(context.message)) {
+        await repository.clearTelegramModerationMessage(parsed.revisionId, context.message.messageId);
+      }
+      callbackAnswer = "No longer current";
+      return new Response("OK");
+    }
+
+    const moderationMessage = context.message;
+    if (!moderationMessage && callbackQueryId) {
+      callbackAnswer = "Try again";
+      return new Response("OK");
+    }
+
+    const result = await repository.reviewPreset({
+      presetId: context.presetId,
+      revisionId: parsed.revisionId,
+      reviewerId: null,
+      decision: parsed.decision === "approve" ? "approve" : "reject",
+      issues: parsed.decision === "approve" ? [] : [rejectionIssues[parsed.decision]],
+    });
+
+    if (result.result === "updated") {
+      await cleanupThumbnailKeys(thumbnails, result.thumbnailKeysToDelete, "telegram review preset");
+      if (moderationMessage) await editTelegramModerationDecision(moderationMessage, decisionLabels[parsed.decision]);
+      callbackAnswer = parsed.decision === "approve" ? "Approved" : "Sent back to draft";
+      return new Response("OK");
+    }
+
+    const current = await repository.getRevisionModerationContext(parsed.revisionId);
+    if (current?.decision && current.message) {
+      await editTelegramModerationDecision(current.message, decisionLabels[current.decision]);
+      callbackAnswer = "Already reviewed";
+    } else {
+      callbackAnswer = result.result === "invalid" ? "Could not approve" : "No longer current";
+    }
   } catch (error) {
-    console.error("Telegram webhook error:", error);
-    return new Response("OK"); // Always return OK so Telegram doesn't keep retrying and blocking the queue
+    console.error(JSON.stringify({ message: "Telegram webhook failed", error: error instanceof Error ? error.message : String(error) }));
+    callbackAnswer = "Review failed";
+  } finally {
+    if (callbackQueryId) await answerTelegramCallbackQuery(callbackQueryId, callbackAnswer);
   }
+
+  return new Response("OK");
 }

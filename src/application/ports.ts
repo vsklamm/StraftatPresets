@@ -57,14 +57,31 @@ export type PresetReviewResult =
   | { result: "not_found" }
   | { result: "conflict" };
 
+export type TelegramModerationMessage = {
+  revisionId: string;
+  chatId: string;
+  messageId: number;
+  kind: "text" | "photo";
+  html: string;
+  resolvedAt: Date | null;
+};
+
+export type RevisionModerationContext = {
+  presetId: string;
+  status: PresetRevisionStatus;
+  decision: "approve" | "text" | "picture" | "spam" | null;
+  message?: TelegramModerationMessage;
+};
+
 export interface PresetWorkflowRepository {
   createPresetDraft(userId: string, title: string, now?: Date): Promise<PresetDashboardItem>;
   listDashboardPresets(view: PresetDashboardView, userId: string | undefined, limit: number, offset: number): Promise<{ items: PresetDashboardItem[]; total: number }>;
   getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined>;
-  getPresetIdForRevision(revisionId: string): Promise<string | undefined>;
+  getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined>;
+  clearTelegramModerationMessage(revisionId: string, messageId: number): Promise<boolean>;
   savePresetDraft(input: { presetId: string; userId: string; revisionId: string; editVersion: number; content: PresetRevisionContent; now?: Date }): Promise<PresetMutationResult>;
   submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetMutationResult>;
-  reviewPreset(input: { presetId: string; revisionId: string; reviewerId: string; decision: "approve" | "reject"; issues: PresetIssue[]; now?: Date }): Promise<PresetReviewResult>;
+  reviewPreset(input: { presetId: string; revisionId: string; reviewerId: string | null; decision: "approve" | "reject"; issues: PresetIssue[]; now?: Date }): Promise<PresetReviewResult>;
   deletePreset(presetId: string, userId: string): Promise<{ result: "deleted" | "forbidden" | "not_found" }>;
 }
 

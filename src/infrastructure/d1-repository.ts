@@ -34,17 +34,19 @@ import type {
   PresetThumbnailRepository,
   PresetThumbnailTarget,
   PresetWorkflowRepository,
+  RevisionModerationContext,
   RecordPresetEventInput,
   RecordPresetEventResult,
   SetPresetLikeInput,
   SetPresetLikeResult,
   TagRepository,
+  TelegramModerationMessage,
   UserRepository,
   UserRole,
 } from "@/src/application/ports";
 import { createStarterPresetContent, parsePresetRevisionContent, type PresetRevisionContent } from "@/src/domain/preset-content";
 import { runServerModeration } from "@/src/lib/moderation";
-import { notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
+import { deleteTelegramModerationMessage, notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { resolveWeaponName } from "@/src/domain/game-catalog";
 import { PRESET_EVENT_POLICY, type PresetEventKind } from "@/src/domain/preset-events";
@@ -167,6 +169,12 @@ function utcDayStart(dayBucket: string) {
   const date = new Date(`${dayBucket}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) throw new Error("Invalid event day bucket.");
   return date;
+}
+
+function telegramRejectionDecision(issues: readonly PresetIssue[]): "text" | "picture" | "spam" {
+  if (issues.some((issue) => issue.code === "picture_rejected")) return "picture";
+  if (issues.some((issue) => issue.code === "spam")) return "spam";
+  return "text";
 }
 
 export class D1Repository implements HealthRepository, PresetInteractionRepository, PresetThumbnailRepository, PresetWorkflowRepository, TagRepository, UserRepository {
@@ -344,9 +352,105 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return row ? this.toDashboardItem(row as DashboardRow, userId) : undefined;
   }
 
-  async getPresetIdForRevision(revisionId: string): Promise<string | undefined> {
-    const row = await this.database.select({ presetId: presetRevisions.presetId }).from(presetRevisions).where(eq(presetRevisions.id, revisionId)).get();
-    return row?.presetId;
+  async getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined> {
+    const row = await this.database.select({
+      presetId: presetRevisions.presetId,
+      status: presetRevisions.status,
+      telegramChatId: presetRevisions.telegramChatId,
+      telegramMessageId: presetRevisions.telegramMessageId,
+      telegramMessageKind: presetRevisions.telegramMessageKind,
+      telegramMessageHtml: presetRevisions.telegramMessageHtml,
+      telegramDecision: presetRevisions.telegramDecision,
+      telegramResolvedAt: presetRevisions.telegramResolvedAt,
+    }).from(presetRevisions).where(eq(presetRevisions.id, revisionId)).get();
+    if (!row) return undefined;
+    return {
+      presetId: row.presetId,
+      status: row.status,
+      decision: row.telegramDecision,
+      message: this.toTelegramModerationMessage(revisionId, row),
+    };
+  }
+
+  async clearTelegramModerationMessage(revisionId: string, messageId: number) {
+    const update = await this.database.update(presetRevisions).set({
+      telegramChatId: null,
+      telegramMessageId: null,
+      telegramMessageKind: null,
+      telegramMessageHtml: null,
+      telegramDecision: null,
+      telegramResolvedAt: null,
+    }).where(and(
+      eq(presetRevisions.id, revisionId),
+      eq(presetRevisions.telegramMessageId, messageId),
+      isNull(presetRevisions.telegramResolvedAt),
+    )).run();
+    return Number(update.meta.changes) === 1;
+  }
+
+  private toTelegramModerationMessage(
+    revisionId: string,
+    row: {
+      telegramChatId: string | null;
+      telegramMessageId: number | null;
+      telegramMessageKind: "text" | "photo" | null;
+      telegramMessageHtml: string | null;
+      telegramResolvedAt: Date | null;
+    },
+  ): TelegramModerationMessage | undefined {
+    if (row.telegramChatId === null || row.telegramMessageId === null || row.telegramMessageKind === null || row.telegramMessageHtml === null) return undefined;
+    return {
+      revisionId,
+      chatId: row.telegramChatId,
+      messageId: row.telegramMessageId,
+      kind: row.telegramMessageKind,
+      html: row.telegramMessageHtml,
+      resolvedAt: row.telegramResolvedAt,
+    };
+  }
+
+  private async attachTelegramModerationMessage(message: TelegramModerationMessage, now: Date) {
+    const update = await this.database.update(presetRevisions).set({
+      telegramChatId: message.chatId,
+      telegramMessageId: message.messageId,
+      telegramMessageKind: message.kind,
+      telegramMessageHtml: message.html,
+      telegramDecision: null,
+      telegramResolvedAt: null,
+      updatedAt: now,
+    }).where(and(
+      eq(presetRevisions.id, message.revisionId),
+      eq(presetRevisions.status, "pending"),
+      isNull(presetRevisions.telegramMessageId),
+    )).run();
+    return Number(update.meta.changes) === 1;
+  }
+
+  private async listUnresolvedTelegramMessages(presetId: string, currentRevisionId: string) {
+    const rows = await this.database.select({
+      revisionId: presetRevisions.id,
+      telegramChatId: presetRevisions.telegramChatId,
+      telegramMessageId: presetRevisions.telegramMessageId,
+      telegramMessageKind: presetRevisions.telegramMessageKind,
+      telegramMessageHtml: presetRevisions.telegramMessageHtml,
+      telegramResolvedAt: presetRevisions.telegramResolvedAt,
+    }).from(presetRevisions).where(and(
+      eq(presetRevisions.presetId, presetId),
+      ne(presetRevisions.id, currentRevisionId),
+      isNull(presetRevisions.telegramResolvedAt),
+      sql`${presetRevisions.telegramMessageId} is not null`,
+    )).all();
+    return rows.flatMap((row) => {
+      const message = this.toTelegramModerationMessage(row.revisionId, row);
+      return message ? [message] : [];
+    });
+  }
+
+  private async deleteUnresolvedTelegramMessages(messages: readonly TelegramModerationMessage[]) {
+    for (const message of messages) {
+      if (!await deleteTelegramModerationMessage(message)) continue;
+      await this.clearTelegramModerationMessage(message.revisionId, message.messageId);
+    }
   }
 
   async savePresetDraft(input: { presetId: string; userId: string; revisionId: string; editVersion: number; content: PresetRevisionContent; now?: Date }): Promise<PresetMutationResult> {
@@ -507,6 +611,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         }).from(presetRevisions).where(eq(presetRevisions.id, revision.publishedRevisionId)).get()
       : null;
     const previousContent = previousPublished ? parsePresetRevisionContent(JSON.parse(previousPublished.contentJson)) : null;
+    const unresolvedMessages = await this.listUnresolvedTelegramMessages(input.presetId, input.revisionId);
 
     const modResult = await runServerModeration(content, { previousContent });
     const isThumbnailApproved =
@@ -515,13 +620,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       (previousContent !== null && revision.thumbnailKey === previousContent.thumbnailKey);
 
     if (modResult.decision === "rejected") {
-      return this.reviewPreset({
+      const rejected = await this.reviewPreset({
         presetId: input.presetId,
         revisionId: input.revisionId,
         reviewerId: null,
         decision: "reject",
         issues: modResult.flags
-          .filter((flag) => flag.tier === "hard_reject")
           .map((flag) => ({
             source: "moderation",
             field: flag.field,
@@ -530,16 +634,33 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
           })),
         now,
       });
+      if (rejected.result === "updated") await this.deleteUnresolvedTelegramMessages(unresolvedMessages);
+      return rejected;
     }
 
     if (modResult.decision === "approved" && isThumbnailApproved) {
       const autoReview = await this.reviewPreset({ presetId: input.presetId, revisionId: input.revisionId, reviewerId: null, decision: "approve", issues: [], now });
-      if (autoReview.result === "updated") return autoReview;
+      if (autoReview.result === "updated") {
+        await this.deleteUnresolvedTelegramMessages(unresolvedMessages);
+        return autoReview;
+      }
     } else {
       const thumbnailUrl = revision.thumbnailKey ? `/api/media/${revision.thumbnailKey}` : undefined;
-      await notifyModeratorOfPendingPreset(input.presetId, input.revisionId, content, thumbnailUrl).catch((err) => {
+      const notification = await notifyModeratorOfPendingPreset({
+        revisionId: input.revisionId,
+        content,
+        previousContent,
+        requiresTextReview: modResult.decision === "review_required",
+        thumbnailUrl,
+      }).catch((err) => {
         console.error("Failed to notify moderator on Telegram:", err);
+        return undefined;
       });
+      if (notification) {
+        const attached = await this.attachTelegramModerationMessage(notification, now);
+        if (attached) await this.deleteUnresolvedTelegramMessages(unresolvedMessages);
+        else await deleteTelegramModerationMessage(notification);
+      }
     }
 
     const submitted = await this.getPresetForViewer(input.presetId, input.userId);
@@ -574,6 +695,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         status: "rejected",
         reviewIssuesJson: JSON.stringify(reviewIssues),
         reviewerId: input.reviewerId,
+        telegramDecision: telegramRejectionDecision(reviewIssues),
+        telegramResolvedAt: now,
         reviewedAt: now,
         updatedAt: now,
       }).where(and(eq(presetRevisions.id, input.revisionId), eq(presetRevisions.status, "pending"))).run();
@@ -670,6 +793,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         validationIssuesJson: "[]",
         reviewIssuesJson: "[]",
         reviewerId: input.reviewerId,
+        telegramDecision: "approve",
+        telegramResolvedAt: now,
         reviewedAt: now,
         updatedAt: now,
       }).where(and(eq(presetRevisions.id, input.revisionId), eq(presetRevisions.status, "pending"))),
@@ -677,11 +802,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         title: content.title,
         description: content.description,
         thumbnailKey: content.thumbnailKey,
-        ...(content.thumbnailKey === null ? {
-          thumbnailModerationStatus: "not_submitted" as const,
-          thumbnailModerationData: null,
-          thumbnailModeratedAt: null,
-        } : {}),
+        thumbnailModerationStatus: content.thumbnailKey === null ? "not_submitted" as const : "approved" as const,
+        thumbnailModerationData: content.thumbnailKey === null ? null : JSON.stringify({ provider: "manual_telegram_review", decision: "approved" }),
+        thumbnailModeratedAt: content.thumbnailKey === null ? null : now,
         status: "published",
         workingRevisionId: null,
         publishedRevisionId: input.revisionId,

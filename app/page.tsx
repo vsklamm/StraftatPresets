@@ -817,6 +817,14 @@ export default function Home() {
   const updateDraftContent = (content: PresetRevisionContent) => {
     draftContentRef.current = content;
     setDraftContent(content);
+    if (selected?.workingStatus === "rejected") {
+      setSelected((current) => current?.id === selected.id ? {
+        ...current,
+        workingStatus: "draft",
+        issues: current.issues?.filter((issue) => issue.source !== "moderation"),
+      } : current);
+      setShowSubmissionIssues(false);
+    }
     if (selected?.persisted && selected.canEdit) {
       writeLocalDraft(selected, content);
       const signature = JSON.stringify(content);
