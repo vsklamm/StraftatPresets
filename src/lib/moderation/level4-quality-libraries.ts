@@ -3,13 +3,65 @@ import { franc } from "franc-min";
 import { PROFANITY_ALLOWLIST } from "@/src/infrastructure/profanity-allowlist";
 import type { ModeratableField, ModerationFlag, ModerationResult } from "./types";
 
+export const PROFANITY_LANGUAGE_CODES = [
+  "en",
+  "fr",
+  "es",
+  "de",
+  "ru",
+  "zh",
+  "ar",
+  "pt",
+  "it",
+  "hi",
+  "ja",
+  "ko",
+] as const;
+
+const PROJECT_PROFANITY_TERMS = [
+  "suka",
+  "blyat",
+  "cyka",
+  "pidor",
+  "pidaras",
+  "xuy",
+  "пидор",
+  "долбоеб",
+  "долбоёб",
+  "пидарас",
+  "ебаный",
+  "他妈的",
+  "操你妈",
+  "قحبة",
+  "شرموطة",
+  "चूतिया",
+  "भोसड़ी",
+  "くそ",
+  "씨발",
+  "시발",
+  "개새끼",
+  "kurwa",
+] as const;
+
+const PROJECT_UNBOUNDED_PROFANITY_TERMS = [
+  "他妈的",
+  "操你妈",
+  "くそ",
+  "クソ",
+  "ファック",
+  "씨발",
+  "시발",
+  "개새끼",
+] as const;
+
 const options = new ProfanityOptions();
-options.languages = ["en", "fr", "es", "de", "ru", "zh", "ar", "pt", "it", "hi", "ja", "ko"];
+options.languages = [...PROFANITY_LANGUAGE_CODES];
 options.wholeWord = true;
+options.unicodeWordBoundaries = true;
 
 const profanity = new Profanity(options);
 profanity.whitelist.addWords(PROFANITY_ALLOWLIST);
-profanity.addWords(["suka", "blyat", "cyka", "pidor", "pidaras", "kurwa", "xuy"]);
+profanity.addWords([...PROJECT_PROFANITY_TERMS]);
 
 export const MASHING_REGEX = /(.)\1{4,}/i;
 export const CONSONANT_MASH_REGEX = /[bcdfghjklmnpqrstvwxz]{7,}/i;
@@ -56,8 +108,14 @@ export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): Mode
     }
 
     // 4. @2toad Profanity
-    const textForProfanity = cleanText.replace(/\b(v?\d+(\.\d+)?|\d+v\d+)\b/gi, "");
-    if (profanity.exists(textForProfanity)) {
+    const textForProfanity = cleanText
+      .replace(/\b(v?\d+(\.\d+)?|\d+v\d+)\b/gi, "")
+      .normalize("NFKC");
+    const normalizedText = textForProfanity.toLocaleLowerCase();
+    const hasUnboundedMatch = PROJECT_UNBOUNDED_PROFANITY_TERMS.some((term) =>
+      normalizedText.includes(term.toLocaleLowerCase()),
+    );
+    if (profanity.exists(textForProfanity) || hasUnboundedMatch) {
       flags.push({
         level: 4,
         tier: "quality",

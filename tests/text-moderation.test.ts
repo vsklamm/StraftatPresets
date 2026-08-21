@@ -20,6 +20,7 @@ import {
 } from "../src/lib/moderation/level3-computery";
 import {
   checkLevel4QualityAndLibraries,
+  PROFANITY_LANGUAGE_CODES,
 } from "../src/lib/moderation/level4-quality-libraries";
 import {
   runClientModeration,
@@ -49,6 +50,21 @@ const sampleValidPreset: PresetRevisionContent = {
     }],
   }],
 };
+
+const multilingualProfanityCases = [
+  { language: "en", text: "fuck" },
+  { language: "fr", text: "connard" },
+  { language: "es", text: "puta" },
+  { language: "de", text: "scheiße" },
+  { language: "ru", text: "сука" },
+  { language: "zh", text: "这个预设他妈的真的很乱" },
+  { language: "ar", text: "شرموطة" },
+  { language: "pt", text: "caralho" },
+  { language: "it", text: "stronzo" },
+  { language: "hi", text: "चूतिया" },
+  { language: "ja", text: "このプリセットはくそです" },
+  { language: "ko", text: "이 프리셋은 씨발이다" },
+] as const;
 
 test("color tag stripping removes TMPro colors and formatting tags", () => {
   assert.equal(hasColorOrFormattingTags("<#FF0080><i>Styled Title</i></color>"), true);
@@ -231,6 +247,62 @@ test("Level 4 Quality & Libraries checks mashing, caps, and language detection",
 
   const validRes = checkLevel4QualityAndLibraries(extractModeratableFields(sampleValidPreset));
   assert.equal(validRes.decision, "approved");
+});
+
+test("Level 4 profanity screening covers every configured language", () => {
+  assert.deepEqual(
+    [...new Set(multilingualProfanityCases.map(({ language }) => language))].sort(),
+    [...PROFANITY_LANGUAGE_CODES].sort(),
+  );
+
+  for (const { language, text } of multilingualProfanityCases) {
+    const fields = extractModeratableFields({
+      ...sampleValidPreset,
+      description: `A normal preset description containing ${text} for the moderation check.`,
+    });
+    const result = checkLevel4QualityAndLibraries(fields);
+
+    assert.equal(
+      result.flags.some((flag) => flag.code === "profanity_library_match" && flag.field === "description"),
+      true,
+      `${language} profanity was not detected: ${text}`,
+    );
+  }
+});
+
+test("Cyrillic and transliterated Russian profanity cannot pass server moderation", async () => {
+  const cases = [
+    "пидор долбоеб пидарас ебаный в рот",
+    "pidor",
+  ];
+
+  for (const text of cases) {
+    const content: PresetRevisionContent = {
+      ...sampleValidPreset,
+      description: `A complete preset description containing ${text} for the server moderation check.`,
+    };
+
+    assert.equal(runClientModeration(content).decision, "approved");
+
+    const serverResult = await runServerModeration(content);
+    assert.equal(serverResult.decision, "review_required", `Server moderation approved: ${text}`);
+    assert.equal(
+      serverResult.flags.some((flag) => flag.code === "profanity_library_match"),
+      true,
+      `Server moderation did not report its dictionary match: ${text}`,
+    );
+  }
+});
+
+test("every configured language is held by the complete server moderation pipeline", async () => {
+  for (const { language, text } of multilingualProfanityCases) {
+    const result = await runServerModeration({
+      ...sampleValidPreset,
+      description: `A complete preset description containing ${text} for the server moderation check.`,
+    });
+
+    assert.notEqual(result.decision, "approved", `${language} profanity was auto-approved: ${text}`);
+  }
 });
 
 test("runClientModeration and runServerModeration orchestrate tiers correctly", async () => {
