@@ -1,9 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-catalog";
 import { type TagCatalogEntry } from "@/src/domain/tag-catalog";
+
+const RADIAL_ORIGIN_X_OFFSET = 4;
+const RADIAL_ORIGIN_Y_OFFSET = -4;
 
 export function RadialWeaponPicker({
   weapons,
@@ -17,7 +21,7 @@ export function RadialWeaponPicker({
   triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
+  const [hoveredWeapon, setHoveredWeapon] = useState<{ name: string; left: number; top: number } | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
 
   useEffect(() => {
@@ -105,8 +109,8 @@ export function RadialWeaponPicker({
     const calcImgW = Math.round(radialStep * 1.18 * 1.15);
     const calcImgH = calcImgW;
 
-    const originX = dishDimension + 2;
-    const originY = -2;
+    const originX = dishDimension + RADIAL_ORIGIN_X_OFFSET;
+    const originY = RADIAL_ORIGIN_Y_OFFSET;
 
     const sliceOffsets = ringCounts.reduce<number[]>((acc, count, i) => {
       acc.push(i === 0 ? 0 : acc[i - 1] + ringCounts[i - 1]);
@@ -160,8 +164,10 @@ export function RadialWeaponPicker({
     return { positionedWeapons: items, ringRadii: radii, imgW: calcImgW, imgH: calcImgH };
   }, [weapons, dishDimension]);
 
-  const originX = dishDimension + 2;
-  const originY = -2;
+  const originX = dishDimension + RADIAL_ORIGIN_X_OFFSET;
+  const originY = RADIAL_ORIGIN_Y_OFFSET;
+  const hoverGrowth = Math.min(12, Math.max(8, imgW * 0.16));
+  const hoverScale = (imgW + hoverGrowth) / imgW;
 
   return (
     <div
@@ -197,22 +203,28 @@ export function RadialWeaponPicker({
                 height: `${imgH}px`,
                 "--slide-dx": `${slideDx}px`,
                 "--slide-dy": `${slideDy}px`,
+                "--hover-scale": hoverScale,
                 animationDelay: `${delay}ms`,
               } as React.CSSProperties
             }
-            onMouseEnter={() => setHoveredWeapon(weapon.name)}
+            onMouseEnter={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              setHoveredWeapon({ name: weapon.name, left: bounds.left + bounds.width / 2, top: bounds.top - 5 });
+            }}
             onMouseLeave={() => setHoveredWeapon(null)}
             onClick={() => {
               onSelect(weapon.name);
             }}
-            title={weapon.name}
             aria-label={weapon.name}
           >
             <Image src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
-            {hoveredWeapon === weapon.name ? <span className="radial-item-tooltip">{weapon.name}</span> : null}
           </button>
         ))}
       </div>
+      {hoveredWeapon && typeof document !== "undefined" ? createPortal(
+        <span className="radial-item-tooltip" style={{ left: hoveredWeapon.left, top: hoveredWeapon.top }}>{hoveredWeapon.name}</span>,
+        document.body,
+      ) : null}
     </div>
   );
 }
@@ -227,7 +239,6 @@ export function SearchTagPicker({
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -248,29 +259,13 @@ export function SearchTagPicker({
     };
   }, [onClose]);
 
-  const filteredTags = useMemo(() => {
-    if (!filter.trim()) return tags;
-    const lower = filter.trim().toLowerCase();
-    return tags.filter((tag) => tag.label.toLowerCase().includes(lower) || tag.category.toLowerCase().includes(lower));
-  }, [tags, filter]);
-
   const categories = ["lobby", "maps", "weapons", "experience"] as const;
 
   return (
     <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">
-      <div className="search-tag-input-box">
-        <input
-          autoFocus
-          placeholder="Filter tags..."
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          aria-label="Filter tags"
-        />
-      </div>
-
       <div className="search-tag-categories">
         {categories.map((category) => {
-          const categoryTags = filteredTags.filter((tag) => tag.category === category);
+          const categoryTags = tags.filter((tag) => tag.category === category);
           if (!categoryTags.length) return null;
           return (
             <div key={category} className="search-tag-group">
