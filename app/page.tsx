@@ -1188,9 +1188,10 @@ export default function Home() {
                       <p className="thumbnail-error field-error-message">{thumbnailError}</p>
                     ) : (
                       <div className="thumbnail-hint">
-                        <span className="thumbnail-theme-rule">STRAFTAT-themed only.</span>
-                        <span>No NSFW, gore, or graphic violence.</span>
-                        <span>Suggested: 16:9, 720p+. JPEG/PNG/WebP, 2 MB max.</span>
+                        <span className="thumbnail-theme-rule">STRAFTAT-themed only</span>
+                        <span>No NSFW, gore, or graphic violence</span>
+                        <span>JPEG/PNG/WebP, 2 MB max</span>
+                        <span>Suggested: 16:9, 720p+</span>
                       </div>
                     )}
                   </div>
@@ -1378,18 +1379,17 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
       };
     }
 
-    // card mode (16:9 aspect)
     let targetPx: number;
-    if (visibleLength <= 6) targetPx = 24;
-    else if (visibleLength <= 12) targetPx = 19;
-    else if (visibleLength <= 22) targetPx = 15.5;
-    else if (visibleLength <= 36) targetPx = 13;
-    else if (visibleLength <= 52) targetPx = 11;
-    else targetPx = 9.5;
+    if (visibleLength <= 6) targetPx = 34;
+    else if (visibleLength <= 12) targetPx = 29;
+    else if (visibleLength <= 22) targetPx = 24;
+    else if (visibleLength <= 36) targetPx = 19;
+    else if (visibleLength <= 52) targetPx = 15;
+    else targetPx = 12;
 
     if (maxWordLength > 0) {
-      const maxFitPx = Math.floor(230 / (maxWordLength * 0.64));
-      targetPx = Math.min(targetPx, Math.max(9, maxFitPx));
+      const maxFitPx = Math.floor(230 / (maxWordLength * 0.6));
+      targetPx = Math.min(targetPx, Math.max(11, maxFitPx));
     }
 
     const lineHeight = targetPx >= 20 ? 1.12 : targetPx >= 14 ? 1.18 : 1.25;

@@ -31,7 +31,7 @@ button { color: inherit; }
 .topbar-meta > p strong { color: #a8a8b2; font-weight: 500; }
 .credit-inspired { display: inline-flex; align-items: center; gap: 5px; }
 .inspired-stack { display: inline-flex; flex-direction: column; justify-content: center; line-height: 1.15; }
-.inspired-stack a { font-size: 10px; font-weight: 400; color: #a8a8b2; text-decoration: underline; text-underline-offset: 2px; letter-spacing: 0.01em; }
+.inspired-stack a { font-family: inherit; font-size: 10px; font-weight: 350; color: #a8a8b2; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; letter-spacing: 0.01em; }
 .inspired-stack a:hover { color: #fff; }
 .inspired-author { font-size: 9px; color: #787882; font-weight: 400; }
 .credit-separator { width: 1px; height: 18px; margin: 0 10px; background: #3e3e46; flex: 0 0 auto; }
@@ -160,9 +160,9 @@ button { color: inherit; }
 .create-preset-slot:hover { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.025); transform: translateY(-2px); }
 .create-preset-slot:active { transform: translateY(0); }
 .create-preset-slot:disabled { opacity: .6; cursor: wait; transform: none; }
-.create-slot-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #c4c4cc; transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease; }
+.create-slot-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: transparent; color: #c4c4cc; transition: color .15s ease, transform .15s ease; }
 .create-slot-icon svg { width: 18px; height: 18px; }
-.create-preset-slot:hover .create-slot-icon { border-color: rgba(225,160,90,.45); background: rgba(225,160,90,.08); color: #f0c896; transform: scale(1.08); }
+.create-preset-slot:hover .create-slot-icon { color: #f0c896; transform: scale(1.08); }
 .create-slot-title { font-size: 14px; font-weight: 600; color: #f4f4f6; letter-spacing: -.01em; }
 .create-slot-desc { font-size: 11.5px; color: #82828c; line-height: 1.4; max-width: 220px; }
 
