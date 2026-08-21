@@ -66,6 +66,20 @@ const multilingualProfanityCases = [
   { language: "ko", text: "이 프리셋은 씨발이다" },
 ] as const;
 
+const cleanNonEnglishDescriptions = [
+  { language: "fr", text: "Des cartes ouvertes avec des passages rapides, des combats variés et assez de place pour changer de stratégie." },
+  { language: "es", text: "Mapas abiertos con rutas rápidas, combates variados y suficiente espacio para cambiar de estrategia." },
+  { language: "de", text: "Offene Karten mit schnellen Wegen, abwechslungsreichen Kämpfen und genug Platz für neue Strategien." },
+  { language: "ru", text: "Открытые карты с быстрыми маршрутами, разнообразными боями и местом для смены стратегии." },
+  { language: "zh", text: "开放地图提供快速路线和多样化的战斗方式，也有足够空间让玩家随时改变策略和选择新的进攻方向。" },
+  { language: "ar", text: "خرائط مفتوحة مع مسارات سريعة ومعارك متنوعة ومساحة كافية لتغيير الخطة أثناء اللعب." },
+  { language: "pt", text: "Mapas abertos com caminhos rápidos, combates variados e espaço suficiente para mudar de estratégia." },
+  { language: "it", text: "Mappe aperte con percorsi rapidi, combattimenti vari e abbastanza spazio per cambiare strategia." },
+  { language: "hi", text: "खुले नक्शों में तेज रास्ते, अलग तरह की लड़ाइयाँ और खेल के दौरान योजना बदलने के लिए काफी जगह है।" },
+  { language: "ja", text: "開けたマップには素早く移動できるルートと多様な戦いがあり、試合中に作戦を変えるための十分な空間もあります。" },
+  { language: "ko", text: "열린 맵에는 빠르게 이동할 수 있는 길과 다양한 전투가 있으며, 경기 중 전략을 바꿀 수 있는 충분한 공간도 있습니다." },
+] as const;
+
 test("color tag stripping removes TMPro colors and formatting tags", () => {
   assert.equal(hasColorOrFormattingTags("<#FF0080><i>Styled Title</i></color>"), true);
   assert.equal(stripColorAndFormattingTags("<#FF0080><i>Styled Title</i></color>"), "Styled Title");
@@ -264,7 +278,7 @@ test("Level 4 profanity screening covers every configured language", () => {
 
     assert.equal(
       result.flags.some((flag) => flag.field === "description" && (
-        flag.code === "profanity_library_match" || flag.code === "non_english_profanity_library_match"
+        flag.code === "profanity_library_match" || flag.code === "non_english_profanity_dictionary_match"
       )),
       true,
       `${language} profanity was not detected: ${text}`,
@@ -294,7 +308,7 @@ test("Cyrillic and transliterated Russian profanity is rejected by server modera
     const serverResult = await runServerModeration(content);
     assert.equal(serverResult.decision, "rejected", `Server moderation did not reject: ${text}`);
     assert.equal(
-      serverResult.flags.some((flag) => flag.code === "non_english_profanity_library_match"),
+      serverResult.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match"),
       true,
       `Server moderation did not report its dictionary match: ${text}`,
     );
@@ -316,6 +330,22 @@ test("non-English profanity is rejected by the complete server moderation pipeli
   }
 });
 
+test("clean text in every supported non-English language passes server moderation", async () => {
+  assert.deepEqual(
+    [...new Set(cleanNonEnglishDescriptions.map(({ language }) => language))].sort(),
+    PROFANITY_LANGUAGE_CODES.filter((language) => language !== "en").sort(),
+  );
+
+  for (const { language, text } of cleanNonEnglishDescriptions) {
+    const result = await runServerModeration({
+      ...sampleValidPreset,
+      description: text,
+    });
+
+    assert.equal(result.decision, "approved", `${language} clean text was not approved`);
+  }
+});
+
 test("non-English profanity still rejects text that also contains English profanity", async () => {
   const result = await runServerModeration({
     ...sampleValidPreset,
@@ -323,7 +353,26 @@ test("non-English profanity still rejects text that also contains English profan
   });
 
   assert.equal(result.decision, "rejected");
-  assert.equal(result.flags.some((flag) => flag.code === "non_english_profanity_library_match"), true);
+  assert.equal(result.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match"), true);
+});
+
+test("non-English profanity in nested preset fields is rejected with its field path", async () => {
+  const result = await runServerModeration({
+    ...sampleValidPreset,
+    versions: [{
+      ...sampleValidPreset.versions[0],
+      mapPlaylists: [{
+        ...sampleValidPreset.versions[0].mapPlaylists[0],
+        name: "сука maps",
+      }],
+    }],
+  });
+
+  assert.equal(result.decision, "rejected");
+  assert.equal(
+    result.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match" && flag.field === "versions.0.mapPlaylists.0.name"),
+    true,
+  );
 });
 
 test("runClientModeration and runServerModeration orchestrate tiers correctly", async () => {
@@ -465,4 +514,13 @@ test("runServerModeration with previousContent auto-approves trusted revisions w
   };
   const resultHardReject = await runServerModeration(revisionHardReject, { previousContent: publishedPreset });
   assert.equal(resultHardReject.decision, "rejected");
+
+  // 5. Non-English profanity in changed text is rejected instead of queued for review
+  const revisionForeignProfanity: PresetRevisionContent = {
+    ...publishedPreset,
+    description: "A changed preset description containing сука that must be rejected automatically.",
+  };
+  const resultForeignProfanity = await runServerModeration(revisionForeignProfanity, { previousContent: publishedPreset });
+  assert.equal(resultForeignProfanity.decision, "rejected");
+  assert.equal(resultForeignProfanity.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match"), true);
 });

@@ -84,7 +84,7 @@ Published presets require a name, a useful description, at least one version, at
 
 Uploaded thumbnails are limited to JPEG or PNG input of at most 2 MB. The browser and server validate the file, the server converts it to WebP, and only the processed image is stored in private R2. New or changed thumbnails require manual review before publication.
 
-Automatic profanity screening uses dictionaries for English, French, Spanish, German, Russian, Chinese, Arabic, Portuguese, Italian, Hindi, Japanese, and Korean. A small project dictionary also covers common transliterated Russian and Polish terms. English matches require review; non-English matches are rejected automatically.
+Automatic profanity screening uses a secondary English library and reviewed high-confidence dictionaries for French, Spanish, German, Russian, Chinese, Arabic, Portuguese, Italian, Hindi, Japanese, and Korean. A small project dictionary also covers common transliterated Russian and Polish terms. English matches require review; non-English matches are rejected automatically.
 
 ## Cloudflare setup
 

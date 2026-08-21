@@ -18,60 +18,62 @@ export const PROFANITY_LANGUAGE_CODES = [
   "ko",
 ] as const;
 
-const PROJECT_PROFANITY_TERMS = [
-  "suka",
-  "blyat",
-  "cyka",
-  "pidor",
-  "pidaras",
-  "xuy",
-  "пидор",
-  "долбоеб",
-  "долбоёб",
-  "пидарас",
-  "ебаный",
-  "他妈的",
-  "操你妈",
-  "قحبة",
-  "شرموطة",
-  "चूतिया",
-  "भोसड़ी",
-  "くそ",
-  "씨발",
-  "시발",
-  "개새끼",
-  "kurwa",
-] as const;
+type NonEnglishLanguageCode = Exclude<(typeof PROFANITY_LANGUAGE_CODES)[number], "en">;
 
-const PROJECT_UNBOUNDED_PROFANITY_TERMS = [
-  "他妈的",
-  "操你妈",
-  "くそ",
-  "クソ",
-  "ファック",
-  "씨발",
-  "시발",
-  "개새끼",
-] as const;
+// The package's translated lists contain ordinary words, so only reviewed terms may trigger automatic rejection.
+export const NON_ENGLISH_PROFANITY_TERMS = {
+  fr: ["connard", "connasse", "putain", "merde", "salope", "enculé", "encule"],
+  es: ["puta", "puto", "mierda", "cabrón", "cabron", "gilipollas", "hijo de puta"],
+  de: ["scheiße", "scheisse", "arschloch", "hurensohn", "wichser"],
+  ru: ["сука", "блять", "блядь", "хуй", "пидор", "долбоеб", "долбоёб", "пидарас", "ебаный"],
+  zh: ["他妈的", "操你妈", "傻逼", "妈的"],
+  ar: ["قحبة", "شرموطة", "كس", "زب"],
+  pt: ["caralho", "puta", "merda", "filho da puta", "foda-se", "fodase"],
+  it: ["stronzo", "stronza", "cazzo", "merda", "puttana"],
+  hi: ["चूतिया", "भोसड़ी", "गांड", "हरामी"],
+  ja: ["くそ", "クソ", "ファック", "ちくしょう"],
+  ko: ["씨발", "시발", "개새끼", "지랄"],
+} as const satisfies Record<NonEnglishLanguageCode, readonly string[]>;
 
-function createProfanityDetector(languages: readonly string[], additionalTerms: readonly string[] = []) {
+const TRANSLITERATED_PROFANITY_TERMS = ["suka", "blyat", "cyka", "pidor", "pidaras", "xuy", "kurwa"] as const;
+const UNBOUNDED_LANGUAGE_CODES = new Set<NonEnglishLanguageCode>(["zh", "ja", "ko"]);
+const UNBOUNDED_NON_ENGLISH_PROFANITY_TERMS = Object.entries(NON_ENGLISH_PROFANITY_TERMS)
+  .filter(([language]) => UNBOUNDED_LANGUAGE_CODES.has(language as NonEnglishLanguageCode))
+  .flatMap(([, terms]) => terms);
+const BOUNDED_NON_ENGLISH_PROFANITY_TERMS = [
+  ...Object.entries(NON_ENGLISH_PROFANITY_TERMS)
+    .filter(([language]) => !UNBOUNDED_LANGUAGE_CODES.has(language as NonEnglishLanguageCode))
+    .flatMap(([, terms]) => terms),
+  ...TRANSLITERATED_PROFANITY_TERMS,
+];
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const BOUNDED_NON_ENGLISH_PROFANITY_REGEX = new RegExp(
+  `(?<![\\p{L}\\p{N}\\p{M}])(?:${BOUNDED_NON_ENGLISH_PROFANITY_TERMS.map(escapeRegExp).join("|")})(?![\\p{L}\\p{N}\\p{M}])`,
+  "iu",
+);
+
+function containsNonEnglishProfanity(text: string) {
+  const normalizedText = text.normalize("NFKC").toLocaleLowerCase();
+  return BOUNDED_NON_ENGLISH_PROFANITY_REGEX.test(normalizedText)
+    || UNBOUNDED_NON_ENGLISH_PROFANITY_TERMS.some((term) => normalizedText.includes(term.toLocaleLowerCase()));
+}
+
+function createEnglishProfanityDetector() {
   const options = new ProfanityOptions();
-  options.languages = [...languages];
+  options.languages = ["en"];
   options.wholeWord = true;
   options.unicodeWordBoundaries = true;
-  options.grawlix = "";
 
   const detector = new Profanity(options);
   detector.whitelist.addWords(PROFANITY_ALLOWLIST);
-  detector.addWords([...additionalTerms]);
   return detector;
 }
 
-const englishProfanity = createProfanityDetector(["en"]);
-const nonEnglishProfanity = createProfanityDetector(
-  PROFANITY_LANGUAGE_CODES.filter((language) => language !== "en"),
-  PROJECT_PROFANITY_TERMS,
-);
+const englishProfanity = createEnglishProfanityDetector();
 
 export const MASHING_REGEX = /(.)\1{4,}/i;
 export const CONSONANT_MASH_REGEX = /[bcdfghjklmnpqrstvwxz]{7,}/i;
@@ -118,19 +120,12 @@ export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): Mode
       });
     }
 
-    // 4. @2toad Profanity
+    // 4. Profanity dictionaries
     const textForProfanity = cleanText
       .replace(/\b(v?\d+(\.\d+)?|\d+v\d+)\b/gi, "")
       .normalize("NFKC");
-    const normalizedText = textForProfanity.toLocaleLowerCase();
-    const hasUnboundedMatch = PROJECT_UNBOUNDED_PROFANITY_TERMS.some((term) =>
-      normalizedText.includes(term.toLocaleLowerCase()),
-    );
     const hasEnglishMatch = englishProfanity.exists(textForProfanity);
-    const textWithoutEnglishMatches = hasEnglishMatch
-      ? englishProfanity.censor(textForProfanity)
-      : textForProfanity;
-    const hasNonEnglishMatch = hasUnboundedMatch || nonEnglishProfanity.exists(textWithoutEnglishMatches);
+    const hasNonEnglishMatch = containsNonEnglishProfanity(textForProfanity);
 
     if (hasNonEnglishMatch) {
       hasHardReject = true;
@@ -138,7 +133,7 @@ export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): Mode
         level: 4,
         tier: "hard_reject",
         field: path,
-        code: "non_english_profanity_library_match",
+        code: "non_english_profanity_dictionary_match",
         message: `Contains profanity in ${label}`,
       });
     } else if (hasEnglishMatch) {
