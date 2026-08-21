@@ -1235,8 +1235,7 @@ export default function Home() {
                       <button
                         type="button"
                         className="thumbnail-btn"
-                        title={thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change pic" : "Add pic"}
-                        aria-label={thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change pic" : "Add pic"}
+                        aria-label={thumbnailStatus === "uploading" ? "Checking picture…" : selected.image ? "Change picture" : "Add picture"}
                         disabled={thumbnailStatus === "uploading"}
                         onClick={() => thumbnailInputRef.current?.click()}
                       >
@@ -1247,8 +1246,7 @@ export default function Home() {
                         <button
                           type="button"
                           className="thumbnail-btn"
-                          title="Remove pic"
-                          aria-label="Remove pic"
+                          aria-label="Remove picture"
                           disabled={thumbnailStatus === "uploading"}
                           onClick={removeThumbnail}
                         >
