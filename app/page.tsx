@@ -13,9 +13,8 @@ import { getPresetLimitMessage, MAX_PRESETS_PER_AUTHOR } from "@/src/domain/pres
 import { gameCatalog, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-catalog";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
-import { calculatePresetRanking, type PresetEngagementSignals } from "@/src/domain/preset-ranking";
 import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
-import { recordPresetInteraction, setPresetLike } from "@/src/lib/preset-interactions-client";
+import { recordPresetInteraction } from "@/src/lib/preset-interactions-client";
 import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
 import type { ActiveTag } from "@/src/application/ports";
 import { formatPresetIssueMessage } from "@/src/application/preset-issue-message";
@@ -45,7 +44,7 @@ import {
   serializeLocalDraftSnapshot,
 } from "@/src/domain/preset-local-draft";
 
-type AuthPrompt = { action: "submit" } | { action: "like"; presetId: string; opened: boolean };
+type AuthPrompt = { action: "submit" };
 type PresetRevisionToken = { revisionId: string; editVersion: number };
 type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardItem | undefined> };
 
@@ -143,8 +142,7 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
     image: content.thumbnailKey ? mediaUrl(content.thumbnailKey) : undefined,
     description: content.description,
     tags: content.tags.map((tag) => labelFromSlug(tag, tagLabels)),
-    likes: item.likes,
-    publishedDaysAgo: item.publishedAt ? Math.max(0, Math.floor((Date.now() - new Date(item.publishedAt).getTime()) / 86_400_000)) : 0,
+    copies: item.copies,
     versioningEnabled: content.versioningEnabled,
     versions: versions.length ? versions : [{ label: "-", released: "Draft" }],
     persisted: true,
@@ -166,31 +164,6 @@ function configLabels(version: PresetVersion) {
     version.randomizedWeapons ? "Randomized weapons" : null,
     version.swapper?.length ? `${version.swapper.length} Swapper setting${version.swapper.length === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[];
-}
-
-function engagementSignals(preset: Preset): PresetEngagementSignals {
-  const uniqueAuthenticated = Math.max(1, Math.round(preset.likes * 0.35));
-  const uniqueAnonymous = Math.max(1, Math.round(preset.likes * 0.8));
-  const copies = Math.max(1, Math.round(preset.likes * 1.15));
-  return {
-    likes: preset.likes,
-    opens: { total: preset.likes * 3 + 9, uniqueAnonymous: uniqueAnonymous * 2, uniqueAuthenticated },
-    linkOpens: { total: Math.max(1, Math.round(preset.likes * 0.7)), uniqueAnonymous: Math.max(1, Math.round(uniqueAnonymous * 0.45)), uniqueAuthenticated: Math.max(0, Math.round(uniqueAuthenticated * 0.35)) },
-    copies: { total: copies, uniqueAnonymous: Math.max(1, Math.round(copies * 0.55)), uniqueAuthenticated: Math.max(1, Math.round(copies * 0.25)) },
-  };
-}
-
-function presetRanking(preset: Preset) {
-  return calculatePresetRanking({
-    title: preset.title,
-    description: preset.description,
-    hasThumbnail: Boolean(preset.image),
-    versionCount: preset.versions.length,
-    mapPlaylistCount: preset.versions.reduce((total, version) => total + (version.maps?.length ?? 0), 0),
-    mapPlaylistWithDescriptionCount: preset.versions.reduce((total, version) => total + (version.maps?.length ?? 0), 0),
-    tagCount: preset.tags.length,
-    weaponConfigurationCount: preset.versions.reduce((total, version) => total + (version.randomizedWeapons ? 1 : 0) + (version.swapper?.length ?? 0), 0),
-  }, engagementSignals(preset), -preset.publishedDaysAgo * 86_400_000, 0);
 }
 
 export default function Home() {
@@ -251,8 +224,7 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
-  const [likedPresets, setLikedPresets] = useState<string[]>([]);
-  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
   const [weaponSort, setWeaponSort] = useState<WeaponSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [weaponCopyBurst, setWeaponCopyBurst] = useState(0);
@@ -270,7 +242,6 @@ export default function Home() {
   const linkedInteractionRef = useRef("");
   const openPresetIdRef = useRef("");
   const dialogSectionRef = useRef<HTMLElement>(null);
-  const pendingLikeHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     void Promise.allSettled(gameCatalog.weapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
@@ -298,7 +269,7 @@ export default function Home() {
     void fetch(`/api/presets?view=${activeDashboardView}&limit=48`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Presets could not be loaded.");
-        return response.json() as Promise<{ items: PresetDashboardItem[], likedPresetIds?: string[] }>;
+        return response.json() as Promise<{ items: PresetDashboardItem[] }>;
       })
       .then((result) => {
         const recovered = result.items.map((item) => {
@@ -307,9 +278,6 @@ export default function Home() {
           return localContent ? { ...item, content: localContent } : item;
         });
         setItemsByView((prev) => ({ ...prev, [activeDashboardView]: recovered }));
-        if (result.likedPresetIds) {
-          setLikedPresets((current) => Array.from(new Set([...current, ...result.likedPresetIds!])));
-        }
       })
       .catch((error: unknown) => { if (!controller.signal.aborted) setDashboardError(error instanceof Error ? error.message : "Presets could not be loaded."); })
       .finally(() => { if (!controller.signal.aborted) setDashboardLoading(false); });
@@ -320,16 +288,7 @@ export default function Home() {
   const dashboardItems = itemsByView[activeDashboardView];
   const isViewLoaded = dashboardItems !== undefined;
   const storedPresets = useMemo(() => (dashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [dashboardItems, tagLabels]);
-  const dashboardPresets = useMemo(() => {
-    if (!isViewLoaded) return [];
-    if (activeDashboardView === "mine") return storedPresets;
-    return [...storedPresets].sort((left, right) => {
-      if (activeDashboardView === "newest") return left.publishedDaysAgo - right.publishedDaysAgo || left.title.localeCompare(right.title);
-      const leftRanking = presetRanking(left);
-      const rightRanking = presetRanking(right);
-      return rightRanking.total - leftRanking.total || rightRanking.quality - leftRanking.quality || left.title.localeCompare(right.title);
-    });
-  }, [activeDashboardView, isViewLoaded, storedPresets]);
+  const dashboardPresets = storedPresets;
 
   const visiblePresets = useMemo(() => dashboardPresets.filter((preset) => {
     const versionWeapons = preset.versions.flatMap((v) => (v.randomizedWeapons ?? []).map((w) => w.name)).join(" ");
@@ -731,7 +690,7 @@ export default function Home() {
                   editVersion: snapshot.editVersion ?? 0,
                   content: localContent,
                   issues: [],
-                  likes: 0,
+                  copies: 0,
                   updatedAt: new Date(snapshot.updatedAt || Date.now()),
                   publishedAt: null,
                 };
@@ -838,39 +797,30 @@ export default function Home() {
   const changeWeaponSort = (key: WeaponSortKey) => { if (weaponSort === key) setSortDirection((current) => current === "asc" ? "desc" : "asc"); else { setWeaponSort(key); setSortDirection("asc"); } };
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
   const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
-  const isLiked = (presetId: string) => likedPresets.includes(presetId);
-  const likeCount = (preset: Preset) => likeCounts[preset.id] ?? preset.likes;
-  const toggleLike = async (preset: Preset) => {
-    if (authStatus !== "authenticated") {
-      if (authStatus !== "loading") setAuthPrompt({ action: "like", presetId: preset.id, opened: selected?.id === preset.id });
-      return;
-    }
-    const wasLiked = isLiked(preset.id);
-    const nextLiked = !wasLiked;
-    const previousCount = likeCount(preset);
-    const optimisticCount = Math.max(0, previousCount + (nextLiked ? 1 : -1));
-
-    setLikedPresets((current) => nextLiked ? (current.includes(preset.id) ? current : [...current, preset.id]) : current.filter((id) => id !== preset.id));
-    setLikeCounts((current) => ({ ...current, [preset.id]: optimisticCount }));
-    if (!preset.persisted) return;
-    try {
-      const result = await setPresetLike(preset.id, nextLiked);
-      setLikeCounts((current) => ({ ...current, [preset.id]: result.likes }));
-    } catch {
-      setLikedPresets((current) => wasLiked ? (current.includes(preset.id) ? current : [...current, preset.id]) : current.filter((id) => id !== preset.id));
-      setLikeCounts((current) => ({ ...current, [preset.id]: previousCount }));
-    }
+  const copyCount = (preset: Preset) => copyCounts[preset.id] ?? preset.copies;
+  const recordSelectedCopy = (preset: Preset) => {
+    let accepted = false;
+    void recordPresetInteraction(preset.id, "copy", () => {
+      accepted = true;
+      setCopyCounts((current) => ({ ...current, [preset.id]: (current[preset.id] ?? preset.copies) + 1 }));
+    }).then((result) => {
+      const total = result?.statistics?.copies.total;
+      if (total !== undefined) setCopyCounts((current) => ({ ...current, [preset.id]: total }));
+    }).catch(() => {
+      if (!accepted) return;
+      setCopyCounts((current) => ({ ...current, [preset.id]: Math.max(0, (current[preset.id] ?? preset.copies) - 1) }));
+    });
   };
-  const copyText = async (key: string, text: string, target: string) => {
+  const copyText = async (key: string, text: string, trackPresetCopy = true) => {
     if (!navigator.clipboard) return;
     await navigator.clipboard.writeText(text);
     setCopied(key);
     window.setTimeout(() => setCopied(null), 1800);
-    if (selected?.persisted) void recordPresetInteraction(selected.id, "copy", { target, presetVersionId: selectedVersion?.id }).catch(() => undefined);
+    if (trackPresetCopy && selected?.persisted) recordSelectedCopy(selected);
   };
   const copyWeapons = (weapons: WeightedWeapon[]) => {
     setWeaponCopyBurst((burst) => burst + 1);
-    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), `weapons:${selectedVersion?.id ?? selectedVersion?.label ?? "current"}`).catch(() => undefined);
+    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n")).catch(() => undefined);
   };
   const handleDialogScroll = () => {
     setIsDialogScrolling(true);
@@ -941,35 +891,6 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, isCreating]);
 
-  useEffect(() => {
-    if (authStatus !== "authenticated") return;
-    const url = new URL(window.location.href);
-    const likePresetId = url.searchParams.get("like") || (typeof window !== "undefined" ? window.sessionStorage.getItem("pendingLikePresetId") : null);
-    if (!likePresetId || pendingLikeHandledRef.current === likePresetId) return;
-    pendingLikeHandledRef.current = likePresetId;
-
-    if (url.searchParams.has("like")) {
-      url.searchParams.delete("like");
-      window.history.replaceState(null, "", url);
-    }
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem("pendingLikePresetId");
-    }
-
-    setLikedPresets((current) => current.includes(likePresetId) ? current : [...current, likePresetId]);
-    setLikeCounts((current) => ({
-      ...current,
-      [likePresetId]: (current[likePresetId] !== undefined ? current[likePresetId] : 0) + 1,
-    }));
-
-    void setPresetLike(likePresetId, true)
-      .then((result) => {
-        setLikeCounts((current) => ({ ...current, [likePresetId]: result.likes }));
-      })
-      .catch(() => {
-        setLikedPresets((current) => current.filter((id) => id !== likePresetId));
-      });
-  }, [authStatus]);
   const submitSelectedPreset = async () => {
     if (!selected?.revisionId || selected.editVersion === undefined) return;
 
@@ -1172,7 +1093,7 @@ export default function Home() {
                     <div className="preset-author"><span>by {preset.author}</span></div>
                   </div>
                 </button>
-                {!preset.state || preset.state === "published" ? <button className={`like-button ${isLiked(preset.id) ? "liked" : ""}`} type="button" aria-label={`${isLiked(preset.id) ? "Unlike" : "Like"} ${preset.title}`} aria-pressed={isLiked(preset.id)} onClick={() => void toggleLike(preset)}><span aria-hidden="true">♥</span><b>{likeCount(preset).toLocaleString()}</b></button> : null}
+                {!preset.state || preset.state === "published" ? <CopyCount count={copyCount(preset)} /> : null}
               </article>;
             };
 
@@ -1283,9 +1204,9 @@ export default function Home() {
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString(), "link").catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString(), false).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={saveStatus === "saving"} onClick={() => void submitSelectedPreset()}>Submit</button> : null}
-                {!selected.state || selected.state === "published" ? <button className={`like-button dialog-like ${isLiked(selected.id) ? "liked" : ""}`} type="button" aria-label={`${isLiked(selected.id) ? "Unlike" : "Like"} ${selected.title}`} aria-pressed={isLiked(selected.id)} onClick={() => void toggleLike(selected)}><span aria-hidden="true">♥</span><b>{likeCount(selected).toLocaleString()}</b></button> : null}
+                {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
               </div>
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
@@ -1332,11 +1253,11 @@ export default function Home() {
             </PresetSection> : null}
 
             {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper settings" count={selectedVersion.swapper.length}>
-              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, `swapper:${selectedVersion.id ?? selectedVersion.label}:${index}`).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
 
             {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map playlists" count={selectedVersion.maps.length}>
-              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, `map:${selectedVersion.id ?? selectedVersion.label}:${index}`).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
           </div>
@@ -1346,20 +1267,8 @@ export default function Home() {
       </div>}
       {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
         const callbackUrl = new URL(window.location.href);
-        if (authPrompt.action === "submit") {
-          callbackUrl.searchParams.set("create", "1");
-          callbackUrl.searchParams.delete("like");
-          window.sessionStorage.setItem("justLoggedIn", "true");
-        } else if (authPrompt.action === "like") {
-          callbackUrl.searchParams.set("like", authPrompt.presetId);
-          callbackUrl.searchParams.delete("create");
-          window.sessionStorage.setItem("pendingLikePresetId", authPrompt.presetId);
-          if (authPrompt.opened) {
-            callbackUrl.searchParams.set("p", authPrompt.presetId);
-          } else {
-            callbackUrl.searchParams.delete("p");
-          }
-        }
+        callbackUrl.searchParams.set("create", "1");
+        window.sessionStorage.setItem("justLoggedIn", "true");
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
       }} /> : null}
     </main>
@@ -1368,6 +1277,9 @@ export default function Home() {
 
 function PresetSection({ title, count, action, children }: { title: string; count: number; action?: React.ReactNode; children: React.ReactNode }) {
   return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
+}
+function CopyCount({ count, dialog = false }: { count: number; dialog?: boolean }) {
+  return <span className={`copy-count ${dialog ? "dialog-copy-count" : ""}`} aria-label={`${count.toLocaleString()} ${count === 1 ? "copy" : "copies"}`}><CopyCountIcon /><b>{count.toLocaleString()}</b></span>;
 }
 function ExpandableName({ text }: { text: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
@@ -1528,6 +1440,9 @@ function RemoveIcon() {
 }
 function LinkIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+}
+function CopyCountIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>;
 }
 function PlusIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;

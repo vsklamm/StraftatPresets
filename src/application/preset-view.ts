@@ -21,8 +21,7 @@ export type Preset = {
   image?: string;
   description: string;
   tags: string[];
-  likes: number;
-  publishedDaysAgo: number;
+  copies: number;
   versioningEnabled: boolean;
   versions: PresetVersion[];
   persisted?: boolean;

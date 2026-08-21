@@ -23,7 +23,6 @@ const minimumPreset: PresetContentSignals = {
 };
 
 const noEngagement: PresetEngagementSignals = {
-  likes: 0,
   opens: { total: 0, uniqueAnonymous: 0, uniqueAuthenticated: 0 },
   linkOpens: { total: 0, uniqueAnonymous: 0, uniqueAuthenticated: 0 },
   copies: { total: 0, uniqueAnonymous: 0, uniqueAuthenticated: 0 },
@@ -61,14 +60,26 @@ test("the new-preset boost decays linearly and disappears after fourteen days", 
   assert.equal(calculateFreshnessScore(now - 90 * 86_400_000, now), 0);
 });
 
+test("copies carry most engagement weight and do not saturate at one thousand", () => {
+  const copiesAt = (count: number): PresetEngagementSignals => ({
+    ...noEngagement,
+    copies: { total: count, uniqueAnonymous: count, uniqueAuthenticated: 0 },
+  });
+  const atOneHundred = calculatePresetRanking(minimumPreset, copiesAt(100), null).engagement;
+  const atOneThousand = calculatePresetRanking(minimumPreset, copiesAt(1_000), null).engagement;
+  const atTenThousand = calculatePresetRanking(minimumPreset, copiesAt(10_000), null).engagement;
+  assert.ok(atOneHundred < atOneThousand);
+  assert.ok(atOneThousand < atTenThousand);
+  assert.equal(atTenThousand, 18);
+});
+
 test("maximum engagement cannot outrank a complete preset on its own", () => {
   const fullPreset = { ...minimumPreset, description: "x".repeat(300), hasThumbnail: true, versionCount: 5, mapPlaylistWithDescriptionCount: 5,
     mapPlaylistCount: 5, tagCount: 8, weaponConfigurationCount: 1 };
   const saturated: PresetEngagementSignals = {
-    likes: 100,
     opens: { total: 100, uniqueAnonymous: 50, uniqueAuthenticated: 20 },
     linkOpens: { total: 100, uniqueAnonymous: 50, uniqueAuthenticated: 20 },
-    copies: { total: 100, uniqueAnonymous: 50, uniqueAuthenticated: 20 },
+    copies: { total: 10_000, uniqueAnonymous: 10_000, uniqueAuthenticated: 0 },
   };
   const now = Date.UTC(2026, 7, 14);
   const complete = calculatePresetRanking(fullPreset, noEngagement, now - 30 * 86_400_000, now);

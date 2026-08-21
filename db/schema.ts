@@ -159,41 +159,21 @@ export const randomizedWeapons = sqliteTable("randomized_weapons", {
   index("idx_randomized_weapons_config_id").on(table.weaponConfigurationId),
 ]);
 
-export const likes = sqliteTable("likes", {
-  presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(now),
-}, (table) => [primaryKey({ columns: [table.presetId, table.userId] })]);
-
-export const presetLikeEvents = sqliteTable("preset_like_events", {
-  id: text("id").primaryKey(),
-  presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  action: text("action", { enum: ["like", "unlike"] }).notNull(),
-  networkHash: text("network_hash").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(now),
-}, (table) => [
-  index("idx_preset_like_events_user_created").on(table.userId, table.createdAt),
-  index("idx_preset_like_events_network_created").on(table.presetId, table.networkHash, table.createdAt),
-]);
-
 export const presetEvents = sqliteTable("preset_events", {
   id: text("id").primaryKey(),
   presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),
-  presetVersionId: text("preset_version_id").references(() => presetVersions.id, { onDelete: "set null" }),
   kind: text("kind", { enum: ["view", "link_open", "copy"] }).notNull(),
   actorHash: text("actor_hash").notNull(),
   networkHash: text("network_hash"),
   isAuthenticated: integer("is_authenticated", { mode: "boolean" }).notNull().default(false),
   clientEventId: text("client_event_id"),
   dedupeBucket: text("dedupe_bucket").notNull(),
-  target: text("target").notNull().default(""),
   isInvalidated: integer("is_invalidated", { mode: "boolean" }).notNull().default(false),
   invalidatedAt: integer("invalidated_at", { mode: "timestamp_ms" }),
   invalidatedReason: text("invalidated_reason"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(now),
 }, (table) => [
-  uniqueIndex("uq_preset_events_dedupe").on(table.presetId, table.kind, table.actorHash, table.dedupeBucket, table.target),
+  uniqueIndex("uq_preset_events_dedupe").on(table.presetId, table.kind, table.actorHash, table.dedupeBucket),
   uniqueIndex("uq_preset_events_client_event").on(table.presetId, table.clientEventId),
   index("idx_preset_events_ranking").on(table.presetId, table.kind, table.createdAt),
   index("idx_preset_events_network").on(table.presetId, table.kind, table.networkHash, table.createdAt),
@@ -215,8 +195,8 @@ export const presetUniqueActors = sqliteTable("preset_unique_actors", {
 export const presetAbuseSignals = sqliteTable("preset_abuse_signals", {
   id: text("id").primaryKey(),
   presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),
-  kind: text("kind", { enum: ["view", "link_open", "copy", "like"] }).notNull(),
-  reason: text("reason", { enum: ["duplicate", "network_limit", "like_toggle_limit"] }).notNull(),
+  kind: text("kind", { enum: ["view", "link_open", "copy"] }).notNull(),
+  reason: text("reason", { enum: ["duplicate", "network_limit"] }).notNull(),
   dayBucket: text("day_bucket").notNull(),
   actorHash: text("actor_hash").notNull().default(""),
   networkHash: text("network_hash").notNull().default(""),
@@ -230,7 +210,6 @@ export const presetAbuseSignals = sqliteTable("preset_abuse_signals", {
 
 export const presetStatistics = sqliteTable("preset_statistics", {
   presetId: text("preset_id").primaryKey().references(() => presets.id, { onDelete: "cascade" }),
-  likesCount: integer("likes_count").notNull().default(0),
   viewsTotal: integer("views_total").notNull().default(0),
   viewsUniqueAnonymous: integer("views_unique_anonymous").notNull().default(0),
   viewsUniqueAuthenticated: integer("views_unique_authenticated").notNull().default(0),

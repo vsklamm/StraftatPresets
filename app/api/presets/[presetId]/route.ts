@@ -72,7 +72,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/prese
       await thumbnails.delete(key);
     }
 
-    // Now delete the DB row.  CASCADE handles likes, events, revisions, stats.
+    // Now delete the DB row. CASCADE handles events, revisions, and stats.
     // The WHERE includes authorId so even a concurrent race cannot delete
     // another user's preset.
     const result = await repository.deletePreset(presetId, session.user.id);

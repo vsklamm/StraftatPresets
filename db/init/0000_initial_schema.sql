@@ -25,15 +25,6 @@ CREATE TABLE `game_weapons` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_game_weapons_active_name` ON `game_weapons` (`is_active`,`name`);--> statement-breakpoint
-CREATE TABLE `likes` (
-	`preset_id` text NOT NULL,
-	`user_id` text NOT NULL,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	PRIMARY KEY(`preset_id`, `user_id`),
-	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
 CREATE TABLE `map_playlist_maps` (
 	`map_playlist_id` text NOT NULL,
 	`position` integer NOT NULL,
@@ -75,39 +66,23 @@ CREATE INDEX `idx_preset_abuse_signals_admin` ON `preset_abuse_signals` (`preset
 CREATE TABLE `preset_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`preset_id` text NOT NULL,
-	`preset_version_id` text,
 	`kind` text NOT NULL,
 	`actor_hash` text NOT NULL,
 	`network_hash` text,
 	`is_authenticated` integer DEFAULT false NOT NULL,
 	`client_event_id` text,
 	`dedupe_bucket` text NOT NULL,
-	`target` text DEFAULT '' NOT NULL,
 	`is_invalidated` integer DEFAULT false NOT NULL,
 	`invalidated_at` integer,
 	`invalidated_reason` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`preset_version_id`) REFERENCES `preset_versions`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_preset_events_dedupe` ON `preset_events` (`preset_id`,`kind`,`actor_hash`,`dedupe_bucket`,`target`);--> statement-breakpoint
+CREATE UNIQUE INDEX `uq_preset_events_dedupe` ON `preset_events` (`preset_id`,`kind`,`actor_hash`,`dedupe_bucket`);--> statement-breakpoint
 CREATE UNIQUE INDEX `uq_preset_events_client_event` ON `preset_events` (`preset_id`,`client_event_id`);--> statement-breakpoint
 CREATE INDEX `idx_preset_events_ranking` ON `preset_events` (`preset_id`,`kind`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_preset_events_network` ON `preset_events` (`preset_id`,`kind`,`network_hash`,`created_at`);--> statement-breakpoint
-CREATE TABLE `preset_like_events` (
-	`id` text PRIMARY KEY NOT NULL,
-	`preset_id` text NOT NULL,
-	`user_id` text NOT NULL,
-	`action` text NOT NULL,
-	`network_hash` text DEFAULT '' NOT NULL,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
-CREATE INDEX `idx_preset_like_events_user_created` ON `preset_like_events` (`user_id`,`created_at`);--> statement-breakpoint
-CREATE INDEX `idx_preset_like_events_network_created` ON `preset_like_events` (`preset_id`,`network_hash`,`created_at`);--> statement-breakpoint
 CREATE TABLE `preset_revisions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`preset_id` text NOT NULL,
@@ -122,6 +97,12 @@ CREATE TABLE `preset_revisions` (
 	`submitted_at` integer,
 	`reviewed_at` integer,
 	`reviewer_id` text,
+	`telegram_chat_id` text,
+	`telegram_message_id` integer,
+	`telegram_message_kind` text,
+	`telegram_message_html` text,
+	`telegram_decision` text,
+	`telegram_resolved_at` integer,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -137,7 +118,6 @@ CREATE INDEX `idx_preset_revisions_moderation_queue` ON `preset_revisions` (`sta
 CREATE INDEX `idx_preset_revisions_source` ON `preset_revisions` (`source_revision_id`);--> statement-breakpoint
 CREATE TABLE `preset_statistics` (
 	`preset_id` text PRIMARY KEY NOT NULL,
-	`likes_count` integer DEFAULT 0 NOT NULL,
 	`views_total` integer DEFAULT 0 NOT NULL,
 	`views_unique_anonymous` integer DEFAULT 0 NOT NULL,
 	`views_unique_authenticated` integer DEFAULT 0 NOT NULL,

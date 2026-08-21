@@ -62,7 +62,6 @@ export type InteractionSignals = {
 };
 
 export type PresetEngagementSignals = {
-  likes: number;
   opens: InteractionSignals;
   linkOpens: InteractionSignals;
   copies: InteractionSignals;
@@ -127,11 +126,10 @@ export function calculateEffectiveInteractions(signals: InteractionSignals) {
 }
 
 function calculateEngagementScore(signals: PresetEngagementSignals) {
-  const likes = logarithmicPoints(signals.likes, 15, 8);
-  const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 10);
+  const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 10_000, 18);
   const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 40, 5);
   const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 20, 3);
-  return roundScore(clamp(likes + copies + opens + linkOpens, 0, PRESET_RANKING_LIMITS.engagement));
+  return roundScore(clamp(copies + opens + linkOpens, 0, PRESET_RANKING_LIMITS.engagement));
 }
 
 export function calculateFreshnessScore(publishedAt: Date | number | string | null, now: Date | number = Date.now()) {

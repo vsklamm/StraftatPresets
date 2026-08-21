@@ -38,7 +38,6 @@ function loadRankingInput(presetId: string) {
       (SELECT COUNT(*) FROM map_playlists JOIN preset_versions ON preset_versions.id = map_playlists.preset_version_id WHERE preset_versions.preset_id = p.id) AS playlist_count,
       (SELECT COUNT(*) FROM preset_tags WHERE preset_id = p.id) AS tag_count,
       (SELECT COUNT(*) FROM weapon_configurations JOIN preset_versions ON preset_versions.id = weapon_configurations.preset_version_id WHERE preset_versions.preset_id = p.id) AS weapon_count,
-      (SELECT COUNT(*) FROM likes WHERE preset_id = p.id) AS likes_count,
       (SELECT COUNT(*) FROM preset_events WHERE preset_id = p.id AND kind = 'view' AND is_invalidated = 0) AS views_total,
       (SELECT COUNT(*) FROM preset_unique_actors WHERE preset_id = p.id AND kind = 'view' AND is_authenticated = 0) AS views_anon,
       (SELECT COUNT(*) FROM preset_unique_actors WHERE preset_id = p.id AND kind = 'view' AND is_authenticated = 1) AS views_auth,
@@ -64,7 +63,6 @@ function loadRankingInput(presetId: string) {
     weaponConfigurationCount: number(row.weapon_count),
   };
   const engagement: PresetEngagementSignals = {
-    likes: number(row.likes_count),
     opens: { total: number(row.views_total), uniqueAnonymous: number(row.views_anon), uniqueAuthenticated: number(row.views_auth) },
     linkOpens: { total: number(row.links_total), uniqueAnonymous: number(row.links_anon), uniqueAuthenticated: number(row.links_auth) },
     copies: { total: number(row.copies_total), uniqueAnonymous: number(row.copies_anon), uniqueAuthenticated: number(row.copies_auth) },
@@ -78,17 +76,16 @@ function rebuildStatistics(presetId: string) {
   const ranking = calculatePresetRanking(content, engagement, row.published_at === null ? null : number(row.published_at));
   const lastEvent = row.last_event_at === null ? "NULL" : String(number(row.last_event_at));
   query(`INSERT INTO preset_statistics (
-      preset_id, likes_count, views_total, views_unique_anonymous, views_unique_authenticated,
+      preset_id, views_total, views_unique_anonymous, views_unique_authenticated,
       link_opens_total, link_opens_unique_anonymous, link_opens_unique_authenticated,
       copies_total, copies_unique_anonymous, copies_unique_authenticated,
       quality_score_milli, engagement_score_milli, abuse_signal_count, last_engagement_at, updated_at
     ) VALUES (
-      ${quote(presetId)}, ${engagement.likes}, ${engagement.opens.total}, ${engagement.opens.uniqueAnonymous}, ${engagement.opens.uniqueAuthenticated},
+      ${quote(presetId)}, ${engagement.opens.total}, ${engagement.opens.uniqueAnonymous}, ${engagement.opens.uniqueAuthenticated},
       ${engagement.linkOpens.total}, ${engagement.linkOpens.uniqueAnonymous}, ${engagement.linkOpens.uniqueAuthenticated},
       ${engagement.copies.total}, ${engagement.copies.uniqueAnonymous}, ${engagement.copies.uniqueAuthenticated},
       ${scoreToMilli(ranking.quality)}, ${scoreToMilli(ranking.engagement)}, ${number(row.abuse_count)}, ${lastEvent}, unixepoch() * 1000
     ) ON CONFLICT(preset_id) DO UPDATE SET
-      likes_count = excluded.likes_count,
       views_total = excluded.views_total,
       views_unique_anonymous = excluded.views_unique_anonymous,
       views_unique_authenticated = excluded.views_unique_authenticated,
@@ -118,7 +115,6 @@ function listPresets(filterId?: string) {
         WHEN (unixepoch() * 1000) - p.published_at >= 1209600000 THEN 0
         ELSE ROUND(4000 * (1.0 - ((unixepoch() * 1000) - p.published_at) / 1209600000.0))
       END) / 1000.0, 2) AS score,
-      COALESCE(ps.likes_count, 0) AS likes,
       COALESCE(ps.views_total, 0) AS opens,
       COALESCE(ps.link_opens_total, 0) AS links,
       COALESCE(ps.copies_total, 0) AS copies,
@@ -143,13 +139,11 @@ if (command === "list") {
   if (!value) throw new Error("Usage: npm run stats -- inspect PRESET_ID");
   console.table(listPresets(value));
   console.log("Recent accepted events");
-  console.table(query<Row>(`SELECT id, kind, target, is_authenticated AS auth, SUBSTR(actor_hash, 1, 12) AS actor, SUBSTR(COALESCE(network_hash, ''), 1, 12) AS network, is_invalidated AS invalid, datetime(created_at / 1000, 'unixepoch') AS created FROM preset_events WHERE preset_id = ${quote(value)} ORDER BY created_at DESC LIMIT 50`));
+  console.table(query<Row>(`SELECT id, kind, is_authenticated AS auth, SUBSTR(actor_hash, 1, 12) AS actor, SUBSTR(COALESCE(network_hash, ''), 1, 12) AS network, is_invalidated AS invalid, datetime(created_at / 1000, 'unixepoch') AS created FROM preset_events WHERE preset_id = ${quote(value)} ORDER BY created_at DESC LIMIT 50`));
   console.log("Network concentration");
   console.table(query<Row>(`SELECT kind, SUBSTR(network_hash, 1, 12) AS network, COUNT(*) AS events, COUNT(DISTINCT actor_hash) AS actors FROM preset_events WHERE preset_id = ${quote(value)} AND is_invalidated = 0 AND COALESCE(network_hash, '') <> '' GROUP BY kind, network_hash ORDER BY events DESC LIMIT 30`));
   console.log("Rejected attempts");
   console.table(query<Row>(`SELECT kind, reason, day_bucket AS day, attempt_count AS attempts, SUBSTR(actor_hash, 1, 12) AS actor, SUBSTR(network_hash, 1, 12) AS network FROM preset_abuse_signals WHERE preset_id = ${quote(value)} ORDER BY last_seen_at DESC LIMIT 50`));
-  console.log("Current likes");
-  console.table(query<Row>(`SELECT likes.user_id, users.name, datetime(likes.created_at / 1000, 'unixepoch') AS created FROM likes JOIN users ON users.id = likes.user_id WHERE likes.preset_id = ${quote(value)} ORDER BY likes.created_at DESC`));
 } else if (command === "rebuild") {
   const ids = value ? [{ id: value }] : query<{ id: string }>("SELECT id FROM presets ORDER BY id");
   for (const row of ids) console.log(row.id, rebuildStatistics(row.id));
@@ -164,10 +158,6 @@ if (command === "list") {
     query(`UPDATE preset_events SET is_invalidated = 0, invalidated_at = NULL, invalidated_reason = NULL WHERE id = ${quote(value)}`);
   }
   console.log(event.preset_id, rebuildStatistics(event.preset_id));
-} else if (command === "remove-like") {
-  if (!value || !extra) throw new Error("Usage: npm run stats -- remove-like PRESET_ID USER_ID");
-  query(`DELETE FROM likes WHERE preset_id = ${quote(value)} AND user_id = ${quote(extra)}`);
-  console.log(value, rebuildStatistics(value));
 } else {
-  throw new Error("Commands: list, inspect, rebuild, invalidate, restore, remove-like");
+  throw new Error("Commands: list, inspect, rebuild, invalidate, restore");
 }

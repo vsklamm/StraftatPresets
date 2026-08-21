@@ -149,16 +149,10 @@ button { color: inherit; }
 .preset-stats, .preset-author { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; }
 .preset-stats { margin-top: 13px; padding-top: 10px; color: #c8c8ce; border-top: 1px solid var(--border-soft); }
 .preset-author { margin-top: 0; height: 27px; min-height: 27px; display: flex; align-items: center; color: #82828c; padding-right: 58px; font-size: 11.5px; }
-.like-button { display: inline-flex; align-items: center; justify-content: center; gap: 5.5px; height: 27px; min-height: 27px; padding: 4px 9px; color: #a0a0a8; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: transparent; cursor: pointer; backdrop-filter: blur(4px); transition: color .15s ease, border-color .15s ease, background .15s ease, transform .15s ease; }
-.preset-card > .like-button { position: absolute; right: 8px; bottom: 8px; z-index: 3; border: 0; padding: 4px 9px; background: transparent; backdrop-filter: none; }
-.like-button span { color: #b2b2ba; font-size: 13px; line-height: 1; transition: color .15s ease, transform .15s ease; }
-.like-button b { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.like-button:hover { color: #f4f4f6; border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.05); transform: translateY(-1px); }
-.preset-card > .like-button:hover { border: 0; background: rgba(255,255,255,.06); }
-.like-button:hover span { color: #ef7f87; transform: scale(1.12); }
-.like-button.liked { color: #f0d9dc; border-color: rgba(238,111,121,.35); background: rgba(238,111,121,.08); }
-.preset-card > .like-button.liked { border: 0; background: rgba(238,111,121,.12); }
-.like-button.liked span { color: #ee6f79; }
+.copy-count { display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #9898a2; pointer-events: none; }
+.preset-card > .copy-count { position: absolute; right: 11px; bottom: 13px; z-index: 3; }
+.copy-count svg { width: 13px; height: 13px; color: #aaaab3; }
+.copy-count b { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .empty-state { display: grid; min-height: 320px; place-content: center; text-align: center; color: var(--muted); border: 1px dashed rgba(255,255,255,.12); border-radius: 8px; }
 .empty-state h2 { margin: 0 0 6px; color: var(--text); font-size: 17px; }
 .empty-state p { margin: 0; font-size: 13px; }
@@ -258,9 +252,9 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .submit-review-button { background: rgba(255,255,255,.08); color: #f5f5f7; border-color: rgba(255,255,255,.18); }
 .submit-review-button:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); }
 .submit-review-button:disabled { opacity: .55; cursor: wait; }
-.dialog-like { position: static; align-self: flex-start; min-height: 34px; padding-inline: 11px; }
-.dialog-like span { font-size: 17px; }
-.dialog-like b { font-size: 12px; }
+.dialog-copy-count { align-self: flex-start; min-height: 34px; padding-inline: 4px; }
+.dialog-copy-count svg { width: 15px; height: 15px; }
+.dialog-copy-count b { font-size: 12px; }
 .dialog-title-line { display: flex; align-items: center; gap: 9px; }
 .dialog-title-line h2 { margin: 0 0 5px; }
 .dialog-title-line .version-badge { margin-bottom: 5px; padding: 0; color: #b4b4be; font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: .01em; }

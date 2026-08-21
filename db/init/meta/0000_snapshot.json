@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "09945853-fc89-429f-ba77-25fc76052b35",
+  "id": "7c2b32b2-9b4b-4c29-94d5-b9046bafd866",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "game_maps": {
@@ -169,73 +169,6 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "likes": {
-      "name": "likes",
-      "columns": {
-        "preset_id": {
-          "name": "preset_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch() * 1000)"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "likes_preset_id_presets_id_fk": {
-          "name": "likes_preset_id_presets_id_fk",
-          "tableFrom": "likes",
-          "tableTo": "presets",
-          "columnsFrom": [
-            "preset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "likes_user_id_users_id_fk": {
-          "name": "likes_user_id_users_id_fk",
-          "tableFrom": "likes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "likes_preset_id_user_id_pk": {
-          "columns": [
-            "preset_id",
-            "user_id"
-          ],
-          "name": "likes_preset_id_user_id_pk"
-        }
-      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -533,13 +466,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "preset_version_id": {
-          "name": "preset_version_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "kind": {
           "name": "kind",
           "type": "text",
@@ -583,14 +509,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "target": {
-          "name": "target",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
         "is_invalidated": {
           "name": "is_invalidated",
           "type": "integer",
@@ -629,8 +547,7 @@
             "preset_id",
             "kind",
             "actor_hash",
-            "dedupe_bucket",
-            "target"
+            "dedupe_bucket"
           ],
           "isUnique": true
         },
@@ -669,118 +586,6 @@
           "tableTo": "presets",
           "columnsFrom": [
             "preset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "preset_events_preset_version_id_preset_versions_id_fk": {
-          "name": "preset_events_preset_version_id_preset_versions_id_fk",
-          "tableFrom": "preset_events",
-          "tableTo": "preset_versions",
-          "columnsFrom": [
-            "preset_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "preset_like_events": {
-      "name": "preset_like_events",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "preset_id": {
-          "name": "preset_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "action": {
-          "name": "action",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "network_hash": {
-          "name": "network_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch() * 1000)"
-        }
-      },
-      "indexes": {
-        "idx_preset_like_events_user_created": {
-          "name": "idx_preset_like_events_user_created",
-          "columns": [
-            "user_id",
-            "created_at"
-          ],
-          "isUnique": false
-        },
-        "idx_preset_like_events_network_created": {
-          "name": "idx_preset_like_events_network_created",
-          "columns": [
-            "preset_id",
-            "network_hash",
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "preset_like_events_preset_id_presets_id_fk": {
-          "name": "preset_like_events_preset_id_presets_id_fk",
-          "tableFrom": "preset_like_events",
-          "tableTo": "presets",
-          "columnsFrom": [
-            "preset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "preset_like_events_user_id_users_id_fk": {
-          "name": "preset_like_events_user_id_users_id_fk",
-          "tableFrom": "preset_like_events",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -890,6 +695,48 @@
           "notNull": false,
           "autoincrement": false
         },
+        "telegram_chat_id": {
+          "name": "telegram_chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telegram_message_id": {
+          "name": "telegram_message_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telegram_message_kind": {
+          "name": "telegram_message_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telegram_message_html": {
+          "name": "telegram_message_html",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telegram_decision": {
+          "name": "telegram_decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "telegram_resolved_at": {
+          "name": "telegram_resolved_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -994,14 +841,6 @@
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
-        },
-        "likes_count": {
-          "name": "likes_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
         },
         "views_total": {
           "name": "views_total",

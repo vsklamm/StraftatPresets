@@ -39,7 +39,7 @@ export type PresetDashboardItem = {
   editVersion: number;
   content: PresetRevisionContent;
   issues: PresetIssue[];
-  likes: number;
+  copies: number;
   updatedAt: Date;
   publishedAt: Date | null;
 };
@@ -100,7 +100,6 @@ export interface HealthRepository {
 }
 
 export type PresetStatisticsSnapshot = {
-  likes: number;
   opens: { total: number; uniqueAnonymous: number; uniqueAuthenticated: number };
   linkOpens: { total: number; uniqueAnonymous: number; uniqueAuthenticated: number };
   copies: { total: number; uniqueAnonymous: number; uniqueAuthenticated: number };
@@ -119,9 +118,7 @@ export type RankedPresetOrderEntry = {
 
 export type RecordPresetEventInput = {
   presetId: string;
-  presetVersionId?: string;
   kind: PresetEventKind;
-  target: string;
   actorHash: string;
   networkHash?: string;
   isAuthenticated: boolean;
@@ -132,29 +129,12 @@ export type RecordPresetEventInput = {
 };
 
 export type RecordPresetEventResult = {
-  result: "counted" | "duplicate" | "network_limited" | "not_found" | "invalid_version";
-  statistics?: PresetStatisticsSnapshot;
-};
-
-export type SetPresetLikeInput = {
-  presetId: string;
-  userId: string;
-  actorHash: string;
-  liked: boolean;
-  networkHash?: string;
-  dayBucket: string;
-  occurredAt: Date;
-};
-
-export type SetPresetLikeResult = {
-  result: "updated" | "unchanged" | "rate_limited" | "not_found";
-  liked: boolean;
+  result: "counted" | "duplicate" | "network_limited" | "not_found";
   statistics?: PresetStatisticsSnapshot;
 };
 
 export interface PresetInteractionRepository {
   recordPresetEvent(input: RecordPresetEventInput): Promise<RecordPresetEventResult>;
-  setPresetLike(input: SetPresetLikeInput): Promise<SetPresetLikeResult>;
   recalculatePresetStatistics(presetId: string, now?: Date): Promise<PresetStatisticsSnapshot | undefined>;
   listRankedPresetOrder(limit: number, offset: number, now?: Date): Promise<{ items: RankedPresetOrderEntry[]; total: number }>;
 }

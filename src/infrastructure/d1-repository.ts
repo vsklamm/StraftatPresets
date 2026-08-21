@@ -3,12 +3,10 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { AppDatabase } from "@/db";
 import {
-  likes,
   mapPlaylistMaps,
   mapPlaylists,
   presetAbuseSignals,
   presetEvents,
-  presetLikeEvents,
   presetRevisions,
   presetStatistics,
   presetTags,
@@ -37,8 +35,6 @@ import type {
   RevisionModerationContext,
   RecordPresetEventInput,
   RecordPresetEventResult,
-  SetPresetLikeInput,
-  SetPresetLikeResult,
   TagRepository,
   TelegramModerationMessage,
   UserRepository,
@@ -73,7 +69,6 @@ import {
   type PresetRevisionStatus,
 } from "@/src/domain/preset-workflow";
 
-const LIKE_TOGGLE_DAILY_LIMIT = 10;
 const dashboardRevision = alias(presetRevisions, "dashboard_revision");
 
 async function decodeRevisionPlaylists(content: PresetRevisionContent) {
@@ -117,7 +112,7 @@ type DashboardRow = {
   validationIssuesJson: string;
   reviewIssuesJson: string;
   editVersion: number;
-  likes: number | null;
+  copies: number | null;
   updatedAt: Date;
   publishedAt: Date | null;
 };
@@ -148,7 +143,7 @@ const dashboardColumns = {
   validationIssuesJson: dashboardRevision.validationIssuesJson,
   reviewIssuesJson: dashboardRevision.reviewIssuesJson,
   editVersion: dashboardRevision.editVersion,
-  likes: presetStatistics.likesCount,
+  copies: presetStatistics.copiesTotal,
   updatedAt: dashboardRevision.updatedAt,
   publishedAt: presets.publishedAt,
 };
@@ -295,7 +290,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       return {
         items: (rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId)),
         total: Number(total?.value ?? 0),
-        likedPresetIds: await this.getLikedPresetIds(userId, rows),
       };
     }
 
@@ -317,18 +311,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return {
       items: (rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId)),
       total: Number(total?.value ?? 0),
-      likedPresetIds: await this.getLikedPresetIds(userId, rows),
     };
-  }
-
-  private async getLikedPresetIds(userId: string | undefined, rows: { id: string }[]): Promise<string[]> {
-    if (!userId || rows.length === 0) return [];
-    const returnedIds = rows.map((r) => r.id);
-    const userLikes = await this.database.select({ id: likes.presetId })
-      .from(likes)
-      .where(and(eq(likes.userId, userId), inArray(likes.presetId, returnedIds)))
-      .all();
-    return userLikes.map((l) => l.id);
   }
 
   async getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined> {
@@ -868,13 +851,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
 
     const resolvedPresetId = preset.id;
 
-    if (input.presetVersionId) {
-      const version = await this.database.select({ id: presetVersions.id }).from(presetVersions)
-        .where(and(eq(presetVersions.id, input.presetVersionId), eq(presetVersions.presetId, resolvedPresetId)))
-        .get();
-      if (!version) return { result: "invalid_version" };
-    }
-
     const existingClientEvent = await this.database.select({ id: presetEvents.id }).from(presetEvents)
       .where(and(eq(presetEvents.presetId, resolvedPresetId), eq(presetEvents.clientEventId, input.clientEventId)))
       .get();
@@ -890,7 +866,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       )).get();
       if (Number(recentFromNetwork?.value ?? 0) >= PRESET_EVENT_POLICY[input.kind].anonymousNetworkDailyLimit) {
         await this.recordAbuseSignal(resolvedPresetId, input.kind, "network_limit", input.dayBucket, input.actorHash, input.networkHash, input.occurredAt);
-        return { result: "network_limited" };
+        return { result: "network_limited", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
       }
     }
 
@@ -898,14 +874,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       const insertEvent = this.database.insert(presetEvents).values({
         id: crypto.randomUUID(),
         presetId: resolvedPresetId,
-        presetVersionId: input.presetVersionId,
         kind: input.kind,
         actorHash: input.actorHash,
         networkHash: input.networkHash,
         isAuthenticated: input.isAuthenticated,
         clientEventId: input.clientEventId,
         dedupeBucket: input.dedupeBucket,
-        target: input.target,
         createdAt: input.occurredAt,
       });
       const recordActor = this.database.insert(presetUniqueActors).values({
@@ -931,57 +905,10 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         .where(and(eq(presetEvents.presetId, resolvedPresetId), eq(presetEvents.clientEventId, input.clientEventId)))
         .get();
       if (!retry) await this.recordAbuseSignal(resolvedPresetId, input.kind, "duplicate", input.dayBucket, input.actorHash, input.networkHash ?? "", input.occurredAt);
-      return { result: "duplicate", statistics: retry ? await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) : undefined };
+      return { result: "duplicate", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
     }
 
     return { result: "counted", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
-  }
-
-  async setPresetLike(input: SetPresetLikeInput): Promise<SetPresetLikeResult> {
-    const preset = await this.database.select({ id: presets.id, status: presets.status }).from(presets).where(or(eq(presets.id, input.presetId), eq(presets.slug, input.presetId))).get();
-    if (!preset || preset.status !== "published") return { result: "not_found", liked: false };
-
-    const resolvedPresetId = preset.id;
-
-    await this.database.insert(users).values({
-      id: input.userId,
-      name: "Discord user",
-      lastLoginAt: input.occurredAt,
-      createdAt: input.occurredAt,
-      updatedAt: input.occurredAt,
-    }).onConflictDoNothing().run();
-
-    const existing = await this.database.select({ presetId: likes.presetId }).from(likes)
-      .where(and(eq(likes.presetId, resolvedPresetId), eq(likes.userId, input.userId)))
-      .get();
-    if (Boolean(existing) === input.liked) {
-      return { result: "unchanged", liked: input.liked, statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
-    }
-
-    const recentToggles = await this.database.select({ value: count() }).from(presetLikeEvents).where(and(
-      eq(presetLikeEvents.presetId, resolvedPresetId),
-      eq(presetLikeEvents.userId, input.userId),
-      gte(presetLikeEvents.createdAt, utcDayStart(input.dayBucket)),
-    )).get();
-    if (Number(recentToggles?.value ?? 0) >= LIKE_TOGGLE_DAILY_LIMIT) {
-      await this.recordAbuseSignal(resolvedPresetId, "like", "like_toggle_limit", input.dayBucket, input.actorHash, input.networkHash ?? "", input.occurredAt);
-      return { result: "rate_limited", liked: Boolean(existing), statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
-    }
-
-    const mutateLike = input.liked
-      ? this.database.insert(likes).values({ presetId: resolvedPresetId, userId: input.userId, createdAt: input.occurredAt }).onConflictDoNothing()
-      : this.database.delete(likes).where(and(eq(likes.presetId, resolvedPresetId), eq(likes.userId, input.userId)));
-    const auditLike = this.database.insert(presetLikeEvents).values({
-      id: crypto.randomUUID(),
-      presetId: resolvedPresetId,
-      userId: input.userId,
-      action: input.liked ? "like" : "unlike",
-      networkHash: input.networkHash ?? "",
-      createdAt: input.occurredAt,
-    });
-    await this.database.batch([mutateLike, auditLike]);
-
-    return { result: "updated", liked: input.liked, statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
   }
 
   async recalculatePresetStatistics(presetId: string, now = new Date()): Promise<PresetStatisticsSnapshot | undefined> {
@@ -993,13 +920,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     }).from(presets).where(eq(presets.id, presetId)).get();
     if (!preset) return undefined;
 
-    const [versionTotal, playlistTotal, playlistWithDescTotal, tagTotal, weaponTotal, likeTotal, eventTotals, uniqueTotals, abuseTotal, latestEvent] = await Promise.all([
+    const [versionTotal, playlistTotal, playlistWithDescTotal, tagTotal, weaponTotal, eventTotals, uniqueTotals, abuseTotal, latestEvent] = await Promise.all([
       this.database.select({ value: count() }).from(presetVersions).where(eq(presetVersions.presetId, presetId)).get(),
       this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
       this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(and(eq(presetVersions.presetId, presetId), ne(mapPlaylists.description, ""))).get(),
       this.database.select({ value: count() }).from(presetTags).where(eq(presetTags.presetId, presetId)).get(),
       this.database.select({ value: count() }).from(weaponConfigurations).innerJoin(presetVersions, eq(weaponConfigurations.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
-      this.database.select({ value: count() }).from(likes).where(eq(likes.presetId, presetId)).get(),
       this.database.select({ kind: presetEvents.kind, value: count() }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), eq(presetEvents.isInvalidated, false))).groupBy(presetEvents.kind).all(),
       this.database.select({ kind: presetUniqueActors.kind, isAuthenticated: presetUniqueActors.isAuthenticated, value: count() }).from(presetUniqueActors).where(eq(presetUniqueActors.presetId, presetId)).groupBy(presetUniqueActors.kind, presetUniqueActors.isAuthenticated).all(),
       this.database.select({ value: sql<number>`coalesce(sum(${presetAbuseSignals.attemptCount}), 0)`.mapWith(Number) }).from(presetAbuseSignals).where(eq(presetAbuseSignals.presetId, presetId)).get(),
@@ -1028,14 +954,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       weaponConfigurationCount: Number(weaponTotal?.value ?? 0),
     };
     const engagement: PresetEngagementSignals = {
-      likes: Number(likeTotal?.value ?? 0),
       opens: interactions.view,
       linkOpens: interactions.link_open,
       copies: interactions.copy,
     };
     const ranking = calculatePresetRanking(content, engagement, preset.publishedAt, now);
     const snapshot: PresetStatisticsSnapshot = {
-      likes: engagement.likes,
       opens: engagement.opens,
       linkOpens: engagement.linkOpens,
       copies: engagement.copies,
@@ -1043,7 +967,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       ranking,
     };
     const values = {
-      likesCount: snapshot.likes,
       viewsTotal: snapshot.opens.total,
       viewsUniqueAnonymous: snapshot.opens.uniqueAnonymous,
       viewsUniqueAuthenticated: snapshot.opens.uniqueAuthenticated,
@@ -1111,7 +1034,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       editVersion: row.editVersion,
       content: parsePresetRevisionContent(JSON.parse(row.contentJson)),
       issues: isOwner ? [...parseIssues(row.validationIssuesJson), ...parseIssues(row.reviewIssuesJson)] : [],
-      likes: Number(row.likes ?? 0),
+      copies: Number(row.copies ?? 0),
       updatedAt: row.updatedAt,
       publishedAt: row.publishedAt,
     };
@@ -1132,7 +1055,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     }));
   }
 
-  private async recordAbuseSignal(presetId: string, kind: PresetEventKind | "like", reason: "duplicate" | "network_limit" | "like_toggle_limit", dayBucket: string, actorHash: string, networkHash: string, occurredAt: Date) {
+  private async recordAbuseSignal(presetId: string, kind: PresetEventKind, reason: "duplicate" | "network_limit", dayBucket: string, actorHash: string, networkHash: string, occurredAt: Date) {
     await this.database.insert(presetAbuseSignals).values({
       id: crypto.randomUUID(),
       presetId,

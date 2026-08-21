@@ -29,7 +29,9 @@ test("the initializer creates the application tables in D1", () => {
     runD1(stateDirectory, ["migrations", "apply", "DB"]);
     const tables = queryD1<{ name: string }>(stateDirectory, "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name");
     const tableNames = tables.results.map((row) => row.name);
-    for (const table of ["presets", "preset_revisions", "preset_versions", "map_playlists", "map_playlist_maps", "weapon_configurations", "preset_events", "preset_unique_actors", "preset_statistics", "preset_abuse_signals", "preset_like_events", "tags", "preset_tags", "game_releases", "game_maps", "game_weapons"]) assert.ok(tableNames.includes(table));
+    for (const table of ["presets", "preset_revisions", "preset_versions", "map_playlists", "map_playlist_maps", "weapon_configurations", "preset_events", "preset_unique_actors", "preset_statistics", "preset_abuse_signals", "tags", "preset_tags", "game_releases", "game_maps", "game_weapons"]) assert.ok(tableNames.includes(table));
+    assert.equal(tableNames.includes("likes"), false);
+    assert.equal(tableNames.includes("preset_like_events"), false);
     assert.equal(tableNames.includes("game_weapon_aliases"), false);
 
     const userColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(users)");
@@ -41,6 +43,11 @@ test("the initializer creates the application tables in D1", () => {
     for (const column of ["telegram_chat_id", "telegram_message_id", "telegram_message_kind", "telegram_message_html", "telegram_decision", "telegram_resolved_at"]) {
       assert.equal(revisionColumns.results.some((entry) => entry.name === column), true);
     }
+    const eventColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_events)");
+    assert.equal(eventColumns.results.some((column) => column.name === "preset_version_id"), false);
+    assert.equal(eventColumns.results.some((column) => column.name === "target"), false);
+    const statisticsColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_statistics)");
+    assert.equal(statisticsColumns.results.some((column) => column.name === "likes_count"), false);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('user-1', 'Tester'); INSERT INTO presets (id, slug, author_id, title) VALUES ('preset-1', 'preset-1', 'user-1', 'Preset')"]);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_versions (id, preset_id, label) VALUES ('version-1', 'preset-1', 'v1'); INSERT INTO weapon_configurations (id, preset_version_id, kind, name) VALUES ('weapons-1', 'version-1', 'randomized', 'Weapons'); INSERT INTO game_weapons (name, image_path, is_active) VALUES ('Retired Weapon', '/weapons/retired.webp', 0); INSERT INTO game_maps (name, kind, is_active) VALUES ('Retired_Map', 'core', 0); INSERT INTO map_playlists (id, preset_version_id, name, encoded_value, decoded_map_count) VALUES ('maps-1', 'version-1', 'Maps', 'code', 1)"]);
     assert.throws(
