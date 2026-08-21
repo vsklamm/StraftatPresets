@@ -1,4 +1,4 @@
-import { normalizePresetContent, presetRevisionContentSchema, type PresetRevisionContent } from "./preset-content";
+import { createStarterPresetContent, normalizePresetContent, presetRevisionContentSchema, type PresetRevisionContent } from "./preset-content";
 
 const LOCAL_DRAFT_PREFIX = "straftat-presets:draft:";
 
@@ -12,6 +12,13 @@ export type LocalDraftSnapshot = {
 
 export function localDraftKey(presetId: string): string {
   return `${LOCAL_DRAFT_PREFIX}${presetId}`;
+}
+
+export function isUnmodifiedStarterDraft(content: PresetRevisionContent, savedContentSignature: string | undefined): boolean {
+  if (!savedContentSignature || JSON.stringify(content) !== savedContentSignature) return false;
+  const title = content.title.trim().toLocaleLowerCase("en-US");
+  if (title !== "untitled" && title !== "untitled name") return false;
+  return JSON.stringify(content) === JSON.stringify(createStarterPresetContent(content.title));
 }
 
 export function serializeLocalDraftSnapshot(input: {

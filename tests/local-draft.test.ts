@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   localDraftKey,
+  isUnmodifiedStarterDraft,
   serializeLocalDraftSnapshot,
   parseLocalDraftSnapshot,
   reconcileLocalDraftWithRemote,
@@ -10,6 +11,15 @@ import { createStarterPresetContent } from "../src/domain/preset-content";
 
 test("localDraftKey generates consistent prefixed keys", () => {
   assert.equal(localDraftKey("abc-123"), "straftat-presets:draft:abc-123");
+});
+
+test("only the unchanged starter content is treated as a disposable draft", () => {
+  const starter = createStarterPresetContent("Untitled");
+  const signature = JSON.stringify(starter);
+  assert.equal(isUnmodifiedStarterDraft(starter, signature), true);
+  assert.equal(isUnmodifiedStarterDraft({ ...starter, title: "Game of Mines" }, signature), false);
+  assert.equal(isUnmodifiedStarterDraft({ ...starter, description: "Changed" }, signature), false);
+  assert.equal(isUnmodifiedStarterDraft(starter, undefined), false);
 });
 
 test("serializes and parses valid local draft snapshot with timestamp", () => {

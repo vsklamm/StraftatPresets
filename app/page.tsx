@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -39,6 +40,7 @@ import type { MapPlaylist, Preset, PresetVersion, SortDirection, WeaponSortKey }
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
   localDraftKey,
+  isUnmodifiedStarterDraft,
   parseLocalDraftSnapshot,
   reconcileLocalDraftWithRemote,
   serializeLocalDraftSnapshot,
@@ -494,11 +496,6 @@ export default function Home() {
     }
   }, [isEditing, selected, draftContent, persistDraft]);
 
-  const exitEditMode = useCallback(async () => {
-    if (!await flushSelectedDraft()) return;
-    setIsEditing(false);
-  }, [flushSelectedDraft]);
-
   const enterEditMode = useCallback(() => {
     if (!selected?.canEdit) return;
     setIsEditing(true);
@@ -525,26 +522,39 @@ export default function Home() {
     window.history.replaceState({}, "", url.toString());
   }, []);
 
+  const discardUnmodifiedDraft = useCallback(async (preset: Preset) => {
+    try {
+      const response = await fetch(`/api/presets/${encodeURIComponent(preset.id)}`, { method: "DELETE", credentials: "same-origin" });
+      if (!response.ok && response.status !== 404) throw new Error("The empty draft could not be discarded.");
+      clearLocalDraft(preset.id);
+      updateDashboardItems((current) => current.filter((item) => item.id !== preset.id));
+      return true;
+    } catch {
+      setActionError("Could not discard the empty draft. Please try again.");
+      return false;
+    }
+  }, [updateDashboardItems]);
+
+  const exitEditMode = useCallback(async () => {
+    const content = draftContentRef.current ?? draftContent;
+    if (selected?.persisted && selected.canEdit && selected.state === "draft" && content &&
+      isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
+      if (await discardUnmodifiedDraft(selected)) dismissPreset();
+      return;
+    }
+    if (!await flushSelectedDraft()) return;
+    setIsEditing(false);
+  }, [selected, draftContent, discardUnmodifiedDraft, dismissPreset, flushSelectedDraft]);
+
   const closePreset = useCallback(async () => {
     const content = draftContentRef.current ?? draftContent;
     if (isEditing && selected?.persisted && selected.canEdit && content) {
-      const signature = JSON.stringify(content);
-      const isUnmodifiedNewDraft = selected.state === "draft" &&
-        signature === serverContentByPresetRef.current.get(selected.id) &&
-        (content.title === "Untitled" || content.title.toLowerCase() === "untitled name") &&
-        content.description === "" &&
-        content.versions.length === 1 &&
-        content.versions[0].mapPlaylists[0].encodedValue === "" &&
-        content.versions[0].weaponConfigurations.length === 0;
-
-      if (isUnmodifiedNewDraft) {
-        void fetch(`/api/presets/${encodeURIComponent(selected.id)}`, { method: "DELETE" }).catch(() => undefined);
-        clearLocalDraft(selected.id);
-        updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
+      if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
+        if (!await discardUnmodifiedDraft(selected)) return;
       } else if (!await flushSelectedDraft()) return;
     }
     dismissPreset();
-  }, [isEditing, selected, draftContent, flushSelectedDraft, updateDashboardItems, dismissPreset]);
+  }, [isEditing, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1249,7 +1259,7 @@ export default function Home() {
             {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
               <span className="manual-entry-note">Enter manually in-game</span>
               <RandomizedWeaponsGuide />
-              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" title={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
+              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
@@ -1284,21 +1294,60 @@ function PresetSection({ title, count, action, children }: { title: string; coun
   return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
 }
 function RandomizedWeaponsGuide() {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 16, top: 16, width: 410 });
   const steps = [
     "Open randomized weapon settings",
     "Find the listed weapon",
     "Enter the shown weight",
     "Repeat for every weapon",
   ];
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const edge = 16;
+    const gap = 12;
+    const width = Math.min(410, window.innerWidth - edge * 2);
+    const estimatedHeight = Math.min(330, window.innerHeight - edge * 2);
+    const left = Math.max(edge, rect.left - width - gap);
+    const maximumTop = Math.max(edge, window.innerHeight - estimatedHeight - edge);
+    const top = Math.min(maximumTop, Math.max(edge, rect.top + rect.height / 2 - estimatedHeight / 2));
+    setPosition({ left, top, width });
+  }, []);
+  const openGuide = useCallback(() => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    updatePosition();
+    setIsOpen(true);
+  }, [updatePosition]);
+  const scheduleClose = useCallback(() => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 120);
+  }, []);
+  useEffect(() => {
+    if (!isOpen) return;
+    const reposition = () => updatePosition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [isOpen, updatePosition]);
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
   return <div className="randomized-weapons-guide">
-    <button className="guide-trigger icon-only" type="button" aria-label="How to enter randomized weapons" aria-describedby="randomized-weapons-guide">?</button>
-    <aside className="guide-popover" id="randomized-weapons-guide" role="tooltip">
+    <button ref={triggerRef} className="guide-trigger icon-only" type="button" aria-label="How to enter randomized weapons" aria-expanded={isOpen} aria-describedby={isOpen ? "randomized-weapons-guide" : undefined} onMouseEnter={openGuide} onMouseLeave={scheduleClose} onFocus={openGuide} onBlur={scheduleClose} onClick={() => isOpen ? setIsOpen(false) : openGuide()}>?</button>
+    {isOpen && typeof document !== "undefined" ? createPortal(<aside className="guide-popover" id="randomized-weapons-guide" role="tooltip" style={position} onMouseEnter={openGuide} onMouseLeave={scheduleClose}>
       <header><strong>Enter randomized weapons</strong><p>Manual entry only. Copy is plain text.</p></header>
       <ol>{steps.map((step, index) => <li key={step}>
         <div className="guide-screenshot" aria-hidden="true"><span>Game UI screenshot</span></div>
         <p><b>{index + 1}</b>{step}</p>
       </li>)}</ol>
-    </aside>
+    </aside>, document.body) : null}
   </div>;
 }
 function CopyCount({ count, dialog = false }: { count: number; dialog?: boolean }) {
