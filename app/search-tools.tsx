@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-catalog";
 import { type TagCatalogEntry } from "@/src/domain/tag-catalog";
 
@@ -9,10 +9,12 @@ export function RadialWeaponPicker({
   weapons,
   onSelect,
   onClose,
+  triggerRef,
 }: {
   weapons: readonly { name: string; image: string }[];
   onSelect: (name: string) => void;
   onClose: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
@@ -34,7 +36,8 @@ export function RadialWeaponPicker({
       }
     }
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target) && !triggerRef.current?.contains(target)) {
         onClose();
       }
     }
@@ -44,7 +47,7 @@ export function RadialWeaponPicker({
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, triggerRef]);
 
   // Fit below the search bar on laptop-height viewports.
   const dishDimension = useMemo(() => {
@@ -99,11 +102,11 @@ export function RadialWeaponPicker({
     }
 
     // Square normalized weapon button size
-    const calcImgW = Math.round(radialStep * 1.18);
+    const calcImgW = Math.round(radialStep * 1.18 * 1.15);
     const calcImgH = calcImgW;
 
-    const originX = dishDimension - 6;
-    const originY = 6;
+    const originX = dishDimension + 2;
+    const originY = -2;
 
     const sliceOffsets = ringCounts.reduce<number[]>((acc, count, i) => {
       acc.push(i === 0 ? 0 : acc[i - 1] + ringCounts[i - 1]);
@@ -157,8 +160,8 @@ export function RadialWeaponPicker({
     return { positionedWeapons: items, ringRadii: radii, imgW: calcImgW, imgH: calcImgH };
   }, [weapons, dishDimension]);
 
-  const originX = dishDimension - 6;
-  const originY = 6;
+  const originX = dishDimension + 2;
+  const originY = -2;
 
   return (
     <div

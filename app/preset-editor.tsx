@@ -93,7 +93,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   return (
     <div className="preset-content-editor">
       <div className="editor-version-tabs" role="tablist" aria-label="Preset versions">
-        <button
+        {(!versioningEnabled || versions.length === 1) ? <button
           className={`editor-versioning-toggle ${versioningEnabled ? "active" : ""}`}
           type="button"
           aria-pressed={versioningEnabled}
@@ -107,7 +107,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
         >
           <span>Versions</span>
           <span className="editor-versioning-switch" aria-hidden="true" />
-        </button>
+        </button> : null}
         {(versioningEnabled ? versions : versions.slice(0, 1)).map((item, index) => {
           const isEditing = editingVersionIndex === index;
           if (isEditing) {
@@ -543,10 +543,12 @@ function ConfirmDeleteButton({ label, onConfirm, className }: { label: string; o
       type="button"
       aria-label={confirming ? "Confirm delete" : label}
       onClick={(e) => {
-        if (confirming) onConfirm();
-        else {
+        e.stopPropagation();
+        if (confirming) {
+          setConfirming(false);
+          onConfirm();
+        } else {
           setConfirming(true);
-          e.stopPropagation();
         }
       }}
       onBlur={() => {

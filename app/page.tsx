@@ -197,6 +197,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [searchTagPickerOpen, setSearchTagPickerOpen] = useState(false);
   const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
+  const weaponPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const [dashboardView, setDashboardView] = useState<PresetDashboardView>("popular");
   const [isMounted, setIsMounted] = useState(false);
 
@@ -332,7 +333,8 @@ export default function Home() {
   const visiblePresets = useMemo(() => dashboardPresets.filter((preset) => {
     const versionWeapons = preset.versions.flatMap((v) => (v.randomizedWeapons ?? []).map((w) => w.name)).join(" ");
     const searchable = `${preset.title} ${preset.author} ${preset.description} ${preset.tags.join(" ")} ${versionWeapons}`.toLowerCase();
-    return searchable.includes(query.trim().toLowerCase());
+    const terms = query.split(",").map((term) => term.trim().toLowerCase()).filter(Boolean);
+    return terms.every((term) => searchable.includes(term));
   }), [dashboardPresets, query]);
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
@@ -1108,16 +1110,22 @@ export default function Home() {
               <div className="search-input-wrap">
                 <input aria-label="Search community presets" placeholder="Search presets, creators, tags, weapons..." value={query} onChange={(event) => setQuery(event.target.value)} />
                 <div className="search-tools-right">
-                  {query ? <button className="search-clear-inline" type="button" aria-label="Clear search" onClick={() => setQuery("")}>×</button> : null}
+                  {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => setQuery("")}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
                   <button className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                   </button>
-                  <button className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
+                  <button ref={weaponPickerTriggerRef} className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="15" width="15" xmlns="http://www.w3.org/2000/svg"><path d="M11 5.07089C7.93431 5.5094 5.5094 7.93431 5.07089 11H7V13H5.07089C5.5094 16.0657 7.93431 18.4906 11 18.9291V17H13V18.9291C16.0657 18.4906 18.4906 16.0657 18.9291 13H17V11H18.9291C18.4906 7.93431 16.0657 5.5094 13 5.07089V7H11V5.07089ZM3.05493 11C3.51608 6.82838 6.82838 3.51608 11 3.05493V1H13V3.05493C17.1716 3.51608 20.4839 6.82838 20.9451 11H23V13H20.9451C20.4839 17.1716 17.1716 20.4839 13 20.9451V23H11V20.9451C6.82838 20.4839 3.51608 17.1716 3.05493 13H1V11H3.05493ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" /></svg>
                   </button>
                 </div>
                 {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(label) => { setQuery(label); setSearchTagPickerOpen(false); }} onClose={() => setSearchTagPickerOpen(false)} /> : null}
-                {weaponPickerOpen ? <RadialWeaponPicker weapons={gameCatalog.weapons} onSelect={(weaponName) => { setQuery(weaponName); setWeaponPickerOpen(false); }} onClose={() => setWeaponPickerOpen(false)} /> : null}
+                {weaponPickerOpen ? <RadialWeaponPicker triggerRef={weaponPickerTriggerRef} weapons={gameCatalog.weapons} onSelect={(weaponName) => {
+                  setQuery((current) => {
+                    const terms = current.split(",").map((term) => term.trim()).filter(Boolean);
+                    if (terms.some((term) => term.toLocaleLowerCase("en-US") === weaponName.toLocaleLowerCase("en-US"))) return current;
+                    return [...terms, weaponName].join(", ");
+                  });
+                }} onClose={() => setWeaponPickerOpen(false)} /> : null}
               </div>
             </div>
             <button className="submit-preset" type="button" disabled={authStatus === "loading" || isCreating} onClick={submitPreset}>{isCreating ? "Opening draft…" : "＋ Submit preset"}</button>
@@ -1264,7 +1272,7 @@ export default function Home() {
           })()}
           <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
             {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{isEditing || selected.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}<span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}<span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
