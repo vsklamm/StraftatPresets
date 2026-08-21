@@ -102,6 +102,21 @@ function clearMatchingLocalDraft(presetId: string, signature: string) {
   }
 }
 
+async function readPresetAfterAmbiguousSave(presetId: string): Promise<PresetDashboardItem | undefined> {
+  try {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return undefined;
+    const result = await response.json() as { preset?: PresetDashboardItem };
+    return result.preset;
+  } catch {
+    return undefined;
+  }
+}
+
 function mediaUrl(key: string) {
   return `/api/media/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
@@ -244,6 +259,7 @@ export default function Home() {
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const dialogScrollTimer = useRef<number | null>(null);
   const savedContentRef = useRef("");
+  const draftContentRef = useRef<PresetRevisionContent | null>(null);
   const serverContentByPresetRef = useRef(new Map<string, string>());
   const presetRevisionTokensRef = useRef(new Map<string, PresetRevisionToken>());
   const saveQueueRef = useRef(new SerializedTaskQueue());
@@ -257,6 +273,10 @@ export default function Home() {
   useEffect(() => {
     void Promise.allSettled(gameCatalog.weapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
   }, []);
+
+  useEffect(() => {
+    draftContentRef.current = draftContent;
+  }, [draftContent]);
 
   useEffect(() => {
     let active = true;
@@ -439,29 +459,40 @@ export default function Home() {
         revisionId: preset.revisionId!,
         editVersion: preset.editVersion!,
       };
-      const response = await fetch(`/api/presets/${encodeURIComponent(preset.id)}`, {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...token, content }),
-        keepalive: true,
-      });
-      const result = await response.json() as { preset?: PresetDashboardItem; error?: string };
-      if (!response.ok || !result.preset) throw new Error(result.error ?? "Autosave failed.");
+      let savedPreset: PresetDashboardItem;
+      try {
+        const response = await fetch(`/api/presets/${encodeURIComponent(preset.id)}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...token, content }),
+          keepalive: true,
+        });
+        const result = await response.json() as { preset?: PresetDashboardItem; error?: string };
+        if (!response.ok || !result.preset) throw new Error(result.error ?? "Autosave failed.");
+        savedPreset = result.preset;
+      } catch (error) {
+        const currentPreset = await readPresetAfterAmbiguousSave(preset.id);
+        if (!currentPreset || JSON.stringify(currentPreset.content) !== signature) throw error;
+        savedPreset = currentPreset;
+      }
 
-      rememberPresetRevision(presetRevisionTokensRef.current, result.preset);
-      const updated = dashboardItemToPreset(result.preset, tagLabels);
-      const savedSignature = JSON.stringify(result.preset.content);
-      serverContentByPresetRef.current.set(result.preset.id, savedSignature);
-      updateDashboardItems((current) => [result.preset!, ...current.filter((item) => item.id !== result.preset!.id)]);
-      clearMatchingLocalDraft(result.preset.id, signature);
+      rememberPresetRevision(presetRevisionTokensRef.current, savedPreset);
+      const updated = dashboardItemToPreset(savedPreset, tagLabels);
+      const savedSignature = JSON.stringify(savedPreset.content);
+      serverContentByPresetRef.current.set(savedPreset.id, savedSignature);
+      updateDashboardItems((current) => [savedPreset, ...current.filter((item) => item.id !== savedPreset.id)]);
+      clearMatchingLocalDraft(savedPreset.id, signature);
       if (openPresetIdRef.current === preset.id) {
         savedContentRef.current = savedSignature;
+        if (JSON.stringify(draftContentRef.current) === signature) {
+          draftContentRef.current = savedPreset.content;
+        }
         setSelected((current) => current?.id === preset.id ? updated : current);
-        setDraftContent((current) => JSON.stringify(current) === signature ? result.preset!.content : current);
+        setDraftContent((current) => JSON.stringify(current) === signature ? savedPreset.content : current);
         setVersionLabel(latestVersion(updated).label);
       }
-      return result.preset;
+      return savedPreset;
     });
 
     const completion = operation.then((result) => {
@@ -486,15 +517,25 @@ export default function Home() {
     return completion;
   }, [tagLabels, updateDashboardItems]);
 
-  const exitEditMode = useCallback(() => {
-    if (isEditing && selected?.persisted && selected.canEdit && draftContent && selected.revisionId && selected.editVersion !== undefined) {
-      const signature = JSON.stringify(draftContent);
-      if (signature !== savedContentRef.current) {
-        void persistDraft(selected, draftContent, signature).catch(() => undefined);
+  const flushSelectedDraft = useCallback(async () => {
+    if (!isEditing || !selected?.persisted || !selected.canEdit || !selected.revisionId || selected.editVersion === undefined) return true;
+    while (true) {
+      const content = draftContentRef.current ?? draftContent;
+      if (!content) return true;
+      const signature = JSON.stringify(content);
+      if (signature === savedContentRef.current) return true;
+      try {
+        await persistDraft(selected, content, signature);
+      } catch {
+        return false;
       }
     }
-    setIsEditing(false);
   }, [isEditing, selected, draftContent, persistDraft]);
+
+  const exitEditMode = useCallback(async () => {
+    if (!await flushSelectedDraft()) return;
+    setIsEditing(false);
+  }, [flushSelectedDraft]);
 
   const enterEditMode = useCallback(() => {
     if (!selected?.canEdit) return;
@@ -504,35 +545,15 @@ export default function Home() {
     }
   }, [selected, draftContent]);
 
-  const closePreset = useCallback(() => {
+  const dismissPreset = useCallback(() => {
     if (revalidateTimerRef.current !== null) {
       window.clearTimeout(revalidateTimerRef.current);
       revalidateTimerRef.current = null;
     }
     setIsRevalidating(false);
     setRevalidationFailedId(null);
-    if (isEditing && selected?.persisted && selected.canEdit && draftContent) {
-      const signature = JSON.stringify(draftContent);
-      const isUnmodifiedNewDraft = selected.state === "draft" &&
-        signature === serverContentByPresetRef.current.get(selected.id) &&
-        (draftContent.title === "Untitled" || draftContent.title.toLowerCase() === "untitled name") &&
-        draftContent.description === "" &&
-        draftContent.versions.length === 1 &&
-        draftContent.versions[0].mapPlaylists[0].encodedValue === "" &&
-        draftContent.versions[0].weaponConfigurations.length === 0;
-
-      if (isUnmodifiedNewDraft) {
-        void fetch(`/api/presets/${encodeURIComponent(selected.id)}`, { method: "DELETE" }).catch(() => undefined);
-        clearLocalDraft(selected.id);
-        updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
-      } else {
-        updateDashboardItems((current) => current.map((item) => item.id === selected.id ? { ...item, content: draftContent, updatedAt: new Date() } : item));
-        if (signature !== savedContentRef.current) {
-          void persistDraft(selected, draftContent, signature).catch(() => undefined);
-        }
-      }
-    }
     openPresetIdRef.current = "";
+    draftContentRef.current = null;
     setSelected(null);
     setIsEditing(false);
     setDraftContent(null);
@@ -540,7 +561,28 @@ export default function Home() {
     const url = new URL(window.location.href);
     url.searchParams.delete("p");
     window.history.replaceState({}, "", url.toString());
-  }, [isEditing, selected, draftContent, persistDraft, updateDashboardItems]);
+  }, []);
+
+  const closePreset = useCallback(async () => {
+    const content = draftContentRef.current ?? draftContent;
+    if (isEditing && selected?.persisted && selected.canEdit && content) {
+      const signature = JSON.stringify(content);
+      const isUnmodifiedNewDraft = selected.state === "draft" &&
+        signature === serverContentByPresetRef.current.get(selected.id) &&
+        (content.title === "Untitled" || content.title.toLowerCase() === "untitled name") &&
+        content.description === "" &&
+        content.versions.length === 1 &&
+        content.versions[0].mapPlaylists[0].encodedValue === "" &&
+        content.versions[0].weaponConfigurations.length === 0;
+
+      if (isUnmodifiedNewDraft) {
+        void fetch(`/api/presets/${encodeURIComponent(selected.id)}`, { method: "DELETE" }).catch(() => undefined);
+        clearLocalDraft(selected.id);
+        updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
+      } else if (!await flushSelectedDraft()) return;
+    }
+    dismissPreset();
+  }, [isEditing, selected, draftContent, flushSelectedDraft, updateDashboardItems, dismissPreset]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -588,11 +630,11 @@ export default function Home() {
           }
 
           if (isEditing) {
-            exitEditMode();
+            void exitEditMode();
             return;
           }
 
-          closePreset();
+          void closePreset();
         }
       }
     }
@@ -770,6 +812,7 @@ export default function Home() {
   }, [isEditing, selected, draftContent]);
 
   const updateDraftContent = (content: PresetRevisionContent) => {
+    draftContentRef.current = content;
     setDraftContent(content);
     if (selected?.persisted && selected.canEdit) {
       writeLocalDraft(selected, content);
@@ -919,16 +962,9 @@ export default function Home() {
   const submitSelectedPreset = async () => {
     if (!selected?.revisionId || selected.editVersion === undefined) return;
 
-    if (draftContent && isEditing) {
-      const signature = JSON.stringify(draftContent);
-      if (signature !== savedContentRef.current) {
-        try {
-          await persistDraft(selected, draftContent, signature);
-        } catch {
-          setActionError("Could not save draft before submitting. Please check your connection.");
-          return;
-        }
-      }
+    if (isEditing && !await flushSelectedDraft()) {
+      setActionError("Could not save draft before submitting. Please check your connection.");
+      return;
     }
 
     try {
@@ -980,7 +1016,7 @@ export default function Home() {
       presetRevisionTokensRef.current.delete(selected.id);
       updateDashboardItems((current) => current.filter((item) => item.id !== selected.id));
       setShowSubmissionIssues(false);
-      closePreset();
+      dismissPreset();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The preset could not be deleted. Try again.");
     }
@@ -1159,10 +1195,10 @@ export default function Home() {
         </section>
       </div>
 
-      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
+      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={() => void closePreset()}>
         <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
         <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-          <button className="dialog-close" type="button" aria-label="Close preset" onClick={closePreset}>×</button>
+          <button className="dialog-close" type="button" aria-label="Close preset" onClick={() => void closePreset()}>×</button>
           {(() => {
             const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
             return (
@@ -1231,7 +1267,7 @@ export default function Home() {
             <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{isEditing || selected.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}<span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
-                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
+                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
                 {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString(), "link").catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={saveStatus === "saving"} onClick={() => void submitSelectedPreset()}>Submit</button> : null}
                 {!selected.state || selected.state === "published" ? <button className={`like-button dialog-like ${isLiked(selected.id) ? "liked" : ""}`} type="button" aria-label={`${isLiked(selected.id) ? "Unlike" : "Like"} ${selected.title}`} aria-pressed={isLiked(selected.id)} onClick={() => void toggleLike(selected)}><span aria-hidden="true">♥</span><b>{likeCount(selected).toLocaleString()}</b></button> : null}
