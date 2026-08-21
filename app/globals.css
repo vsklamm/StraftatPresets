@@ -403,6 +403,25 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .preset-section > header > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 11px; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; background: transparent; cursor: pointer; font-size: 12px; }
 .preset-section > header > button:hover { border-color: rgba(255,255,255,.24); background: rgba(255,255,255,.04); }
 .preset-section > header > button svg, .export-item button svg { width: 12px; height: 12px; flex: 0 0 auto; }
+.preset-section > header:has(.randomized-weapons-actions) { flex-wrap: wrap; }
+.randomized-weapons-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-left: auto; }
+.manual-entry-note { color: #92929c; font-size: 11.5px; font-weight: 450; white-space: nowrap; }
+.randomized-weapons-guide { position: relative; display: inline-flex; }
+.guide-trigger, .weapon-copy-button.icon-only { display: inline-grid; width: 28px; height: 28px; min-height: 28px; place-items: center; padding: 0; border: 1px solid rgba(255,255,255,.13); border-radius: 6px; background: transparent; color: #aaaab4; cursor: help; font-size: 12px; font-weight: 650; line-height: 1; }
+.weapon-copy-button.icon-only { cursor: pointer; }
+.guide-trigger:hover, .guide-trigger:focus-visible, .weapon-copy-button.icon-only:hover, .weapon-copy-button.icon-only:focus-visible { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.045); color: #f4f4f6; outline: none; }
+.guide-trigger svg, .weapon-copy-button.icon-only svg { width: 13px; height: 13px; }
+.guide-popover { position: absolute; right: -35px; bottom: calc(100% + 9px); z-index: 70; width: min(410px, calc(100vw - 64px)); padding: 14px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: #101013; box-shadow: 0 20px 55px rgba(0,0,0,.82); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(5px) scale(.985); transform-origin: bottom right; transition: opacity .14s ease, visibility .14s ease, transform .14s ease; }
+.guide-popover::after { content: ""; position: absolute; right: 28px; top: 100%; width: 54px; height: 10px; }
+.randomized-weapons-guide:hover .guide-popover, .randomized-weapons-guide:focus-within .guide-popover { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
+.guide-popover > header { display: block; margin: 0 0 11px; }
+.guide-popover > header strong { display: block; color: #eeeef1; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.guide-popover > header p { margin: 4px 0 0; color: #92929c; font-size: 11px; line-height: 1.35; }
+.guide-popover ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.guide-popover li { min-width: 0; }
+.guide-screenshot { display: grid; aspect-ratio: 16 / 9; place-items: center; border: 1px dashed rgba(255,255,255,.14); border-radius: 5px; background: transparent; color: #666670; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.guide-popover li > p { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: #b8b8c0; font-size: 10.5px; line-height: 1.3; }
+.guide-popover li > p b { display: grid; flex: 0 0 auto; width: 17px; height: 17px; place-items: center; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; color: #d1d1d7; font-size: 9px; font-weight: 600; }
 .export-list { display: flex; flex-direction: column; gap: 8px; }
 .export-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 12px; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; background: transparent; }
 .export-copy { min-width: 0; }
@@ -517,6 +536,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .submission-issue-rail { right: 8px; bottom: 8px; width: min(260px, calc(100% - 16px)); max-height: 42%; }
   .submission-issue-rail ul { max-height: 38vh; }
   .action-toast { right: 14px; left: 14px; max-width: none; }
+  .randomized-weapons-actions { width: 100%; }
+  .guide-popover { right: -35px; }
 }
 
 @media (max-width: 480px) {

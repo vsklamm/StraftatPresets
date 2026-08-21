@@ -1246,7 +1246,11 @@ export default function Home() {
 
             {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} /> : null}
 
-            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <><CheckIcon /> Copied</> : "▣ Copy list"}</button>}>
+            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
+              <span className="manual-entry-note">Enter manually in-game</span>
+              <RandomizedWeaponsGuide />
+              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" title={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
+            </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
                 return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <Image src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
@@ -1278,6 +1282,24 @@ export default function Home() {
 
 function PresetSection({ title, count, action, children }: { title: string; count: number; action?: React.ReactNode; children: React.ReactNode }) {
   return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
+}
+function RandomizedWeaponsGuide() {
+  const steps = [
+    "Open randomized weapon settings",
+    "Find the listed weapon",
+    "Enter the shown weight",
+    "Repeat for every weapon",
+  ];
+  return <div className="randomized-weapons-guide">
+    <button className="guide-trigger icon-only" type="button" aria-label="How to enter randomized weapons" aria-describedby="randomized-weapons-guide">?</button>
+    <aside className="guide-popover" id="randomized-weapons-guide" role="tooltip">
+      <header><strong>Enter randomized weapons</strong><p>Manual entry only. Copy is plain text.</p></header>
+      <ol>{steps.map((step, index) => <li key={step}>
+        <div className="guide-screenshot" aria-hidden="true"><span>Game UI screenshot</span></div>
+        <p><b>{index + 1}</b>{step}</p>
+      </li>)}</ol>
+    </aside>
+  </div>;
 }
 function CopyCount({ count, dialog = false }: { count: number; dialog?: boolean }) {
   return <span className={`copy-count ${dialog ? "dialog-copy-count" : ""}`} aria-label={`${count.toLocaleString()} ${count === 1 ? "copy" : "copies"}`}><CopyCountIcon /><b>{count.toLocaleString()}</b></span>;
