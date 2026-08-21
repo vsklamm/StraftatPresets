@@ -302,10 +302,17 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .tag-picker > div > button:hover { background: rgba(255,255,255,.06); }
 .preset-content-editor { display: grid; gap: 0; margin-top: 18px; min-width: 0; width: 100%; }
 .editor-version-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.editor-version-tabs > span { margin-right: 2px; color: var(--muted); font-size: 12px; }
+.editor-versioning-toggle { display: inline-flex; align-items: center; gap: 6px; height: 26px; min-height: 26px; margin-right: 2px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; }
+.editor-versioning-switch { position: relative; width: 24px; height: 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.04); transition: border-color .15s ease, background .15s ease; }
+.editor-versioning-switch::after { position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #777781; content: ""; transition: transform .15s ease, background .15s ease; }
+.editor-versioning-toggle:hover { color: #d6d6dc; }
+.editor-versioning-toggle:hover .editor-versioning-switch { border-color: rgba(255,255,255,.34); }
+.editor-versioning-toggle.active .editor-versioning-switch { border-color: rgba(255,255,255,.34); background: rgba(255,255,255,.1); }
+.editor-versioning-toggle.active .editor-versioning-switch::after { background: #ededf0; transform: translateX(10px); }
 .editor-version-tabs button[role="tab"] { display: inline-flex; align-items: center; justify-content: center; height: 26px; min-height: 26px; padding: 0 10.5px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; background: transparent; color: #c8c8d2; cursor: pointer; font-size: 12.5px; font-weight: 500; line-height: 1; transition: border-color .15s ease, background .15s ease, color .15s ease; }
 .editor-version-tabs button[role="tab"]:hover { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.05); color: #ffffff; }
 .editor-version-tabs button[role="tab"].active { color: #ffffff; background: transparent; border-color: rgba(255,255,255,.36); font-weight: 600; }
+.editor-version-tabs button[role="tab"]:disabled { border-color: rgba(255,255,255,.08); background: transparent; color: #676771; cursor: default; font-weight: 500; }
 .editor-add-version-wrap { display: inline-flex; align-items: center; gap: 4px; }
 .editor-add-version-input { width: 72px; height: 26px; padding: 0 9px; border: 1px solid rgba(255,255,255,.15); border-radius: 999px; outline: 0; background: transparent; color: #f4f4f6; font: inherit; font-size: 12px; }
 .editor-rename-version-input { min-width: 68px; width: 78px; font-weight: 600; text-align: center; border-color: rgba(255,255,255,.32); }

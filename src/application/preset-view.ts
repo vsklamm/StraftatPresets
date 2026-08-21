@@ -23,6 +23,7 @@ export type Preset = {
   tags: string[];
   likes: number;
   publishedDaysAgo: number;
+  versioningEnabled: boolean;
   versions: PresetVersion[];
   persisted?: boolean;
   state?: UserPresetState;

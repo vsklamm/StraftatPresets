@@ -200,5 +200,5 @@ export function validatePresetRevision(content: PresetRevisionContent, options: 
 }
 
 export function emptyPresetRevision(title = ""): PresetRevisionContent {
-  return { title, description: "", thumbnailKey: null, tags: [], versions: [] };
+  return { title, description: "", thumbnailKey: null, tags: [], versioningEnabled: false, versions: [] };
 }

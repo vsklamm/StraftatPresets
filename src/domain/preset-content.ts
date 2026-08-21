@@ -12,7 +12,7 @@ export const MAX_SWAPPER_NAME_SYMBOLS = 70;
 export const MAX_PRESET_DESCRIPTION_CHARACTERS = 500;
 export const MAX_PRESET_DESCRIPTION_LINES = 10;
 export const MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS = 160;
-export const MAX_PRESET_VERSIONS = 20;
+export const MAX_PRESET_VERSIONS = 10;
 export const MIN_MAP_PLAYLISTS = 1;
 export const MAX_MAP_PLAYLISTS = 7;
 export const MAX_SWAPPER_CONFIGURATIONS = 7;
@@ -76,13 +76,19 @@ const presetVersionSchema = z.object({
   weaponConfigurations: z.array(z.discriminatedUnion("kind", [randomizedConfigurationSchema, swapperConfigurationSchema])).max(MAX_SWAPPER_CONFIGURATIONS),
 }).strict();
 
-export const presetRevisionContentSchema = z.object({
+const presetRevisionContentInputSchema = z.object({
   title: shortText(MAX_PRESET_TITLE_CHARACTERS),
   description: shortText(MAX_PRESET_DESCRIPTION_CHARACTERS),
   thumbnailKey: z.string().max(500).nullable(),
   tags: z.array(shortText(80)).max(MAX_PRESET_TAGS),
+  versioningEnabled: z.boolean().optional(),
   versions: z.array(presetVersionSchema).max(MAX_PRESET_VERSIONS),
 }).strict();
+
+export const presetRevisionContentSchema = presetRevisionContentInputSchema.transform((content) => ({
+  ...content,
+  versioningEnabled: content.versioningEnabled ?? content.versions.length > 1,
+}));
 
 export type PresetRevisionContent = z.infer<typeof presetRevisionContentSchema>;
 export type PresetMapPlaylistContent = z.infer<typeof mapPlaylistSchema>;
@@ -164,6 +170,7 @@ export function createStarterPresetContent(title = ""): PresetRevisionContent {
     description: "",
     thumbnailKey: null,
     tags: [],
+    versioningEnabled: false,
     versions: [{
       label: "v1.0.0",
       mapPlaylists: [createEmptyMapPlaylist()],

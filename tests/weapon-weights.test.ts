@@ -88,6 +88,7 @@ test("validatePresetRevision rejects duplicate weapons and out-of-range weights"
     description: "Testing weapon validation and limits across pools.",
     thumbnailKey: null,
     tags: ["lobby", "maps"],
+    versioningEnabled: false,
     versions: [{
       label: "v1.0.0",
       mapPlaylists: [{

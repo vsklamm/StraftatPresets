@@ -14,6 +14,7 @@ import {
   formatCardDescriptionPreview,
   MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS,
   MAX_PRESET_DESCRIPTION_CHARACTERS,
+  MAX_PRESET_VERSIONS,
   parsePresetRevisionContent,
 } from "../src/domain/preset-content";
 
@@ -22,6 +23,7 @@ const completePreset: PresetRevisionContent = {
   description: "Mines, grenades and carefully selected maps.",
   thumbnailKey: "presets/game-of-mines/thumbnail.jpg",
   tags: ["mines", "placement"],
+  versioningEnabled: false,
   versions: [{
     label: "v5.0.0",
     mapPlaylists: [{ name: "GoM Mix", description: "Slower maps with room for mine setups.", encodedValue: "encoded", mapNames: ["Arena_00"] }],
@@ -63,6 +65,8 @@ test("draft validation returns structured fields that the dashboard can explain"
 });
 
 test("preset versions use ordered semantic labels and cap the initial version", () => {
+  assert.equal(MAX_PRESET_VERSIONS, 10);
+
   const invalidFormat = structuredClone(completePreset);
   invalidFormat.versions[0].label = "v5";
   assert.equal(validatePresetRevision(invalidFormat).some((issue) => issue.code === "invalid_version_label"), true);
@@ -77,20 +81,41 @@ test("preset versions use ordered semantic labels and cap the initial version", 
   assert.equal(validatePresetRevision(unordered).some((issue) => issue.code === "version_order"), true);
 
   const tooManyVersions = structuredClone(completePreset);
-  tooManyVersions.versions = Array.from({ length: 21 }, (_, i) => ({
-    label: `v${21 - i}.0.0`,
+  tooManyVersions.versions = Array.from({ length: 11 }, (_, i) => ({
+    label: `v${11 - i}.0.0`,
     mapPlaylists: [{ name: "List", description: "Desc", encodedValue: "e30=", mapNames: ["Arena_00"] }],
     weaponConfigurations: [],
   }));
   const tooManyIssues = validatePresetRevision(tooManyVersions);
   assert.equal(tooManyIssues.some((issue) => issue.code === "too_many_versions" && issue.field === "versions"), true);
+  assert.throws(() => parsePresetRevisionContent(tooManyVersions));
 });
 
 test("new drafts persist an empty weapon configurations array for the picker", () => {
   const starter = createStarterPresetContent("Untitled preset");
+  assert.equal(starter.versioningEnabled, false);
   assert.equal(starter.versions[0].label, "v1.0.0");
   assert.equal(starter.versions[0].mapPlaylists.length, 1);
   assert.equal(starter.versions[0].weaponConfigurations.length, 0);
+});
+
+test("stored presets infer versioning only when older content has multiple versions", () => {
+  const oneVersion = structuredClone(completePreset) as Record<string, unknown>;
+  delete oneVersion.versioningEnabled;
+  assert.equal(parsePresetRevisionContent(oneVersion).versioningEnabled, false);
+
+  const multipleVersions = structuredClone(completePreset) as Record<string, unknown>;
+  delete multipleVersions.versioningEnabled;
+  multipleVersions.versions = [
+    ...completePreset.versions,
+    { ...completePreset.versions[0], label: "v4.0.0" },
+  ];
+  assert.equal(parsePresetRevisionContent(multipleVersions).versioningEnabled, true);
+
+  const explicitlyDisabled = { ...multipleVersions, versioningEnabled: false };
+  const parsedDisabled = parsePresetRevisionContent(explicitlyDisabled);
+  assert.equal(parsedDisabled.versioningEnabled, false);
+  assert.equal(parsedDisabled.versions.length, 2);
 });
 
 test("map playlist descriptions are optional for submission", () => {
@@ -252,6 +277,7 @@ test("validatePresetRevision enforces sanity checks on each version in multi-ver
     description: "Valid description for testing multi-version sanity checks and rules.",
     thumbnailKey: null,
     tags: ["lobby", "maps"],
+    versioningEnabled: true,
     versions: [
       {
         label: "v1.1.0",

@@ -27,6 +27,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   const versions = sortPresetVersionsNewestFirst(content.versions);
   const safeIndex = Math.min(activeVersionIndex, Math.max(0, versions.length - 1));
   const version = versions[safeIndex];
+  const versioningEnabled = content.versioningEnabled;
 
   const updateVersion = (next: PresetVersionContent) => {
     const sorted = sortPresetVersionsNewestFirst(content.versions.map((item) => item === version ? next : item));
@@ -34,7 +35,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
     onActiveVersionChange(Math.max(0, sorted.indexOf(next)));
   };
   const beginVersion = () => {
-    if (content.versions.length >= MAX_PRESET_VERSIONS) return;
+    if (!versioningEnabled || content.versions.length >= MAX_PRESET_VERSIONS) return;
     const label = nextPresetVersionLabel(content.versions.map((item) => item.label));
     if (!label) return;
     setEditingVersionIndex(null);
@@ -58,6 +59,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   };
 
   const startEditingVersion = (index: number, currentLabel: string) => {
+    if (!versioningEnabled) return;
     isRenameCancelledRef.current = false;
     setNewVersionLabel(null);
     setEditingVersionIndex(index);
@@ -91,8 +93,22 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   return (
     <div className="preset-content-editor">
       <div className="editor-version-tabs" role="tablist" aria-label="Preset versions">
-        <span>Versions</span>
-        {versions.map((item, index) => {
+        <button
+          className={`editor-versioning-toggle ${versioningEnabled ? "active" : ""}`}
+          type="button"
+          aria-pressed={versioningEnabled}
+          title={versioningEnabled ? "Disable versioning" : "Enable versioning"}
+          onClick={() => {
+            setNewVersionLabel(null);
+            setEditingVersionIndex(null);
+            onActiveVersionChange(0);
+            onChange({ ...content, versioningEnabled: !versioningEnabled });
+          }}
+        >
+          <span>Versions</span>
+          <span className="editor-versioning-switch" aria-hidden="true" />
+        </button>
+        {(versioningEnabled ? versions : versions.slice(0, 1)).map((item, index) => {
           const isEditing = editingVersionIndex === index;
           if (isEditing) {
             return (
@@ -159,8 +175,9 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
               key={item.label}
               type="button"
               role="tab"
+              disabled={!versioningEnabled}
               aria-selected={index === safeIndex}
-              title="Click to select, double-click to rename"
+              title={versioningEnabled ? "Click to select, double-click to rename" : "Enable versioning to edit versions"}
               onClick={() => {
                 setNewVersionLabel(null);
                 onActiveVersionChange(index);
@@ -171,7 +188,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
             </button>
           );
         })}
-        {newVersionLabel === null
+        {versioningEnabled && (newVersionLabel === null
           ? (versions.length < MAX_PRESET_VERSIONS
               ? <button className="editor-add-version" type="button" aria-label="Add version" onClick={beginVersion}><PlusIcon /></button>
               : null)
@@ -202,8 +219,8 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
               />
               <button type="button" className="editor-add-version-confirm" title="Create version" disabled={!isPresetVersionInRange(newVersionLabel)} onClick={() => { if (isPresetVersionInRange(newVersionLabel)) addVersion(newVersionLabel); }}><CheckIcon /></button>
               <button type="button" className="editor-add-version-cancel" title="Cancel" onClick={() => setNewVersionLabel(null)}><CrossIcon /></button>
-            </div>}
-        {versions.length > 1 ? <ConfirmDeleteButton className="editor-remove-version" label={`Remove ${version.label}`} onConfirm={removeVersion} /> : null}
+            </div>)}
+        {versioningEnabled && versions.length > 1 ? <ConfirmDeleteButton className="editor-remove-version" label={`Remove ${version.label}`} onConfirm={removeVersion} /> : null}
       </div>
 
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />

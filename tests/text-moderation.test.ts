@@ -32,6 +32,7 @@ const sampleValidPreset: PresetRevisionContent = {
   description: "A tactical sniper map rotation with balanced weapon spawns and clean sightlines.",
   thumbnailKey: null,
   tags: ["snipers", "aim"],
+  versioningEnabled: false,
   versions: [{
     label: "v1.0.0",
     mapPlaylists: [{
