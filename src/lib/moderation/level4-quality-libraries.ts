@@ -54,14 +54,24 @@ const PROJECT_UNBOUNDED_PROFANITY_TERMS = [
   "개새끼",
 ] as const;
 
-const options = new ProfanityOptions();
-options.languages = [...PROFANITY_LANGUAGE_CODES];
-options.wholeWord = true;
-options.unicodeWordBoundaries = true;
+function createProfanityDetector(languages: readonly string[], additionalTerms: readonly string[] = []) {
+  const options = new ProfanityOptions();
+  options.languages = [...languages];
+  options.wholeWord = true;
+  options.unicodeWordBoundaries = true;
+  options.grawlix = "";
 
-const profanity = new Profanity(options);
-profanity.whitelist.addWords(PROFANITY_ALLOWLIST);
-profanity.addWords([...PROJECT_PROFANITY_TERMS]);
+  const detector = new Profanity(options);
+  detector.whitelist.addWords(PROFANITY_ALLOWLIST);
+  detector.addWords([...additionalTerms]);
+  return detector;
+}
+
+const englishProfanity = createProfanityDetector(["en"]);
+const nonEnglishProfanity = createProfanityDetector(
+  PROFANITY_LANGUAGE_CODES.filter((language) => language !== "en"),
+  PROJECT_PROFANITY_TERMS,
+);
 
 export const MASHING_REGEX = /(.)\1{4,}/i;
 export const CONSONANT_MASH_REGEX = /[bcdfghjklmnpqrstvwxz]{7,}/i;
@@ -69,6 +79,7 @@ export const UPPERCASE_REGEX = /^[^a-z]*$/;
 
 export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): ModerationResult {
   const flags: ModerationFlag[] = [];
+  let hasHardReject = false;
 
   for (const field of fields) {
     const { path, label, cleanText } = field;
@@ -115,7 +126,22 @@ export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): Mode
     const hasUnboundedMatch = PROJECT_UNBOUNDED_PROFANITY_TERMS.some((term) =>
       normalizedText.includes(term.toLocaleLowerCase()),
     );
-    if (profanity.exists(textForProfanity) || hasUnboundedMatch) {
+    const hasEnglishMatch = englishProfanity.exists(textForProfanity);
+    const textWithoutEnglishMatches = hasEnglishMatch
+      ? englishProfanity.censor(textForProfanity)
+      : textForProfanity;
+    const hasNonEnglishMatch = hasUnboundedMatch || nonEnglishProfanity.exists(textWithoutEnglishMatches);
+
+    if (hasNonEnglishMatch) {
+      hasHardReject = true;
+      flags.push({
+        level: 4,
+        tier: "hard_reject",
+        field: path,
+        code: "non_english_profanity_library_match",
+        message: `Contains profanity in ${label}`,
+      });
+    } else if (hasEnglishMatch) {
       flags.push({
         level: 4,
         tier: "quality",
@@ -127,9 +153,13 @@ export function checkLevel4QualityAndLibraries(fields: ModeratableField[]): Mode
   }
 
   return {
-    decision: flags.length === 0 ? "approved" : "review_required",
+    decision: hasHardReject ? "rejected" : flags.length === 0 ? "approved" : "review_required",
     level: 4,
     flags,
-    summary: flags.length === 0 ? "Passed quality and secondary library checks" : `Raised ${flags.length} quality flag(s)`,
+    summary: hasHardReject
+      ? "Rejected by non-English profanity dictionary"
+      : flags.length === 0
+        ? "Passed quality and secondary library checks"
+        : `Raised ${flags.length} quality flag(s)`,
   };
 }

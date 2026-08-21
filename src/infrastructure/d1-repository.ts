@@ -514,6 +514,24 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       revision.thumbnailModerationStatus === "not_submitted" ||
       (previousContent !== null && revision.thumbnailKey === previousContent.thumbnailKey);
 
+    if (modResult.decision === "rejected") {
+      return this.reviewPreset({
+        presetId: input.presetId,
+        revisionId: input.revisionId,
+        reviewerId: null,
+        decision: "reject",
+        issues: modResult.flags
+          .filter((flag) => flag.tier === "hard_reject")
+          .map((flag) => ({
+            source: "moderation",
+            field: flag.field,
+            code: flag.code,
+            message: flag.message,
+          })),
+        now,
+      });
+    }
+
     if (modResult.decision === "approved" && isThumbnailApproved) {
       const autoReview = await this.reviewPreset({ presetId: input.presetId, revisionId: input.revisionId, reviewerId: null, decision: "approve", issues: [], now });
       if (autoReview.result === "updated") return autoReview;

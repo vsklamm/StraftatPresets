@@ -263,14 +263,21 @@ test("Level 4 profanity screening covers every configured language", () => {
     const result = checkLevel4QualityAndLibraries(fields);
 
     assert.equal(
-      result.flags.some((flag) => flag.code === "profanity_library_match" && flag.field === "description"),
+      result.flags.some((flag) => flag.field === "description" && (
+        flag.code === "profanity_library_match" || flag.code === "non_english_profanity_library_match"
+      )),
       true,
       `${language} profanity was not detected: ${text}`,
+    );
+    assert.equal(
+      result.decision,
+      language === "en" ? "review_required" : "rejected",
+      `${language} profanity produced the wrong moderation decision: ${text}`,
     );
   }
 });
 
-test("Cyrillic and transliterated Russian profanity cannot pass server moderation", async () => {
+test("Cyrillic and transliterated Russian profanity is rejected by server moderation", async () => {
   const cases = [
     "пидор долбоеб пидарас ебаный в рот",
     "pidor",
@@ -285,24 +292,38 @@ test("Cyrillic and transliterated Russian profanity cannot pass server moderatio
     assert.equal(runClientModeration(content).decision, "approved");
 
     const serverResult = await runServerModeration(content);
-    assert.equal(serverResult.decision, "review_required", `Server moderation approved: ${text}`);
+    assert.equal(serverResult.decision, "rejected", `Server moderation did not reject: ${text}`);
     assert.equal(
-      serverResult.flags.some((flag) => flag.code === "profanity_library_match"),
+      serverResult.flags.some((flag) => flag.code === "non_english_profanity_library_match"),
       true,
       `Server moderation did not report its dictionary match: ${text}`,
     );
   }
 });
 
-test("every configured language is held by the complete server moderation pipeline", async () => {
+test("non-English profanity is rejected by the complete server moderation pipeline", async () => {
   for (const { language, text } of multilingualProfanityCases) {
     const result = await runServerModeration({
       ...sampleValidPreset,
       description: `A complete preset description containing ${text} for the server moderation check.`,
     });
 
-    assert.notEqual(result.decision, "approved", `${language} profanity was auto-approved: ${text}`);
+    assert.equal(
+      result.decision,
+      language === "en" ? "review_required" : "rejected",
+      `${language} profanity produced the wrong server decision: ${text}`,
+    );
   }
+});
+
+test("non-English profanity still rejects text that also contains English profanity", async () => {
+  const result = await runServerModeration({
+    ...sampleValidPreset,
+    description: "A complete preset description containing fuck and сука for the server moderation check.",
+  });
+
+  assert.equal(result.decision, "rejected");
+  assert.equal(result.flags.some((flag) => flag.code === "non_english_profanity_library_match"), true);
 });
 
 test("runClientModeration and runServerModeration orchestrate tiers correctly", async () => {

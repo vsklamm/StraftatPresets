@@ -70,6 +70,9 @@ export async function runServerModeration(
 
     // Level 4: Quality & Secondary Libraries
     const level4 = checkLevel4QualityAndLibraries(fieldsForReview);
+    if (level4.decision === "rejected") {
+      return level4;
+    }
     if (level4.flags.length > 0) {
       allFlags.push(...level4.flags);
     }
