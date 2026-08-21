@@ -91,7 +91,7 @@ async function decodeRevisionPlaylists(content: PresetRevisionContent) {
           source: "validation",
           field: `${prefix}.encodedValue`,
           code: "invalid_playlist_export",
-          message: `Playlist ${playlistIndex + 1} has an invalid export code.`,
+          message: "The map playlist export is invalid.",
         });
         return { ...playlist, name: "", mapNames: [] };
       }

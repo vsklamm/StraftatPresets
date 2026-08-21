@@ -18,6 +18,7 @@ import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from
 import { recordPresetInteraction, setPresetLike } from "@/src/lib/preset-interactions-client";
 import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
 import type { ActiveTag } from "@/src/application/ports";
+import { formatPresetIssueMessage } from "@/src/application/preset-issue-message";
 import {
   countTextLines,
   formatCardDescriptionPreview,
@@ -1334,7 +1335,7 @@ export default function Home() {
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
           </div>
         </section>
-        {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} /> : null}
+        {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} content={draftContent ?? selected.content} /> : null}
         </div>
       </div>}
       {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
@@ -1489,8 +1490,8 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
   );
 }
 
-function SubmissionIssueRail({ issues }: { issues: PresetIssue[] }) {
-  return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.png" alt="" width={40} height={40} /><span>{issue.message}</span></li>)}</ul></aside>;
+function SubmissionIssueRail({ issues, content }: { issues: PresetIssue[]; content?: PresetRevisionContent }) {
+  return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.png" alt="" width={40} height={40} /><span>{content ? formatPresetIssueMessage(issue, content) : issue.message}</span></li>)}</ul></aside>;
 }
 function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) {
   return (
