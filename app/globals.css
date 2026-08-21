@@ -229,6 +229,7 @@ button { color: inherit; }
 .thumbnail-editor .thumbnail-btn svg { width: 13px; height: 13px; flex: 0 0 auto; }
 .thumbnail-editor .thumbnail-hint { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; background: transparent; border: 0; color: #a4a4b0; font-size: 10.5px; line-height: 1.38; font-weight: 450; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95); }
 .thumbnail-editor .thumbnail-hint span { display: block; }
+.thumbnail-editor .thumbnail-hint .thumbnail-theme-rule { color: #dedee4; font-size: 13px; line-height: 1.25; font-weight: 600; }
 .thumbnail-editor .thumbnail-error { margin: 0; padding: 2px 4px; background: transparent; border: 0; color: #f3b6bc; font-size: 11px; line-height: 1.35; font-weight: 450; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95); }
 .dialog-content { position: relative; z-index: 1; min-width: 0; height: 100%; overflow-x: hidden; overflow-y: auto; padding: 28px 36px 24px 44px; scrollbar-width: thin; scrollbar-color: transparent transparent; mask-image: linear-gradient(to right, transparent 0px, #000 28px, #000 100%); -webkit-mask-image: linear-gradient(to right, transparent 0px, #000 28px, #000 100%); }
 .dialog-content::-webkit-scrollbar { width: 8px; }

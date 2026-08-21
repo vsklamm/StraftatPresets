@@ -1261,9 +1261,9 @@ export default function Home() {
                       <p className="thumbnail-error field-error-message">{thumbnailError}</p>
                     ) : (
                       <div className="thumbnail-hint">
-                        <span>STRAFTAT-themed only.</span>
+                        <span className="thumbnail-theme-rule">STRAFTAT-themed only.</span>
                         <span>No NSFW, gore, or graphic violence.</span>
-                        <span>JPEG/PNG/WebP, 2 MB max.</span>
+                        <span>Suggested: 16:9, 720p+. JPEG/PNG/WebP, 2 MB max.</span>
                       </div>
                     )}
                   </div>
