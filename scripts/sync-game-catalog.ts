@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { gameCatalog } from "../src/domain/game-catalog";
+import { parseD1RowsWritten } from "./wrangler-output";
 
 const target = process.argv[2] ?? "local";
 if (target !== "local" && target !== "remote") throw new Error("Usage: sync-game-catalog.ts local|remote [--confirm VERSION]");
@@ -38,8 +39,7 @@ try {
     stdio: ["ignore", "pipe", "inherit"],
     env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" },
   });
-  const results = JSON.parse(output) as Array<{ meta?: { rows_written?: number } }>;
-  rowsWritten = results.reduce((total, result) => total + Number(result.meta?.rows_written ?? 0), 0);
+  rowsWritten = parseD1RowsWritten(output);
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
