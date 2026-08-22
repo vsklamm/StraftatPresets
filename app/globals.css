@@ -408,6 +408,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .manual-entry-note { color: #92929c; font-size: 12px; font-weight: 450; white-space: nowrap; }
 .randomized-weapons-guide { position: relative; display: inline-flex; }
 .guide-trigger, .weapon-copy-button.icon-only { display: inline-grid; width: 28px; height: 28px; min-height: 28px; place-items: center; padding: 0; border: 1px solid rgba(255,255,255,.13); border-radius: 6px; background: transparent; color: #aaaab4; cursor: help; font-size: 12px; font-weight: 650; line-height: 1; }
+.guide-trigger { display: none; }
 .weapon-copy-button.icon-only { position: relative; cursor: pointer; }
 .guide-trigger:hover, .guide-trigger:focus-visible, .weapon-copy-button.icon-only:hover, .weapon-copy-button.icon-only:focus-visible { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.045); color: #f4f4f6; outline: none; }
 .guide-trigger svg, .weapon-copy-button.icon-only svg { width: 13px; height: 13px; }

@@ -1074,7 +1074,7 @@ export default function Home() {
             </div>
             <div className="search-row">
               <div className="search-input-wrap">
-                <input aria-label="Search community presets" placeholder="Search presets, creators, tags, weapons..." value={query} onChange={(event) => setQuery(event.target.value)} />
+                <input aria-label="Search community presets" placeholder="Search..." value={query} onChange={(event) => setQuery(event.target.value)} />
                 <div className="search-tools-right">
                   {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => setQuery("")}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
                   <button className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
