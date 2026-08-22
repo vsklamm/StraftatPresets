@@ -4,7 +4,7 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-catalog";
-import { type TagCatalogEntry } from "@/src/domain/tag-catalog";
+import { TAG_CATEGORIES, type TagCatalogEntry } from "@/src/domain/tag-catalog";
 
 const RADIAL_ORIGIN_X_OFFSET = 4;
 const RADIAL_ORIGIN_Y_OFFSET = -4;
@@ -259,12 +259,10 @@ export function SearchTagPicker({
     };
   }, [onClose]);
 
-  const categories = ["lobby", "maps", "weapons", "experience"] as const;
-
   return (
     <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">
       <div className="search-tag-categories">
-        {categories.map((category) => {
+        {TAG_CATEGORIES.map((category) => {
           const categoryTags = tags.filter((tag) => tag.category === category);
           if (!categoryTags.length) return null;
           return (

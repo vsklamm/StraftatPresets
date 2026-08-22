@@ -4,6 +4,8 @@ import { tagCatalogEntries, TAG_CATEGORIES } from "../src/domain/tag-catalog";
 import { MAX_PRESET_TAGS, MAX_VISIBLE_PRESET_TAGS, validatePresetTagSlugs } from "../src/domain/tag-policy";
 
 test("tag catalog meets sanity and integrity contracts", () => {
+  assert.deepEqual(TAG_CATEGORIES, ["lobby", "maps", "weapons", "gameplay"]);
+
   // Count sanity: supported tags amount is > 20
   assert.ok(tagCatalogEntries.length > 20, `Expected > 20 tags, found ${tagCatalogEntries.length}`);
 

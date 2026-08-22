@@ -154,97 +154,97 @@
     {
       "slug": "aim",
       "label": "Aim",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "movement",
       "label": "Movement",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "fun",
       "label": "Fun",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "random",
       "label": "Random",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "placement",
       "label": "Placement",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "setups",
       "label": "Setups",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "patience",
       "label": "Patience",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "chill",
       "label": "Chill",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "chaos",
       "label": "Chaos",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "competitive",
       "label": "Competitive",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "mods",
-      "label": "mods",
-      "category": "experience"
+      "label": "Mods",
+      "category": "gameplay"
     },
     {
       "slug": "gun-game",
       "label": "Gun Game",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "prop-hunt",
       "label": "Prop Hunt",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "aim-training",
       "label": "Aim Training",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "movement-training",
       "label": "Movement Training",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "aggressive",
       "label": "Aggressive",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "training",
       "label": "Training",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "balanced",
       "label": "Balanced",
-      "category": "experience"
+      "category": "gameplay"
     },
     {
       "slug": "casual",
       "label": "Casual",
-      "category": "experience"
+      "category": "gameplay"
     }
   ]
 }
