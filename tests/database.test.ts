@@ -45,10 +45,16 @@ test("the initializer creates the application tables in D1", () => {
     }
     const eventColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_events)");
     assert.equal(eventColumns.results.some((column) => column.name === "preset_version_id"), false);
-    assert.equal(eventColumns.results.some((column) => column.name === "target"), false);
+    assert.equal(eventColumns.results.some((column) => column.name === "target_key"), true);
     const statisticsColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_statistics)");
     assert.equal(statisticsColumns.results.some((column) => column.name === "likes_count"), false);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('user-1', 'Tester'); INSERT INTO presets (id, slug, author_id, title) VALUES ('preset-1', 'preset-1', 'user-1', 'Preset')"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-1', 'preset-1', 'copy', 'actor', 'event-1', 'target-a', '2026-08-22'); INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-2', 'preset-1', 'copy', 'actor', 'event-2', 'target-b', '2026-08-22')"]);
+    assert.throws(
+      () => runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-3', 'preset-1', 'copy', 'actor', 'event-3', 'target-a', '2026-08-22')"]),
+      /UNIQUE constraint failed/,
+    );
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-4', 'preset-1', 'copy', 'actor', 'event-4', 'target-a', '2026-08-23')"]);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_versions (id, preset_id, label) VALUES ('version-1', 'preset-1', 'v1'); INSERT INTO weapon_configurations (id, preset_version_id, kind, name) VALUES ('weapons-1', 'version-1', 'randomized', 'Weapons'); INSERT INTO game_weapons (name, image_path, is_active) VALUES ('Retired Weapon', '/weapons/retired.webp', 0); INSERT INTO game_maps (name, kind, is_active) VALUES ('Retired_Map', 'core', 0); INSERT INTO map_playlists (id, preset_version_id, name, encoded_value, decoded_map_count) VALUES ('maps-1', 'version-1', 'Maps', 'code', 1)"]);
     assert.throws(
       () => runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO randomized_weapons (id, weapon_configuration_id, weapon_name, weight) VALUES ('random-1', 'weapons-1', 'Retired Weapon', 10)"]),

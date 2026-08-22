@@ -15,7 +15,7 @@ import { gameCatalog, getWeaponImage, supportedGameRelease, supportedMapCount, s
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
 import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
-import { recordPresetInteraction } from "@/src/lib/preset-interactions-client";
+import { recordPresetCopy, recordPresetInteraction, retryPendingPresetCopies } from "@/src/lib/preset-interactions-client";
 import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
 import type { ActiveTag } from "@/src/application/ports";
 import { formatPresetIssueMessage } from "@/src/application/preset-issue-message";
@@ -129,13 +129,28 @@ function labelFromSlug(slug: string, tagLabels: ReadonlyMap<string, string>) {
 
 function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap<string, string>): Preset {
   const content = normalizePresetContent(item.content);
-  const versions: PresetVersion[] = content.versions.map((version) => ({
-    label: version.label,
-    released: item.state === "pending" ? "Waiting for review" : item.state === "draft" ? "Draft" : "Published",
-    maps: version.mapPlaylists.map((playlist) => ({ name: playlist.name, mapCount: playlist.mapNames.length, description: playlist.description, code: playlist.encodedValue })),
-    randomizedWeapons: version.weaponConfigurations.find((configuration) => configuration.kind === "randomized")?.weapons,
-    swapper: version.weaponConfigurations.filter((configuration) => configuration.kind === "swapper").map((configuration) => ({ name: configuration.name, description: "", code: configuration.encodedValue })),
-  }));
+  const versions: PresetVersion[] = content.versions.map((version) => {
+    const copyTargets = item.copyManifest?.versions.find((targets) => targets.label === version.label);
+    return {
+      label: version.label,
+      released: item.state === "pending" ? "Waiting for review" : item.state === "draft" ? "Draft" : "Published",
+      maps: version.mapPlaylists.map((playlist, playlistIndex) => ({
+        name: playlist.name,
+        mapCount: playlist.mapNames.length,
+        description: playlist.description,
+        code: playlist.encodedValue,
+        copyKey: copyTargets?.mapPlaylists[playlistIndex] ?? undefined,
+      })),
+      randomizedWeapons: version.weaponConfigurations.find((configuration) => configuration.kind === "randomized")?.weapons,
+      randomizedWeaponsCopyKey: copyTargets?.randomizedWeapons ?? undefined,
+      swapper: version.weaponConfigurations.filter((configuration) => configuration.kind === "swapper").map((configuration, swapperIndex) => ({
+        name: configuration.name,
+        description: "",
+        code: configuration.encodedValue,
+        copyKey: copyTargets?.swappers[swapperIndex] ?? undefined,
+      })),
+    };
+  });
   return {
     id: item.id,
     slug: item.slug,
@@ -156,6 +171,7 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
     hasPublishedRevision: item.hasPublishedRevision,
     issues: item.issues,
     content,
+    copyPublicationId: item.copyManifest?.publicationId,
   };
 }
 
@@ -247,6 +263,13 @@ export default function Home() {
 
   useEffect(() => {
     void Promise.allSettled(gameCatalog.weapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
+  }, []);
+
+  useEffect(() => {
+    void retryPendingPresetCopies((presetId, result) => {
+      const total = result.statistics?.copies.total;
+      if (total !== undefined) setCopyCounts((current) => ({ ...current, [presetId]: total }));
+    });
   }, []);
 
   useEffect(() => {
@@ -699,6 +722,7 @@ export default function Home() {
                   revisionNumber: 1,
                   editVersion: snapshot.editVersion ?? 0,
                   content: localContent,
+                  copyManifest: null,
                   issues: [],
                   copies: 0,
                   updatedAt: new Date(snapshot.updatedAt || Date.now()),
@@ -808,29 +832,31 @@ export default function Home() {
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
   const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
   const copyCount = (preset: Preset) => copyCounts[preset.id] ?? preset.copies;
-  const recordSelectedCopy = (preset: Preset) => {
+  const recordSelectedCopy = (preset: Preset, targetKey: string) => {
+    if (!preset.copyPublicationId) return;
     let accepted = false;
-    void recordPresetInteraction(preset.id, "copy", () => {
+    void recordPresetCopy(preset.id, preset.copyPublicationId, targetKey, () => {
       accepted = true;
       setCopyCounts((current) => ({ ...current, [preset.id]: (current[preset.id] ?? preset.copies) + 1 }));
     }).then((result) => {
       const total = result?.statistics?.copies.total;
-      if (total !== undefined) setCopyCounts((current) => ({ ...current, [preset.id]: total }));
-    }).catch(() => {
-      if (!accepted) return;
-      setCopyCounts((current) => ({ ...current, [preset.id]: Math.max(0, (current[preset.id] ?? preset.copies) - 1) }));
-    });
+      if (total !== undefined) {
+        setCopyCounts((current) => ({ ...current, [preset.id]: total }));
+      } else if (result && !result.counted && accepted) {
+        setCopyCounts((current) => ({ ...current, [preset.id]: Math.max(0, (current[preset.id] ?? preset.copies) - 1) }));
+      }
+    }).catch(() => undefined);
   };
-  const copyText = async (key: string, text: string, trackPresetCopy = true) => {
+  const copyText = async (key: string, text: string, targetKey?: string) => {
     if (!navigator.clipboard) return;
     await navigator.clipboard.writeText(text);
     setCopied(key);
     window.setTimeout(() => setCopied(null), 1800);
-    if (trackPresetCopy && selected?.persisted) recordSelectedCopy(selected);
+    if (targetKey && selected?.persisted) recordSelectedCopy(selected, targetKey);
   };
-  const copyWeapons = (weapons: WeightedWeapon[]) => {
+  const copyWeapons = (weapons: WeightedWeapon[], targetKey?: string) => {
     setWeaponCopyBurst((burst) => burst + 1);
-    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n")).catch(() => undefined);
+    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), targetKey).catch(() => undefined);
   };
   const handleDialogScroll = () => {
     setIsDialogScrolling(true);
@@ -1215,7 +1241,7 @@ export default function Home() {
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString(), false).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={saveStatus === "saving"} onClick={() => void submitSelectedPreset()}>Submit</button> : null}
                 {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
               </div>
@@ -1259,7 +1285,7 @@ export default function Home() {
             {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
               <span className="manual-entry-note">Enter manually in-game</span>
               <RandomizedWeaponsGuide />
-              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
+              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!, selectedVersion.randomizedWeaponsCopyKey)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
@@ -1268,11 +1294,11 @@ export default function Home() {
             </PresetSection> : null}
 
             {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper settings" count={selectedVersion.swapper.length}>
-              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
 
             {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map playlists" count={selectedVersion.maps.length}>
-              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
           </div>

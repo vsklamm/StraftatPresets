@@ -1,15 +1,25 @@
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { eventDedupeBucket, eventDayBucket, PRESET_EVENT_KINDS } from "@/src/domain/preset-events";
+import { eventDedupeBucket, eventDayBucket } from "@/src/domain/preset-events";
+import { PRESET_COPY_TARGET_KEY_PATTERN } from "@/src/domain/preset-copy";
 import { authOptions } from "@/src/lib/auth";
 import { getPresetInteractionIdentity } from "@/src/lib/preset-identity";
 import { isSameOriginMutation } from "@/src/lib/request-security";
 import { getApplicationServices } from "@/src/infrastructure/runtime";
 
-const requestSchema = z.object({
+const commonEvent = {
   eventId: z.uuid(),
-  kind: z.enum(PRESET_EVENT_KINDS),
-}).strict();
+};
+
+const requestSchema = z.discriminatedUnion("kind", [
+  z.object({ ...commonEvent, kind: z.enum(["view", "link_open"]) }).strict(),
+  z.object({
+    ...commonEvent,
+    kind: z.literal("copy"),
+    publicationId: z.uuid(),
+    targetKey: z.string().regex(PRESET_COPY_TARGET_KEY_PATTERN),
+  }).strict(),
+]);
 
 export async function POST(request: Request, context: RouteContext<"/api/presets/[presetId]/events">) {
   if (!isSameOriginMutation(request)) return Response.json({ error: "Cross-origin request rejected." }, { status: 403 });
@@ -37,6 +47,10 @@ export async function POST(request: Request, context: RouteContext<"/api/presets
       clientEventId: parsed.eventId,
       dedupeBucket: eventDedupeBucket(parsed.kind, occurredAt),
       dayBucket: eventDayBucket(occurredAt),
+      copyTarget: parsed.kind === "copy" ? {
+        publicationId: parsed.publicationId,
+        targetKey: parsed.targetKey,
+      } : undefined,
       occurredAt,
     });
 

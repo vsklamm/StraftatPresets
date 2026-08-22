@@ -38,6 +38,7 @@ export type PresetDashboardItem = {
   revisionNumber: number;
   editVersion: number;
   content: PresetRevisionContent;
+  copyManifest: PresetCopyManifest | null;
   issues: PresetIssue[];
   copies: number;
   updatedAt: Date;
@@ -125,11 +126,15 @@ export type RecordPresetEventInput = {
   clientEventId: string;
   dedupeBucket: string;
   dayBucket: string;
+  copyTarget?: {
+    publicationId: string;
+    targetKey: string;
+  };
   occurredAt: Date;
 };
 
 export type RecordPresetEventResult = {
-  result: "counted" | "duplicate" | "network_limited" | "not_found";
+  result: "counted" | "duplicate" | "ignored" | "network_limited" | "not_found";
   statistics?: PresetStatisticsSnapshot;
 };
 
@@ -162,6 +167,7 @@ export interface ThumbnailStore {
   delete(key: string): Promise<void>;
 }
 import type { PresetEventKind } from "@/src/domain/preset-events";
+import type { PresetCopyManifest } from "@/src/domain/preset-copy";
 import type { RankingBreakdown } from "@/src/domain/preset-ranking";
 import type { PresetRevisionContent } from "@/src/domain/preset-content";
 import type { PresetIssue, PresetRevisionStatus, UserPresetState } from "@/src/domain/preset-workflow";

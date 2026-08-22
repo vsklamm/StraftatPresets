@@ -41,6 +41,7 @@ import type {
   UserRole,
 } from "@/src/application/ports";
 import { createStarterPresetContent, parsePresetRevisionContent, type PresetRevisionContent } from "@/src/domain/preset-content";
+import { copyTargetKeys, createPresetCopyManifest } from "@/src/domain/preset-copy";
 import { runServerModeration } from "@/src/lib/moderation";
 import { deleteTelegramModerationMessage, notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
@@ -288,7 +289,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         this.database.select({ value: count() }).from(presets).where(condition).get(),
       ]);
       return {
-        items: (rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId)),
+        items: await Promise.all((rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId))),
         total: Number(total?.value ?? 0),
       };
     }
@@ -309,7 +310,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const total = await this.database.select({ value: count() }).from(presets).where(condition).get();
 
     return {
-      items: (rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId)),
+      items: await Promise.all((rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId))),
       total: Number(total?.value ?? 0),
     };
   }
@@ -846,10 +847,46 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
   }
 
   async recordPresetEvent(input: RecordPresetEventInput): Promise<RecordPresetEventResult> {
-    const preset = await this.database.select({ id: presets.id, status: presets.status }).from(presets).where(or(eq(presets.id, input.presetId), eq(presets.slug, input.presetId))).get();
-    if (!preset || preset.status !== "published") return { result: "not_found" };
+    const preset = await this.database.select({
+      id: presets.id,
+      status: presets.status,
+      publishedRevisionId: presets.publishedRevisionId,
+    }).from(presets).where(or(eq(presets.id, input.presetId), eq(presets.slug, input.presetId))).get();
+    if (!preset || preset.status !== "published") return { result: input.kind === "copy" ? "ignored" : "not_found" };
 
     const resolvedPresetId = preset.id;
+    if (input.kind === "copy") {
+      const target = input.copyTarget;
+      if (!target || target.publicationId !== preset.publishedRevisionId) {
+        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+      }
+      const publishedRevision = await this.database.select({ contentJson: presetRevisions.contentJson })
+        .from(presetRevisions)
+        .where(and(
+          eq(presetRevisions.id, target.publicationId),
+          eq(presetRevisions.presetId, resolvedPresetId),
+          eq(presetRevisions.status, "published"),
+        ))
+        .get();
+      if (!publishedRevision) {
+        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+      }
+      try {
+        const content = parsePresetRevisionContent(JSON.parse(publishedRevision.contentJson));
+        const manifest = await createPresetCopyManifest(target.publicationId, content);
+        if (!copyTargetKeys(manifest).has(target.targetKey)) {
+          return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+        }
+      } catch (error) {
+        console.error(JSON.stringify({
+          message: "published copy targets are invalid",
+          presetId: resolvedPresetId,
+          revisionId: target.publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        }));
+        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+      }
+    }
 
     const existingClientEvent = await this.database.select({ id: presetEvents.id }).from(presetEvents)
       .where(and(eq(presetEvents.presetId, resolvedPresetId), eq(presetEvents.clientEventId, input.clientEventId)))
@@ -879,6 +916,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         networkHash: input.networkHash,
         isAuthenticated: input.isAuthenticated,
         clientEventId: input.clientEventId,
+        targetKey: input.copyTarget?.targetKey ?? "",
         dedupeBucket: input.dedupeBucket,
         createdAt: input.occurredAt,
       });
@@ -1017,9 +1055,10 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return { items: items.slice(offset, offset + limit), total: items.length };
   }
 
-  private toDashboardItem(row: DashboardRow, userId: string | undefined): PresetDashboardItem {
+  private async toDashboardItem(row: DashboardRow, userId: string | undefined): Promise<PresetDashboardItem> {
     const isOwner = row.authorId === userId;
     const workingStatus = isOwner && ["draft", "pending", "rejected"].includes(row.revisionStatus) ? row.revisionStatus : null;
+    const content = parsePresetRevisionContent(JSON.parse(row.contentJson));
     return {
       id: row.id,
       slug: row.slug,
@@ -1032,7 +1071,10 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       revisionId: row.revisionId,
       revisionNumber: row.revisionNumber,
       editVersion: row.editVersion,
-      content: parsePresetRevisionContent(JSON.parse(row.contentJson)),
+      content,
+      copyManifest: row.publishedRevisionId === row.revisionId
+        ? await createPresetCopyManifest(row.revisionId, content)
+        : null,
       issues: isOwner ? [...parseIssues(row.validationIssuesJson), ...parseIssues(row.reviewIssuesJson)] : [],
       copies: Number(row.copies ?? 0),
       updatedAt: row.updatedAt,
