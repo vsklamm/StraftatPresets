@@ -15,6 +15,20 @@
       "when": 1787361067947,
       "tag": "0001_item_copy_targets",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787364940412,
+      "tag": "0002_reduce_d1_writes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787365144394,
+      "tag": "0003_simplify_unique_actors",
+      "breakpoints": true
     }
   ]
 }

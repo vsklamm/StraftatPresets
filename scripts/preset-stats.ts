@@ -24,8 +24,8 @@ function query<T extends Row>(statement: string) {
 
 function rebuildUniqueActors(presetId: string) {
   query(`DELETE FROM preset_unique_actors WHERE preset_id = ${quote(presetId)};
-    INSERT INTO preset_unique_actors (preset_id, kind, actor_hash, is_authenticated, first_seen_at, last_seen_at, event_count)
-    SELECT preset_id, kind, actor_hash, MAX(is_authenticated), MIN(created_at), MAX(created_at), COUNT(*)
+    INSERT INTO preset_unique_actors (preset_id, kind, actor_hash, is_authenticated, first_seen_at)
+    SELECT preset_id, kind, actor_hash, MAX(is_authenticated), MIN(created_at)
     FROM preset_events
     WHERE preset_id = ${quote(presetId)} AND is_invalidated = 0
     GROUP BY preset_id, kind, actor_hash`);

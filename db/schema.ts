@@ -132,15 +132,6 @@ export const mapPlaylists = sqliteTable("map_playlists", {
   sortOrder: integer("sort_order").notNull().default(0),
 }, (table) => [index("idx_map_playlists_version_id").on(table.presetVersionId)]);
 
-export const mapPlaylistMaps = sqliteTable("map_playlist_maps", {
-  mapPlaylistId: text("map_playlist_id").notNull().references(() => mapPlaylists.id, { onDelete: "cascade" }),
-  position: integer("position").notNull(),
-  mapName: text("map_name").notNull().references(() => gameMaps.name, { onDelete: "restrict" }),
-}, (table) => [
-  primaryKey({ columns: [table.mapPlaylistId, table.position] }),
-  index("idx_map_playlist_maps_name").on(table.mapName),
-]);
-
 export const weaponConfigurations = sqliteTable("weapon_configurations", {
   id: text("id").primaryKey(),
   presetVersionId: text("preset_version_id").notNull().references(() => presetVersions.id, { onDelete: "cascade" }),
@@ -148,16 +139,6 @@ export const weaponConfigurations = sqliteTable("weapon_configurations", {
   name: text("name").notNull(),
   encodedValue: text("encoded_value"),
 }, (table) => [index("idx_weapon_configurations_version_id").on(table.presetVersionId)]);
-
-export const randomizedWeapons = sqliteTable("randomized_weapons", {
-  id: text("id").primaryKey(),
-  weaponConfigurationId: text("weapon_configuration_id").notNull().references(() => weaponConfigurations.id, { onDelete: "cascade" }),
-  weaponName: text("weapon_name").notNull().references(() => gameWeapons.name, { onDelete: "restrict" }),
-  weight: integer("weight").notNull(),
-}, (table) => [
-  uniqueIndex("uq_randomized_weapons_config_name").on(table.weaponConfigurationId, table.weaponName),
-  index("idx_randomized_weapons_config_id").on(table.weaponConfigurationId),
-]);
 
 export const presetEvents = sqliteTable("preset_events", {
   id: text("id").primaryKey(),
@@ -176,7 +157,6 @@ export const presetEvents = sqliteTable("preset_events", {
 }, (table) => [
   uniqueIndex("uq_preset_events_dedupe").on(table.presetId, table.kind, table.actorHash, table.dedupeBucket, table.targetKey),
   uniqueIndex("uq_preset_events_client_event").on(table.presetId, table.clientEventId),
-  index("idx_preset_events_ranking").on(table.presetId, table.kind, table.createdAt),
   index("idx_preset_events_network").on(table.presetId, table.kind, table.networkHash, table.createdAt),
 ]);
 
@@ -186,12 +166,7 @@ export const presetUniqueActors = sqliteTable("preset_unique_actors", {
   actorHash: text("actor_hash").notNull(),
   isAuthenticated: integer("is_authenticated", { mode: "boolean" }).notNull(),
   firstSeenAt: integer("first_seen_at", { mode: "timestamp_ms" }).notNull().default(now),
-  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull().default(now),
-  eventCount: integer("event_count").notNull().default(1),
-}, (table) => [
-  primaryKey({ columns: [table.presetId, table.kind, table.actorHash] }),
-  index("idx_preset_unique_actors_counts").on(table.presetId, table.kind, table.isAuthenticated),
-]);
+}, (table) => [primaryKey({ columns: [table.presetId, table.kind, table.actorHash] })]);
 
 export const presetAbuseSignals = sqliteTable("preset_abuse_signals", {
   id: text("id").primaryKey(),
@@ -225,6 +200,4 @@ export const presetStatistics = sqliteTable("preset_statistics", {
   abuseSignalCount: integer("abuse_signal_count").notNull().default(0),
   lastEngagementAt: integer("last_engagement_at", { mode: "timestamp_ms" }),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
-}, (table) => [
-  index("idx_preset_statistics_ranking").on(table.qualityScoreMilli, table.engagementScoreMilli),
-]);
+});

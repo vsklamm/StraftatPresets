@@ -3,7 +3,6 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { AppDatabase } from "@/db";
 import {
-  mapPlaylistMaps,
   mapPlaylists,
   presetAbuseSignals,
   presetEvents,
@@ -13,7 +12,6 @@ import {
   presetUniqueActors,
   presetVersions,
   presets,
-  randomizedWeapons,
   tags,
   users,
   weaponConfigurations,
@@ -45,7 +43,6 @@ import { copyTargetKeys, createPresetCopyManifest } from "@/src/domain/preset-co
 import { runServerModeration } from "@/src/lib/moderation";
 import { deleteTelegramModerationMessage, notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
-import { resolveWeaponName } from "@/src/domain/game-catalog";
 import { PRESET_EVENT_POLICY, type PresetEventKind } from "@/src/domain/preset-events";
 import {
   calculateFreshnessScore,
@@ -56,7 +53,6 @@ import {
   type PresetEngagementSignals,
 } from "@/src/domain/preset-ranking";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
-import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
 import { MAX_PRESETS_PER_AUTHOR, PresetLimitReachedError } from "@/src/domain/preset-policy";
 import {
   thumbnailKeysToDeleteAfterDraftSave,
@@ -211,13 +207,22 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       if (unavailable.length) throw new Error(`Unknown or inactive tags: ${unavailable.join(", ")}`);
     }
 
+    const currentTags = await this.database.select({ slug: presetTags.tagSlug })
+      .from(presetTags)
+      .where(eq(presetTags.presetId, presetId))
+      .orderBy(asc(presetTags.position))
+      .all();
+    if (currentTags.length === tagSlugs.length && currentTags.every((tag, index) => tag.slug === tagSlugs[index])) return;
+
     const removeExisting = this.database.delete(presetTags).where(eq(presetTags.presetId, presetId));
     if (!tagSlugs.length) {
       await removeExisting.run();
+      await this.recalculatePresetStatistics(presetId);
       return;
     }
     const addRequested = this.database.insert(presetTags).values(tagSlugs.map((tagSlug, position) => ({ presetId, tagSlug, position })));
     await this.database.batch([removeExisting, addRequested]);
+    await this.recalculatePresetStatistics(presetId);
   }
 
   async createPresetDraft(userId: string, title: string, now = new Date()): Promise<PresetDashboardItem> {
@@ -490,11 +495,13 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         eq(presetRevisions.editVersion, input.editVersion),
       )).run();
       if (Number(update.meta.changes) !== 1) return { result: "conflict" };
-      await this.database.update(presets).set({
-        ...thumbnailUpdate,
-        ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description, slug: slugifyPresetTitle(content.title, input.presetId) }),
-        updatedAt: now,
-      }).where(eq(presets.id, input.presetId)).run();
+      if (!envelope.publishedRevisionId || content.thumbnailKey !== envelope.thumbnailKey) {
+        await this.database.update(presets).set({
+          ...thumbnailUpdate,
+          ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description, slug: slugifyPresetTitle(content.title, input.presetId) }),
+          updatedAt: now,
+        }).where(eq(presets.id, input.presetId)).run();
+      }
     } else {
       const counter = await this.database.update(presets).set({ revisionCounter: sql`${presets.revisionCounter} + 1` })
         .where(and(eq(presets.id, input.presetId), eq(presets.authorId, input.userId)))
@@ -727,12 +734,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
           decodedMapCount: playlist.mapNames.length,
           sortOrder: playlistIndex,
         }));
-        if (playlist.mapNames.length) {
-          const mapRows = playlist.mapNames.map((mapName, position) => ({ mapPlaylistId: playlistId, position, mapName }));
-          for (let i = 0; i < mapRows.length; i += 20) {
-            statements.push(this.database.insert(mapPlaylistMaps).values(mapRows.slice(i, i + 20)));
-          }
-        }
       }
       for (const configuration of version.weaponConfigurations) {
         const configurationId = crypto.randomUUID();
@@ -743,27 +744,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
           name: configuration.name,
           encodedValue: configuration.kind === "swapper" ? configuration.encodedValue : null,
         }));
-        if (configuration.kind === "randomized" && configuration.weapons.length) {
-          const seenWeapons = new Set<string>();
-          const weaponRows: { id: string; weaponConfigurationId: string; weaponName: string; weight: number }[] = [];
-          for (const weapon of configuration.weapons) {
-            const canonicalName = resolveWeaponName(weapon.name) ?? weapon.name;
-            const lookup = canonicalName.toLowerCase();
-            if (seenWeapons.has(lookup)) continue;
-            seenWeapons.add(lookup);
-            const rawWeight = Number.isSafeInteger(weapon.weight) ? weapon.weight : 0;
-            const clampedWeight = Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, rawWeight));
-            weaponRows.push({
-              id: crypto.randomUUID(),
-              weaponConfigurationId: configurationId,
-              weaponName: canonicalName,
-              weight: clampedWeight,
-            });
-          }
-          for (let i = 0; i < weaponRows.length; i += 20) {
-            statements.push(this.database.insert(randomizedWeapons).values(weaponRows.slice(i, i + 20)));
-          }
-        }
       }
     }
 
@@ -858,7 +838,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     if (input.kind === "copy") {
       const target = input.copyTarget;
       if (!target || target.publicationId !== preset.publishedRevisionId) {
-        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+        return { result: "ignored" };
       }
       const publishedRevision = await this.database.select({ contentJson: presetRevisions.contentJson })
         .from(presetRevisions)
@@ -869,13 +849,13 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         ))
         .get();
       if (!publishedRevision) {
-        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+        return { result: "ignored" };
       }
       try {
         const content = parsePresetRevisionContent(JSON.parse(publishedRevision.contentJson));
         const manifest = await createPresetCopyManifest(target.publicationId, content);
         if (!copyTargetKeys(manifest).has(target.targetKey)) {
-          return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+          return { result: "ignored" };
         }
       } catch (error) {
         console.error(JSON.stringify({
@@ -884,14 +864,14 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
           revisionId: target.publicationId,
           error: error instanceof Error ? error.message : String(error),
         }));
-        return { result: "ignored", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+        return { result: "ignored" };
       }
     }
 
     const existingClientEvent = await this.database.select({ id: presetEvents.id }).from(presetEvents)
       .where(and(eq(presetEvents.presetId, resolvedPresetId), eq(presetEvents.clientEventId, input.clientEventId)))
       .get();
-    if (existingClientEvent) return { result: "duplicate", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+    if (existingClientEvent) return { result: "duplicate" };
 
     if (!input.isAuthenticated && input.networkHash) {
       const recentFromNetwork = await this.database.select({ value: count() }).from(presetEvents).where(and(
@@ -903,7 +883,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       )).get();
       if (Number(recentFromNetwork?.value ?? 0) >= PRESET_EVENT_POLICY[input.kind].anonymousNetworkDailyLimit) {
         await this.recordAbuseSignal(resolvedPresetId, input.kind, "network_limit", input.dayBucket, input.actorHash, input.networkHash, input.occurredAt);
-        return { result: "network_limited", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+        return { result: "network_limited" };
       }
     }
 
@@ -926,16 +906,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         actorHash: input.actorHash,
         isAuthenticated: input.isAuthenticated,
         firstSeenAt: input.occurredAt,
-        lastSeenAt: input.occurredAt,
-        eventCount: 1,
-      }).onConflictDoUpdate({
-        target: [presetUniqueActors.presetId, presetUniqueActors.kind, presetUniqueActors.actorHash],
-        set: {
-          isAuthenticated: input.isAuthenticated,
-          lastSeenAt: input.occurredAt,
-          eventCount: sql`${presetUniqueActors.eventCount} + 1`,
-        },
-      });
+      }).onConflictDoNothing();
       await this.database.batch([insertEvent, recordActor]);
     } catch (error) {
       if (!isUniqueConstraintError(error)) throw error;
@@ -943,7 +914,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         .where(and(eq(presetEvents.presetId, resolvedPresetId), eq(presetEvents.clientEventId, input.clientEventId)))
         .get();
       if (!retry) await this.recordAbuseSignal(resolvedPresetId, input.kind, "duplicate", input.dayBucket, input.actorHash, input.networkHash ?? "", input.occurredAt);
-      return { result: "duplicate", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
+      return { result: "duplicate" };
     }
 
     return { result: "counted", statistics: await this.recalculatePresetStatistics(resolvedPresetId, input.occurredAt) };
