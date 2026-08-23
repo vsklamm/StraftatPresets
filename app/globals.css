@@ -361,7 +361,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .weapon-results button:hover, .weapon-results button.active { background: rgba(255,255,255,.06); color: #fff; }
 .weapon-results img { width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 5px 3px rgba(0,0,0,.7)); }
 .randomized-entry-table { margin-top: 1px; border-top: 1px solid #303038; min-width: 0; width: 100%; }
-.randomized-entry-head, .randomized-entry-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px 56px minmax(26px, auto); align-items: center; gap: 8px; padding: 6px 0; min-width: 0; width: 100%; }
+.randomized-entry-head, .randomized-entry-row { display: grid; grid-template-columns: 180px 76px 1fr minmax(26px, auto); align-items: center; gap: 8px; padding: 6px 0; min-width: 0; width: 100%; }
 .randomized-entry-head { color: #848490; font-size: 11px; }
 .randomized-entry-row { min-height: 52px; border-top: 1px solid #26262e; color: #c8c8cf; font-size: 13px; }
 .randomized-entry-row:hover { background: rgba(255,255,255,.025); }
@@ -384,6 +384,9 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .field-helper-text, .playlist-decode-hint { color: #6e6e78; font-size: 11px; line-height: 1.35; }
 .playlist-editor-item .field-error-message, .playlist-editor-item .playlist-decode-error,
 .playlist-editor-item .field-helper-text, .playlist-editor-item .playlist-decode-hint { margin: 4px 0 9px; }
+.editor-quality-tip { margin-top: 22px; padding: 4px 0 4px 12px; border-left: 2px dashed rgba(255, 255, 255, 0.14); background: transparent; color: #9494a0; font-size: 13px; line-height: 1.5; }
+.editor-quality-tip strong { color: #dedee4; font-weight: 550; }
+.editor-quality-tip b { color: #ffffff; font-weight: 550; }
 .submission-issue-rail { flex: 0 0 270px; max-height: 100%; margin-left: 12px; overflow: hidden; border: 1px solid rgba(215, 195, 132, 0.3); border-radius: 10px; background: rgba(28, 24, 17, 0.72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 24px 75px rgba(0,0,0,.55), 0 0 0 1px rgba(215, 195, 132, 0.06); }
 .submission-issue-rail ul { display: grid; gap: 2px; max-height: min(610px, 86vh); margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
 .submission-issue-rail li { display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 9px; min-height: 56px; padding: 7px 10px 7px 4px; border-radius: 5px; color: #ded5be; font-size: 13px; line-height: 1.42; cursor: default; }
@@ -469,8 +472,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .weapon-table-wrap { overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; background: transparent; }
 .weapon-list { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .weapon-list th, .weapon-list td { padding: 8px 12px; text-align: left; }
-.weapon-list th:first-child { width: 240px; padding-left: 7px; }
-.weapon-list th:nth-child(2) { width: 80px; }
+.weapon-list th:first-child { width: 180px; padding-left: 7px; }
+.weapon-list th:nth-child(2) { width: 76px; }
 .weapon-list th:nth-child(3) { width: auto; }
 .weapon-list th button { display: inline-flex; align-items: center; gap: 5px; margin: -5px; padding: 5px; color: inherit; border: 0; border-radius: 4px; background: transparent; cursor: pointer; font-size: 11.5px; font-weight: 500; }
 .weapon-list th button:hover, .weapon-list th button:focus-visible { color: #f4f4f6; background: rgba(255,255,255,.06); }
@@ -532,13 +535,13 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .dialog-heading { flex-direction: column; }
   .dialog-actions { width: calc(100% + 44px); flex-wrap: wrap; }
   .dialog-title-input { width: min(100%, 330px); }
-  .randomized-entry-head, .randomized-entry-row { grid-template-columns: minmax(112px,1fr) 68px 52px minmax(26px, auto); gap: 5px; padding-inline: 7px; }
+  .randomized-entry-head, .randomized-entry-row { grid-template-columns: 130px 64px 1fr minmax(26px, auto); gap: 5px; padding-inline: 7px; }
   .weapon-entry-name { grid-template-columns: 44px minmax(0,1fr); gap: 5px; }
   .weapon-entry-name img { width: 44px; height: 32px; }
-  .randomized-entry-row input { width: 62px; }
+  .randomized-entry-row input { width: 64px; }
   .weapon-list th, .weapon-list td { padding-inline: 7px; }
-  .weapon-list th:first-child { width: 142px; }
-  .weapon-list th:nth-child(2) { width: 58px; }
+  .weapon-list th:first-child { width: 130px; }
+  .weapon-list th:nth-child(2) { width: 64px; }
   .weapon-list th:nth-child(3) { width: auto; }
   .submission-issue-rail { right: 8px; bottom: 8px; width: min(260px, calc(100% - 16px)); max-height: 42%; }
   .submission-issue-rail ul { max-height: 38vh; }

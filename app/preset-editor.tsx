@@ -226,9 +226,12 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />
     {version.weaponConfigurations.some(c => c.kind === "randomized") ? <RandomizedWeaponsEditor version={version} onChange={updateVersion} /> : null}
     {version.weaponConfigurations.some(c => c.kind === "swapper") ? <SwapperSettingsEditor version={version} onChange={updateVersion} /> : null}
-      <MapPlaylistsEditor version={version} onChange={updateVersion} />
+    <MapPlaylistsEditor version={version} onChange={updateVersion} />
+    <div className="editor-quality-tip">
+      <strong>Tip:</strong> Completeness directly affects ranking in <b>Popular</b>. Adding a custom thumbnail, clear description, map pools, and maintained versions gets your preset ranked higher and makes it easier for players to find and use.
     </div>
-  );
+  </div>
+);
 }
 
 function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
@@ -331,7 +334,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
         <span className="weapon-entry-name" role="cell"><Image src={weaponAssetUrl(gameCatalog.weapons.find((item) => item.name === weapon.name)?.image ?? "/discord-symbol.svg")} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
         <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const raw = event.target.value; const num = raw === "" ? 0 : Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(Number(raw) || 0))); updateConfiguration({ ...configuration, weapons: configuration.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) }); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
-        <span className="entry-chance" role="cell">{formatWeaponPercent(weapon.percent)}</span>
+        <span role="cell"><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
         <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration({ ...configuration, weapons: configuration.weapons.filter((item) => item.name !== weapon.name) })} />
       </div>)}
     </div> : null}
@@ -375,10 +378,10 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
   return <section className="editor-block playlist-editor">
     <header><h3>Map playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange({ ...version, mapPlaylists: [...version.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add playlist</button></header>
     <div className="playlist-editor-list">{version.mapPlaylists.map((playlist, index) => <article className="playlist-editor-item" key={index}>
-      <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} maps</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange({ ...version, mapPlaylists: version.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) })} /></header>
+      <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange({ ...version, mapPlaylists: version.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) })} /></header>
       <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => void handlePlaylistCodeChange(index, event.target.value)} /></label>
       {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
-      <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What is different about this map pool?" value={playlist.description} onChange={(event) => updatePlaylist(index, { ...playlist, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
+      <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="Which maps or pacing define this playlist, and why choose it?" value={playlist.description} onChange={(event) => updatePlaylist(index, { ...playlist, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
     </article>)}</div>
   </section>;
 }
@@ -443,7 +446,7 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
         <header><div><strong><StraftatText text={configuration.name || `Swapper ${renderIndex + 1}`} /></strong></div><ConfirmDeleteButton label={`Remove swapper ${renderIndex + 1}`} onConfirm={() => removeSwapper(index)} /></header>
         <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => void handleSwapperCodeChange(index, event.target.value)} /></label>
         {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
-        <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What is different about this swapper?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, { ...configuration, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
+        <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What key weapon swaps happen here, and how does it change the match?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, { ...configuration, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
       </article>;
     })}</div>
   </section>;

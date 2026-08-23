@@ -1274,7 +1274,7 @@ export default function Home() {
                   className="dialog-description-input"
                   aria-label="Preset description"
                   maxLength={MAX_PRESET_DESCRIPTION_CHARACTERS}
-                  placeholder="Describe how this preset plays."
+                  placeholder="What makes your preset unique compared to similar ones? Which weapons, maps, or rules define the gameplay, and how is it tuned to be played?"
                   value={draftContent.description}
                   onChange={(event) => updateDraftContent({ ...draftContent, description: event.target.value })}
                 />
@@ -1452,7 +1452,7 @@ function PlaylistRow({ playlist, copied, onCopy }: { playlist: MapPlaylist; copi
       <div className="export-copy">
         <div className="playlist-name">
           <ExpandableName text={playlist.name} />
-          <span>{playlist.mapCount} maps</span>
+          <span>{playlist.mapCount} {playlist.mapCount === 1 ? "map" : "maps"}</span>
         </div>
         <p>{playlist.description}</p>
         <code>{playlist.code}</code>
