@@ -340,16 +340,15 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
 
 function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
   const [decodeErrors, setDecodeErrors] = useState<Record<number, string>>({});
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const versionRef = useRef(version);
-  versionRef.current = version;
 
   const updatePlaylist = (index: number, playlist: PresetMapPlaylistContent) => {
-    onChangeRef.current({ ...versionRef.current, mapPlaylists: versionRef.current.mapPlaylists.map((item, itemIndex) => itemIndex === index ? playlist : item) });
+    onChange({ ...version, mapPlaylists: version.mapPlaylists.map((item, itemIndex) => itemIndex === index ? playlist : item) });
   };
-  const decodePlaylist = async (index: number, playlist: PresetMapPlaylistContent) => {
-    if (!playlist.encodedValue.trim()) {
+
+  const handlePlaylistCodeChange = async (index: number, encodedValue: string) => {
+    const trimmed = encodedValue.trim();
+    if (!trimmed) {
+      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue: "", name: "", mapNames: [] });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -359,10 +358,8 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
       return;
     }
     try {
-      const decoded = await decodeMapPlaylistExport(playlist.encodedValue);
-      if (playlist.name !== decoded.name || playlist.mapNames.length !== decoded.mapNames.length) {
-        updatePlaylist(index, { ...playlist, name: decoded.name, mapNames: decoded.mapNames });
-      }
+      const decoded = await decodeMapPlaylistExport(trimmed);
+      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue: trimmed, name: decoded.name, mapNames: decoded.mapNames });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -370,56 +367,16 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
         return next;
       });
     } catch (error) {
+      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue, name: "", mapNames: [] });
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode this playlist." }));
     }
   };
-
-  useEffect(() => {
-    let isMounted = true;
-    version.mapPlaylists.forEach((playlist, index) => {
-      if (!playlist.encodedValue.trim()) {
-        setDecodeErrors((current) => {
-          if (!current[index]) return current;
-          const next = { ...current };
-          delete next[index];
-          return next;
-        });
-        return;
-      }
-      decodeMapPlaylistExport(playlist.encodedValue)
-        .then((decoded) => {
-          if (!isMounted) return;
-          setDecodeErrors((current) => {
-            if (!current[index]) return current;
-            const next = { ...current };
-            delete next[index];
-            return next;
-          });
-          if (!playlist.name || playlist.name !== decoded.name || playlist.mapNames.length !== decoded.mapNames.length) {
-            onChangeRef.current({
-              ...versionRef.current,
-              mapPlaylists: versionRef.current.mapPlaylists.map((item, itemIndex) =>
-                itemIndex === index ? { ...playlist, name: decoded.name, mapNames: decoded.mapNames } : item
-              ),
-            });
-          }
-        })
-        .catch((error) => {
-          if (!isMounted) return;
-          const message = error instanceof Error ? error.message : "Could not decode this playlist.";
-          setDecodeErrors((current) => current[index] === message ? current : { ...current, [index]: message });
-        });
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [version.mapPlaylists]);
 
   return <section className="editor-block playlist-editor">
     <header><h3>Map playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange({ ...version, mapPlaylists: [...version.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add playlist</button></header>
     <div className="playlist-editor-list">{version.mapPlaylists.map((playlist, index) => <article className="playlist-editor-item" key={index}>
       <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} maps</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange({ ...version, mapPlaylists: version.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) })} /></header>
-      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => updatePlaylist(index, { ...playlist, encodedValue: event.target.value, name: "", mapNames: [] })} onPaste={(e) => { const el = e.currentTarget; setTimeout(() => el.blur(), 10); }} onBlur={() => void decodePlaylist(index, playlist)} /></label>
+      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => void handlePlaylistCodeChange(index, event.target.value)} /></label>
       {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
       <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What is different about this map pool?" value={playlist.description} onChange={(event) => updatePlaylist(index, { ...playlist, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
     </article>)}</div>
@@ -428,30 +385,30 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
 
 function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
   const [decodeErrors, setDecodeErrors] = useState<Record<number, string>>({});
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const versionRef = useRef(version);
-  versionRef.current = version;
 
   const swapperIndices = version.weaponConfigurations
     .map((c, index) => c.kind === "swapper" ? index : -1)
     .filter(index => index !== -1);
 
   const addSwapper = () => {
-    if (versionRef.current.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS) return;
-    onChangeRef.current({ ...versionRef.current, weaponConfigurations: [...versionRef.current.weaponConfigurations, { kind: "swapper", name: "", encodedValue: "" }] });
+    if (version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS) return;
+    onChange({ ...version, weaponConfigurations: [...version.weaponConfigurations, { kind: "swapper", name: "", encodedValue: "" }] });
   };
 
   const updateSwapper = (index: number, next: PresetWeaponConfigurationContent) => {
-    onChangeRef.current({ ...versionRef.current, weaponConfigurations: versionRef.current.weaponConfigurations.map((item, i) => i === index ? next : item) });
+    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.map((item, i) => i === index ? next : item) });
   };
 
   const removeSwapper = (index: number) => {
-    onChangeRef.current({ ...versionRef.current, weaponConfigurations: versionRef.current.weaponConfigurations.filter((_, i) => i !== index) });
+    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.filter((_, i) => i !== index) });
   };
 
-  const decodeSwapper = async (index: number, encodedValue: string) => {
-    if (!encodedValue.trim()) {
+  const handleSwapperCodeChange = async (index: number, encodedValue: string) => {
+    const configuration = version.weaponConfigurations[index];
+    if (configuration.kind !== "swapper") return;
+    const trimmed = encodedValue.trim();
+    if (!trimmed) {
+      updateSwapper(index, { ...configuration, encodedValue: "", name: "" });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -461,8 +418,8 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
       return;
     }
     try {
-      const decoded = await decodeSwapperExport(encodedValue);
-      updateSwapper(index, { kind: "swapper", name: decoded.name, encodedValue });
+      const decoded = await decodeSwapperExport(trimmed);
+      updateSwapper(index, { ...configuration, encodedValue: trimmed, name: decoded.name });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -470,51 +427,10 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
         return next;
       });
     } catch (error) {
+      updateSwapper(index, { ...configuration, encodedValue, name: "" });
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode swapper." }));
     }
   };
-
-  useEffect(() => {
-    let isMounted = true;
-    version.weaponConfigurations.forEach((configuration, index) => {
-      if (configuration.kind !== "swapper") return;
-      if (!configuration.encodedValue.trim()) {
-        setDecodeErrors((current) => {
-          if (!current[index]) return current;
-          const next = { ...current };
-          delete next[index];
-          return next;
-        });
-        return;
-      }
-      decodeSwapperExport(configuration.encodedValue)
-        .then((decoded) => {
-          if (!isMounted) return;
-          setDecodeErrors((current) => {
-            if (!current[index]) return current;
-            const next = { ...current };
-            delete next[index];
-            return next;
-          });
-          if (!configuration.name || configuration.name !== decoded.name) {
-            onChangeRef.current({
-              ...versionRef.current,
-              weaponConfigurations: versionRef.current.weaponConfigurations.map((item, i) =>
-                i === index ? { ...configuration, name: decoded.name } : item
-              ),
-            });
-          }
-        })
-        .catch((error) => {
-          if (!isMounted) return;
-          const message = error instanceof Error ? error.message : "Could not decode swapper.";
-          setDecodeErrors((current) => current[index] === message ? current : { ...current, [index]: message });
-        });
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [version.weaponConfigurations]);
 
   if (swapperIndices.length === 0) return null;
 
@@ -525,7 +441,7 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
       if (configuration.kind !== "swapper") return null;
       return <article className="playlist-editor-item" key={index}>
         <header><div><strong><StraftatText text={configuration.name || `Swapper ${renderIndex + 1}`} /></strong></div><ConfirmDeleteButton label={`Remove swapper ${renderIndex + 1}`} onConfirm={() => removeSwapper(index)} /></header>
-        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => updateSwapper(index, { ...configuration, encodedValue: event.target.value, name: "" })} onPaste={(e) => { const el = e.currentTarget; setTimeout(() => el.blur(), 10); }} onBlur={() => void decodeSwapper(index, configuration.encodedValue)} /></label>
+        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => void handleSwapperCodeChange(index, event.target.value)} /></label>
         {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
         <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What is different about this swapper?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, { ...configuration, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
       </article>;

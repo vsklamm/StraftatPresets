@@ -506,16 +506,15 @@ export default function Home() {
 
   const flushSelectedDraft = useCallback(async () => {
     if (!isEditing || !selected?.persisted || !selected.canEdit || !selected.revisionId || selected.editVersion === undefined) return true;
-    while (true) {
-      const content = draftContentRef.current ?? draftContent;
-      if (!content) return true;
-      const signature = JSON.stringify(content);
-      if (signature === savedContentRef.current) return true;
-      try {
-        await persistDraft(selected, content, signature);
-      } catch {
-        return false;
-      }
+    const content = draftContentRef.current ?? draftContent;
+    if (!content) return true;
+    const signature = JSON.stringify(content);
+    if (signature === savedContentRef.current) return true;
+    try {
+      await persistDraft(selected, content, signature);
+      return true;
+    } catch {
+      return false;
     }
   }, [isEditing, selected, draftContent, persistDraft]);
 
@@ -558,23 +557,25 @@ export default function Home() {
     }
   }, [updateDashboardItems]);
 
-  const exitEditMode = useCallback(async () => {
+  const exitEditMode = useCallback(() => {
     const content = draftContentRef.current ?? draftContent;
     if (selected?.persisted && selected.canEdit && selected.state === "draft" && content &&
       isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
-      if (await discardUnmodifiedDraft(selected)) dismissPreset();
+      void discardUnmodifiedDraft(selected).then((ok) => { if (ok) dismissPreset(); });
       return;
     }
-    if (!await flushSelectedDraft()) return;
     setIsEditing(false);
+    void flushSelectedDraft();
   }, [selected, draftContent, discardUnmodifiedDraft, dismissPreset, flushSelectedDraft]);
 
-  const closePreset = useCallback(async () => {
+  const closePreset = useCallback(() => {
     const content = draftContentRef.current ?? draftContent;
     if (isEditing && selected?.persisted && selected.canEdit && content) {
       if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
-        if (!await discardUnmodifiedDraft(selected)) return;
-      } else if (!await flushSelectedDraft()) return;
+        void discardUnmodifiedDraft(selected);
+      } else {
+        void flushSelectedDraft();
+      }
     }
     dismissPreset();
   }, [isEditing, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
@@ -1186,10 +1187,10 @@ export default function Home() {
         </section>
       </div>
 
-      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={() => void closePreset()}>
+      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
         <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
-        <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-          <button className="dialog-close" type="button" aria-label="Close preset" onClick={() => void closePreset()}>×</button>
+          <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+            <button className="dialog-close" type="button" aria-label="Close preset" onClick={closePreset}>×</button>
           {(() => {
             const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
             return (
