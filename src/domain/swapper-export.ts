@@ -12,8 +12,6 @@ import { decodeCompressedJson } from "./base64-decode";
 import {
   getWeaponDisplayName,
   getWeaponGameId,
-  isSupportedMap,
-  expandMapPattern,
   resolveWeaponName,
 } from "./game-catalog";
 

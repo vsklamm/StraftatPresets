@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { supportedGameRelease, supportedMapCount, supportedWeaponCount } from "../src/domain/game-catalog";
 

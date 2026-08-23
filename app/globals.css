@@ -942,3 +942,15 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   border-radius: 8px 4px 10px 6px / 5px 9px 4px 8px;
   color: #aeb4ff;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

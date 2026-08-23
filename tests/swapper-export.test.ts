@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   buildSwapperPresetJson,
   decodeSwapperExport,
-  swapperExportSchema,
 } from "../src/domain/swapper-export";
 import { encodeCompressedJson } from "../src/domain/base64-decode";
 

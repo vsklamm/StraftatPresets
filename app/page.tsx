@@ -1079,6 +1079,13 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <section className="sr-only" aria-label="About StraftatPresets">
+        <h1>StraftatPresets — Community Presets, Weapon Randomizer & Map Playlists for STRAFTAT</h1>
+        <p>
+          Discover, generate, and share custom game configurations for the arena duel shooter STRAFTAT.
+          Features 72 balanced weapons, 369 official maps, custom weapon weight randomizers, base64 map playlist codes, and swapper remap settings.
+        </p>
+      </section>
       <header className="topbar">
         <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
         <nav className="tool-tabs" aria-label="StraftatPresets sections">
