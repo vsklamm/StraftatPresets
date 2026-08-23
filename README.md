@@ -133,3 +133,8 @@ tests/                unit and fresh-D1 integration tests
 ```
 
 `AGENTS.md` and `.agents/skills/develop-straftat-presets/SKILL.md` contain maintenance instructions for coding agents. Package versions are exact-pinned and `package-lock.json` is committed for reproducible installs.
+
+## Acknowledgments
+
+- **[STRAFTOOLS](https://straftools.vercel.app/)** by **clodcan** — Inspiration and reference for STRAFTAT preset structure, map playlist encoding, and tool UX.
+- **[StraftatFX](https://matthewknorr.github.io/StraftatFX/)** by **Matthew Knorr** (`matthewknorr`) — Rich text color formatting concepts and text gradient tooling for STRAFTAT.

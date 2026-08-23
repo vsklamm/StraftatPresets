@@ -1068,7 +1068,15 @@ export default function Home() {
       <header className="topbar">
         <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
         <nav className="tool-tabs" aria-label="StraftatPresets sections">
-          <button className="active" type="button">Community Presets</button><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a><a href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+          <button className="active" type="button">Community Presets</button>
+          <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
+            <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+            <span className="tab-author">by clodcan</span>
+          </a>
+          <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
+            <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+            <span className="tab-author">by Matthew Knorr</span>
+          </a>
         </nav>
         <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl /></div>
       </header>
