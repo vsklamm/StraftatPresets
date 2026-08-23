@@ -218,3 +218,29 @@ test("submission rate limit queries calculate per-preset cooldown and author hou
     rmSync(stateDirectory, { recursive: true, force: true });
   }
 });
+
+test("updated view sorts presets strictly by updated_at timestamp rather than creation or publication time", () => {
+  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-sort-"));
+  try {
+    runD1(stateDirectory, ["migrations", "apply", "DB"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('author-1', 'Creator')"]);
+
+    const now = Date.now();
+    const older = now - 100_000;
+    const newer = now - 10_000;
+
+    // Preset A was created early and published early, but updated recently
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-a', 'preset-a', 'author-1', 'Preset A', 'published', 'rev-a', ${older}, ${older}, ${newer})`]);
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-a', 'preset-a', 1, 'published', '{}', 'hash-a')`]);
+
+    // Preset B was created later and published later, but has older updated_at
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-b', 'preset-b', 'author-1', 'Preset B', 'published', 'rev-b', ${older + 50_000}, ${older + 50_000}, ${older + 50_000})`]);
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-b', 'preset-b', 1, 'published', '{}', 'hash-b')`]);
+
+    // Query sorted by updated_at DESC
+    const sorted = queryD1<{ id: string }>(stateDirectory, "SELECT id FROM presets WHERE status = 'published' AND published_revision_id IS NOT NULL ORDER BY updated_at DESC, id ASC").results;
+    assert.deepEqual(sorted.map((r) => r.id), ["preset-a", "preset-b"], "Preset A (recently updated) should appear before Preset B");
+  } finally {
+    rmSync(stateDirectory, { recursive: true, force: true });
+  }
+});

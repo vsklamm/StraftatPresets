@@ -23,7 +23,7 @@ export interface UserRepository {
 
 export type UserRole = "member" | "moderator" | "admin";
 
-export type PresetDashboardView = "popular" | "newest" | "mine";
+export type PresetDashboardView = "popular" | "newest" | "updated" | "mine";
 
 export type PresetDashboardItem = {
   id: string;

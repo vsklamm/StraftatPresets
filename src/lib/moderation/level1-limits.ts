@@ -6,6 +6,7 @@ import {
   countTextLines,
   hasConsecutiveEmptyLines,
 } from "@/src/domain/preset-content";
+import { detectLinks } from "./link-detection";
 import type { ModeratableField, ModerationFlag, ModerationResult } from "./types";
 
 export function checkLevel1Limits(fields: ModeratableField[]): ModerationResult {
@@ -13,6 +14,18 @@ export function checkLevel1Limits(fields: ModeratableField[]): ModerationResult 
 
   for (const field of fields) {
     const { path, cleanText } = field;
+
+    const linkCheck = detectLinks(field.rawText);
+    if (linkCheck.hasLink) {
+      flags.push({
+        level: 1,
+        tier: "limits",
+        field: path,
+        code: "links_prohibited",
+        message: `Links and URLs are not allowed in ${field.label}`,
+        matchedTerm: linkCheck.matched,
+      });
+    }
 
     if (path === "title") {
       if (cleanText.length < PRESET_PUBLICATION_RULES.minimumTitleCharacters) {

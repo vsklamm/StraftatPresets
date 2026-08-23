@@ -13,6 +13,7 @@ export * from "./level1-limits";
 export * from "./level2-hard-reject";
 export * from "./level3-computery";
 export * from "./level4-quality-libraries";
+export * from "./link-detection";
 
 export function runClientModeration(content: PresetRevisionContent): ModerationResult {
   const fields = extractModeratableFields(content);

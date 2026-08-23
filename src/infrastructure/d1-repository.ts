@@ -25,7 +25,6 @@ import type {
   PresetInteractionRepository,
   PresetMutationResult,
   PresetReviewResult,
-  PresetSaveDraftResult,
   PresetSubmitResult,
   RankedPresetOrderEntry,
   PresetStatisticsSnapshot,
@@ -310,11 +309,11 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .innerJoin(dashboardRevision, eq(dashboardRevision.id, presets.publishedRevisionId))
       .leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id))
       .where(condition);
-    const rows = view === "newest"
-      ? await baseQuery().orderBy(desc(presets.publishedAt), asc(presets.id)).limit(limit).offset(offset).all()
+    const rows = (view === "newest" || view === "updated")
+      ? await baseQuery().orderBy(desc(presets.updatedAt), asc(presets.id)).limit(limit).offset(offset).all()
       : await baseQuery().orderBy(
         desc(sql`coalesce(${presetStatistics.qualityScoreMilli}, 0) + coalesce(${presetStatistics.engagementScoreMilli}, 0)`),
-        desc(presets.publishedAt),
+        desc(presets.updatedAt),
         asc(presets.id),
       ).limit(limit).offset(offset).all();
     const total = await this.database.select({ value: count() }).from(presets).where(condition).get();

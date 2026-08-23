@@ -203,8 +203,8 @@ export default function Home() {
           setDashboardView("mine");
         } else {
           const stored = window.sessionStorage.getItem("dashboardView");
-          if (stored === "popular" || stored === "newest" || stored === "mine") {
-            setDashboardView(stored);
+          if (stored === "popular" || stored === "newest" || stored === "updated" || stored === "mine") {
+            setDashboardView(stored === "newest" ? "updated" : stored);
           }
         }
       });
@@ -1088,7 +1088,7 @@ export default function Home() {
           <div className="dashboard-toolbar">
             <div className="dashboard-views" role="group" aria-label="Preset order">
               <button className={activeDashboardView === "popular" ? "active" : ""} type="button" onClick={() => chooseDashboardView("popular")}>Popular</button>
-              <button className={activeDashboardView === "newest" ? "active" : ""} type="button" onClick={() => chooseDashboardView("newest")}>Newest</button>
+              <button className={activeDashboardView === "updated" || activeDashboardView === "newest" ? "active" : ""} type="button" onClick={() => chooseDashboardView("updated")}>Updated</button>
               {authStatus === "authenticated" ? <button className={activeDashboardView === "mine" ? "active" : ""} type="button" onClick={() => chooseDashboardView("mine")}>My Presets</button> : null}
             </div>
             <div className="search-row">

@@ -8,7 +8,7 @@ import { PresetLimitReachedError } from "@/src/domain/preset-policy";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  view: z.enum(["popular", "newest", "mine"]).default("popular"),
+  view: z.enum(["popular", "newest", "updated", "mine"]).default("popular"),
   limit: z.coerce.number().int().min(1).max(48).default(24),
   offset: z.coerce.number().int().min(0).max(10_000).default(0),
 });

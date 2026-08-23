@@ -25,6 +25,7 @@ import {
 import {
   runClientModeration,
   runServerModeration,
+  detectLinks,
 } from "../src/lib/moderation";
 import type { PresetRevisionContent } from "../src/domain/preset-content";
 
@@ -523,4 +524,68 @@ test("runServerModeration with previousContent auto-approves trusted revisions w
   const resultForeignProfanity = await runServerModeration(revisionForeignProfanity, { previousContent: publishedPreset });
   assert.equal(resultForeignProfanity.decision, "rejected");
   assert.equal(resultForeignProfanity.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match"), true);
+});
+
+test("link detection prohibits direct, obfuscated, and colored text links in all fields", () => {
+  // 1. Direct URLs & Protocols
+  assert.equal(detectLinks("Check out https://example.com for info").hasLink, true);
+  assert.equal(detectLinks("Visit http://straftat.org/maps").hasLink, true);
+  assert.equal(detectLinks("Go to www.somewebsite.net").hasLink, true);
+  assert.equal(detectLinks("Connect to ws://myserver.io").hasLink, true);
+  assert.equal(detectLinks("Check 192.168.1.50:8080").hasLink, true);
+
+  // 2. Platform shortcuts & Social links
+  assert.equal(detectLinks("Join discord.gg/straftat").hasLink, true);
+  assert.equal(detectLinks("Add me on t.me/mychannel").hasLink, true);
+  assert.equal(detectLinks("Watch youtu.be/dQw4w9WgXcQ").hasLink, true);
+  assert.equal(detectLinks("Stream on twitch.tv/gamer").hasLink, true);
+  assert.equal(detectLinks("Link bit.ly/3xyz").hasLink, true);
+
+  // 3. Obfuscated Dot / Slash Text Hacks
+  assert.equal(detectLinks("somewebsite [dot] com").hasLink, true);
+  assert.equal(detectLinks("somewebsite(dot)com").hasLink, true);
+  assert.equal(detectLinks("somewebsite{dot}com").hasLink, true);
+  assert.equal(detectLinks("somewebsite<dot>com").hasLink, true);
+  assert.equal(detectLinks("somewebsite dot com").hasLink, true);
+  assert.equal(detectLinks("somewebsite[.]com").hasLink, true);
+  assert.equal(detectLinks("somewebsite .com").hasLink, true);
+  assert.equal(detectLinks("somewebsite . com").hasLink, true);
+  assert.equal(detectLinks("somewebsite com / invite").hasLink, true);
+  assert.equal(detectLinks("youtube com").hasLink, true);
+  assert.equal(detectLinks("somewebsite net").hasLink, true);
+  assert.equal(detectLinks("somewebsite ru").hasLink, true);
+  assert.equal(detectLinks("somewebsite io").hasLink, true);
+  assert.equal(detectLinks("discord gg / myinvite").hasLink, true);
+  assert.equal(detectLinks("t me / channel").hasLink, true);
+
+  // 4. Colored / TMPro Text Hacks
+  assert.equal(detectLinks("<#FF0000>https://<#00FF00>example.com").hasLink, true);
+  assert.equal(detectLinks("<#FF0000>somewebsite<#00FF00>.com").hasLink, true);
+  assert.equal(detectLinks("<b>somewebsite</b> [dot] <i>com</i>").hasLink, true);
+  assert.equal(detectLinks("<#FFF>somewebsite<#000> .com").hasLink, true);
+  assert.equal(detectLinks("<#FFF>somewebsite<#000> net").hasLink, true);
+
+  // 5. Valid text that must NOT trigger false positives
+  assert.equal(detectLinks("A tactical arena preset with 10 weapons. Come try it!").hasLink, false);
+  assert.equal(detectLinks("STRAFTAT 1.4.8 version v1.0.0").hasLink, false);
+  assert.equal(detectLinks("e.g. shotgun or rocket launcher").hasLink, false);
+  assert.equal(detectLinks("Damage multiplier is 1.5 with 100.0 percent accuracy").hasLink, false);
+});
+
+test("client and server moderation reject presets containing links in any field", async () => {
+  const presetWithLinkInTitle: PresetRevisionContent = {
+    ...sampleValidPreset,
+    title: "Play on straftat.com",
+  };
+  const clientRes = runClientModeration(presetWithLinkInTitle);
+  assert.equal(clientRes.decision, "rejected");
+  assert.equal(clientRes.flags.some((f) => f.code === "links_prohibited" && f.field === "title"), true);
+
+  const presetWithLinkInDesc: PresetRevisionContent = {
+    ...sampleValidPreset,
+    description: "Join our community at <#FF0000>discord<#00FF00> gg / invite for tournaments.",
+  };
+  const serverRes = await runServerModeration(presetWithLinkInDesc);
+  assert.equal(serverRes.decision, "rejected");
+  assert.equal(serverRes.flags.some((f) => f.code === "links_prohibited" && f.field === "description"), true);
 });
