@@ -1031,9 +1031,12 @@ export default function Home() {
     }
   };
   const removeThumbnail = () => {
-    if (!selected || !draftContent?.thumbnailKey || thumbnailStatus === "uploading") return;
-    const nextContent = { ...draftContent, thumbnailKey: null };
-    updateDraftContent(nextContent);
+    if (!selected || thumbnailStatus === "uploading") return;
+    if (!draftContent?.thumbnailKey && !selected.image) return;
+    const nextContent = draftContent ? { ...draftContent, thumbnailKey: null } : null;
+    if (nextContent) {
+      updateDraftContent(nextContent);
+    }
     setSelected((current) => current ? { ...current, image: undefined } : current);
     setFailedThumbnailIds((current) => {
       if (!current.has(selected.id)) return current;
@@ -1043,7 +1046,13 @@ export default function Home() {
     });
     setThumbnailStatus("idle");
     setThumbnailError("");
-    void persistDraft(selected, nextContent, JSON.stringify(nextContent)).catch(() => undefined);
+    void fetch(`/api/presets/${encodeURIComponent(selected.id)}/thumbnail`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    }).catch(() => undefined);
+    if (nextContent) {
+      void persistDraft(selected, nextContent, JSON.stringify(nextContent)).catch(() => undefined);
+    }
   };
   const matchingTags = tagCatalog.filter((tag) => !draftContent?.tags.includes(tag.slug) && tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase()));
   const revalidationIssues: PresetIssue[] = revalidationFailedId === selected?.id ? [
@@ -1207,7 +1216,7 @@ export default function Home() {
                         <ReplacePicIcon />
                         <span>{thumbnailStatus === "uploading" ? "Checking pic…" : selected.image ? "Change picture" : "Add picture"}</span>
                       </button>
-                      {draftContent?.thumbnailKey ? (
+                      {draftContent?.thumbnailKey || selected.image ? (
                         <button
                           type="button"
                           className="thumbnail-btn"
@@ -1237,7 +1246,7 @@ export default function Home() {
           })()}
           <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
             {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}<span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
@@ -1469,6 +1478,7 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
 
       const lineHeight = targetPx >= 40 ? 1.04 : targetPx >= 28 ? 1.08 : targetPx >= 20 ? 1.14 : 1.2;
       return {
+        fontFamily: "var(--font-jost), sans-serif",
         fontSize: `${targetPx}px`,
         lineHeight,
         width: "100%",
@@ -1491,6 +1501,7 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
 
     const lineHeight = targetPx >= 20 ? 1.12 : targetPx >= 14 ? 1.18 : 1.25;
     return {
+      fontFamily: "var(--font-jost), sans-serif",
       fontSize: `${targetPx}px`,
       lineHeight,
       width: "100%",

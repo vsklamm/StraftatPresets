@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Jost } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 import "./weapon-animations.css";
 
 const geist = Geist({ subsets: ["latin"], display: "swap" });
+const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost" });
 
 export const metadata: Metadata = {
   title: "StraftatPresets",
@@ -27,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={geist.className} suppressHydrationWarning><Providers>{children}</Providers></body>
+      <body className={`${geist.className} ${jost.variable}`} suppressHydrationWarning><Providers>{children}</Providers></body>
     </html>
   );
 }
