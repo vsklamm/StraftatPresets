@@ -25,17 +25,26 @@ export const gameReleases = sqliteTable("game_releases", {
 
 export const gameWeapons = sqliteTable("game_weapons", {
   name: text("name").primaryKey(),
+  gameId: text("game_id").notNull(),
   imagePath: text("image_path").notNull(),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
-}, (table) => [index("idx_game_weapons_active_name").on(table.isActive, table.name)]);
+}, (table) => [
+  index("idx_game_weapons_active_name").on(table.isActive, table.name),
+  index("idx_game_weapons_game_id").on(table.gameId),
+]);
 
 export const gameMaps = sqliteTable("game_maps", {
   name: text("name").primaryKey(),
   kind: text("kind", { enum: ["core", "alt", "dlc"] }).notNull(),
+  family: text("family").notNull(),
+  isDlc: integer("is_dlc", { mode: "boolean" }).notNull().default(false),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
-}, (table) => [index("idx_game_maps_active_name").on(table.isActive, table.name)]);
+}, (table) => [
+  index("idx_game_maps_active_name").on(table.isActive, table.name),
+  index("idx_game_maps_family").on(table.family),
+]);
 
 export const presets = sqliteTable("presets", {
   id: text("id").primaryKey(),

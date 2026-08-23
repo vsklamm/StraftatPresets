@@ -68,3 +68,28 @@ export async function decodeCompressedJson(encodedValue: string, label: string):
     throw new Error(`${label} does not contain valid JSON.`);
   }
 }
+
+export async function encodeCompressedJson(value: unknown): Promise<string> {
+  const jsonString = JSON.stringify(value);
+  const inputBytes = new TextEncoder().encode(jsonString);
+  const stream = new Blob([inputBytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value: chunk } = await reader.read();
+    if (done) break;
+    chunks.push(chunk);
+  }
+  const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+  const compressed = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    compressed.set(chunk, offset);
+    offset += chunk.length;
+  }
+  let binary = "";
+  for (let i = 0; i < compressed.length; i++) {
+    binary += String.fromCharCode(compressed[i]);
+  }
+  return btoa(binary);
+}

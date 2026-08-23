@@ -30,6 +30,7 @@
     "db:query": "wrangler d1 execute DB --local",
     "db:query:remote": "wrangler d1 execute DB --remote",
     "game:check": "tsx scripts/check-game-catalog.ts",
+    "game:audit": "tsx scripts/check-game-updates.ts",
     "game:sync": "npm run game:check && tsx scripts/sync-game-catalog.ts local",
     "game:sync:remote": "npm run game:check && tsx scripts/sync-game-catalog.ts remote",
     "game:update": "node scripts/update-game-catalog.mjs --write",

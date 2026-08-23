@@ -1,11 +1,14 @@
 CREATE TABLE `game_maps` (
 	`name` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
+	`family` text NOT NULL,
+	`is_dlc` integer DEFAULT false NOT NULL,
 	`is_active` integer DEFAULT true NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `idx_game_maps_active_name` ON `game_maps` (`is_active`,`name`);--> statement-breakpoint
+CREATE INDEX `idx_game_maps_family` ON `game_maps` (`family`);--> statement-breakpoint
 CREATE TABLE `game_releases` (
 	`version` text PRIMARY KEY NOT NULL,
 	`published_at` text NOT NULL,
@@ -19,12 +22,14 @@ CREATE TABLE `game_releases` (
 CREATE INDEX `idx_game_releases_supported` ON `game_releases` (`is_supported`);--> statement-breakpoint
 CREATE TABLE `game_weapons` (
 	`name` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
 	`image_path` text NOT NULL,
 	`is_active` integer DEFAULT true NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `idx_game_weapons_active_name` ON `game_weapons` (`is_active`,`name`);--> statement-breakpoint
+CREATE INDEX `idx_game_weapons_game_id` ON `game_weapons` (`game_id`);--> statement-breakpoint
 CREATE TABLE `map_playlist_maps` (
 	`map_playlist_id` text NOT NULL,
 	`position` integer NOT NULL,
