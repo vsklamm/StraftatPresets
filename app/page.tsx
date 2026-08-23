@@ -947,14 +947,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(token),
       });
-      const result = await response.json() as { preset?: PresetDashboardItem; issues?: PresetIssue[]; error?: string };
+      const result = await response.json() as { preset?: PresetDashboardItem; issues?: PresetIssue[]; error?: string; code?: string; retryAfterSeconds?: number };
       if (!response.ok || !result.preset) {
         if (result.issues) {
           setSelected((current) => current ? { ...current, issues: result.issues } : current);
           setShowSubmissionIssues(true);
           return;
         }
-        throw new Error(result.error ?? "The preset could not be submitted.");
+        setActionError(result.error ?? "The preset could not be submitted.");
+        return;
       }
       const submitted = dashboardItemToPreset(result.preset, tagLabels);
       clearLocalDraft(result.preset.id);
@@ -962,8 +963,8 @@ export default function Home() {
       updateDashboardItems((current) => [result.preset!, ...current.filter((item) => item.id !== result.preset!.id)]);
       setShowSubmissionIssues(false);
       selectPreset(submitted, false);
-    } catch {
-      setActionError("The preset could not be submitted. Try again.");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "The preset could not be submitted. Try again.");
     }
   };
   const deleteSelectedPreset = async () => {

@@ -24,6 +24,12 @@ export async function POST(request: Request, context: RouteContext<"/api/presets
     if (result.result === "not_found") return Response.json({ error: "Preset not found." }, { status: 404 });
     if (result.result === "forbidden") return Response.json({ error: "You can only submit your own preset." }, { status: 403 });
     if (result.result === "conflict") return Response.json({ error: "This draft changed. Reload it before submitting." }, { status: 409 });
+    if (result.result === "no_changes") return Response.json({ error: result.message, code: "no_changes" }, { status: 400 });
+    if (result.result === "rate_limited") {
+      const headers: Record<string, string> = { "Cache-Control": "no-store" };
+      if (result.retryAfterSeconds) headers["Retry-After"] = String(result.retryAfterSeconds);
+      return Response.json({ error: result.message, code: "submission_rate_limited", retryAfterSeconds: result.retryAfterSeconds }, { status: 429, headers });
+    }
     if (result.result === "invalid") return Response.json({ error: "Finish the required fields before submitting.", issues: result.issues }, { status: 422 });
     await cleanupThumbnailKeys(thumbnails, result.thumbnailKeysToDelete, "submit preset");
     return Response.json({ preset: result.preset }, { headers: { "Cache-Control": "no-store" } });

@@ -188,3 +188,33 @@ test("author preset limit allows up to four presets and rejects the fifth", () =
     rmSync(stateDirectory, { recursive: true, force: true });
   }
 });
+
+test("submission rate limit queries calculate per-preset cooldown and author hourly cap", () => {
+  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-sublimit-"));
+  try {
+    runD1(stateDirectory, ["migrations", "apply", "DB"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('author-1', 'Creator')"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO presets (id, slug, author_id, title, status) VALUES ('p-1', 'slug-1', 'author-1', 'Preset 1', 'published')"]);
+
+    const now = Date.now();
+    const tenSecondsAgo = now - 10_000;
+    const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+
+    // Insert historical submissions
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, submitted_at) VALUES ('r-old', 'p-1', 1, 'published', '{}', 'hash1', ${twoHoursAgo})`]);
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, submitted_at) VALUES ('r-recent', 'p-1', 2, 'published', '{}', 'hash2', ${tenSecondsAgo})`]);
+
+    // 1. Last submission on preset (within 20s cooldown)
+    const lastSub = queryD1<{ submitted_at: number }>(stateDirectory, "SELECT submitted_at FROM preset_revisions WHERE preset_id = 'p-1' AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1").results[0];
+    assert.ok(lastSub);
+    const elapsed = now - lastSub.submitted_at;
+    assert.ok(elapsed < 20_000, "Should detect submission within 20s cooldown window");
+
+    // 2. Author submissions within the last hour
+    const oneHourAgo = now - 3_600_000;
+    const hourlyCount = queryD1<{ count: number }>(stateDirectory, `SELECT COUNT(*) AS count FROM preset_revisions INNER JOIN presets ON presets.id = preset_revisions.preset_id WHERE presets.author_id = 'author-1' AND preset_revisions.submitted_at >= ${oneHourAgo}`).results[0].count;
+    assert.equal(hourlyCount, 1, "Should only count submissions within the last hour (excluding 2h ago)");
+  } finally {
+    rmSync(stateDirectory, { recursive: true, force: true });
+  }
+});

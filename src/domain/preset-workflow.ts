@@ -23,6 +23,10 @@ export type PresetRevisionStatus = "draft" | "pending" | "rejected" | "published
 export type UserPresetState = "draft" | "pending" | "published";
 export type PresetEditPlan = "create_initial" | "update_draft" | "fork_working" | "fork_published";
 
+export const PRESET_SUBMISSION_COOLDOWN_MS = 20_000;
+export const MAX_PRESET_SUBMISSIONS_PER_HOUR = 10;
+export const ONE_HOUR_MS = 60 * 60 * 1000;
+
 export type PresetIssue = {
   source: "validation" | "moderation";
   field: string;

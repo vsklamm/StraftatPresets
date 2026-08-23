@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { AppDatabase } from "@/db";
@@ -25,6 +25,8 @@ import type {
   PresetInteractionRepository,
   PresetMutationResult,
   PresetReviewResult,
+  PresetSaveDraftResult,
+  PresetSubmitResult,
   RankedPresetOrderEntry,
   PresetStatisticsSnapshot,
   PresetThumbnailRepository,
@@ -60,7 +62,10 @@ import {
 } from "@/src/domain/thumbnail-lifecycle";
 import {
   deriveUserPresetState,
+  MAX_PRESET_SUBMISSIONS_PER_HOUR,
+  ONE_HOUR_MS,
   planPresetEdit,
+  PRESET_SUBMISSION_COOLDOWN_MS,
   validatePresetRevision,
   type PresetIssue,
   type PresetRevisionStatus,
@@ -549,7 +554,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return saved ? { result: "updated", preset: saved, thumbnailKeysToDelete } : { result: "conflict" };
   }
 
-  async submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetMutationResult> {
+  async submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetSubmitResult> {
     const now = input.now ?? new Date();
     const revision = await this.database.select({
       authorId: presets.authorId,
@@ -568,6 +573,63 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const storedContent = parsePresetRevisionContent(JSON.parse(revision.contentJson));
     const decoded = await decodeRevisionPlaylists(storedContent);
     const content = parsePresetRevisionContent(decoded.content);
+
+    const previousPublished = revision.publishedRevisionId
+      ? await this.database.select({
+          contentJson: presetRevisions.contentJson,
+        }).from(presetRevisions).where(eq(presetRevisions.id, revision.publishedRevisionId)).get()
+      : null;
+    const previousContent = previousPublished ? parsePresetRevisionContent(JSON.parse(previousPublished.contentJson)) : null;
+
+    if (previousContent) {
+      const isContentIdentical = JSON.stringify(content) === JSON.stringify(previousContent);
+      const isThumbnailIdentical = (revision.thumbnailKey ?? null) === (previousContent.thumbnailKey ?? null);
+      if (isContentIdentical && isThumbnailIdentical) {
+        return { result: "no_changes", message: "No changes have been made to publish." };
+      }
+    }
+
+    const lastSubmissionOnPreset = await this.database.select({
+      submittedAt: presetRevisions.submittedAt,
+    }).from(presetRevisions)
+      .where(and(
+        eq(presetRevisions.presetId, input.presetId),
+        isNotNull(presetRevisions.submittedAt),
+      ))
+      .orderBy(desc(presetRevisions.submittedAt))
+      .limit(1)
+      .get();
+
+    if (lastSubmissionOnPreset?.submittedAt) {
+      const elapsed = now.getTime() - new Date(lastSubmissionOnPreset.submittedAt).getTime();
+      if (elapsed < PRESET_SUBMISSION_COOLDOWN_MS) {
+        const remainingSeconds = Math.max(1, Math.ceil((PRESET_SUBMISSION_COOLDOWN_MS - elapsed) / 1000));
+        return {
+          result: "rate_limited",
+          message: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before submitting again.`,
+          retryAfterSeconds: remainingSeconds,
+        };
+      }
+    }
+
+    const oneHourAgo = new Date(now.getTime() - ONE_HOUR_MS);
+    const recentAuthorSubmissions = await this.database.select({
+      count: sql<number>`count(*)`,
+    }).from(presetRevisions)
+      .innerJoin(presets, eq(presets.id, presetRevisions.presetId))
+      .where(and(
+        eq(presets.authorId, input.userId),
+        gte(presetRevisions.submittedAt, oneHourAgo),
+      ))
+      .get();
+
+    if ((recentAuthorSubmissions?.count ?? 0) >= MAX_PRESET_SUBMISSIONS_PER_HOUR) {
+      return {
+        result: "rate_limited",
+        message: "You have reached the limit of 10 submissions per hour. Please try again later.",
+      };
+    }
+
     const contentIssues = validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId }).filter((issue) => !["missing_playlist_name", "empty_map_playlist"].includes(issue.code)
       || ![...decoded.invalidPlaylistPrefixes].some((prefix) => issue.field.startsWith(prefix)));
     const issues = [...decoded.issues, ...contentIssues, ...await this.validateActiveTags(content.tags)];
@@ -596,12 +658,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     )).run();
     if (Number(update.meta.changes) !== 1) return { result: "conflict" };
 
-    const previousPublished = revision.publishedRevisionId
-      ? await this.database.select({
-          contentJson: presetRevisions.contentJson,
-        }).from(presetRevisions).where(eq(presetRevisions.id, revision.publishedRevisionId)).get()
-      : null;
-    const previousContent = previousPublished ? parsePresetRevisionContent(JSON.parse(previousPublished.contentJson)) : null;
     const unresolvedMessages = await this.listUnresolvedTelegramMessages(input.presetId, input.revisionId);
 
     const modResult = await runServerModeration(content, { previousContent });

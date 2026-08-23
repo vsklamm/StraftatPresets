@@ -45,12 +45,23 @@ export type PresetDashboardItem = {
   publishedAt: Date | null;
 };
 
-export type PresetMutationResult =
+export type PresetSaveDraftResult =
   | { result: "updated"; preset: PresetDashboardItem; thumbnailKeysToDelete?: string[] }
   | { result: "invalid"; issues: PresetIssue[] }
   | { result: "not_found" }
   | { result: "forbidden" }
   | { result: "conflict" };
+
+export type PresetSubmitResult =
+  | { result: "updated"; preset: PresetDashboardItem; thumbnailKeysToDelete?: string[] }
+  | { result: "invalid"; issues: PresetIssue[] }
+  | { result: "not_found" }
+  | { result: "forbidden" }
+  | { result: "conflict" }
+  | { result: "rate_limited"; message: string; retryAfterSeconds?: number }
+  | { result: "no_changes"; message: string };
+
+export type PresetMutationResult = PresetSaveDraftResult;
 
 export type PresetReviewResult =
   | { result: "updated"; preset: PresetDashboardItem; thumbnailKeysToDelete?: string[] }
@@ -80,8 +91,8 @@ export interface PresetWorkflowRepository {
   getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined>;
   getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined>;
   clearTelegramModerationMessage(revisionId: string, messageId: number): Promise<boolean>;
-  savePresetDraft(input: { presetId: string; userId: string; revisionId: string; editVersion: number; content: PresetRevisionContent; now?: Date }): Promise<PresetMutationResult>;
-  submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetMutationResult>;
+  savePresetDraft(input: { presetId: string; userId: string; revisionId: string; editVersion: number; content: PresetRevisionContent; now?: Date }): Promise<PresetSaveDraftResult>;
+  submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetSubmitResult>;
   reviewPreset(input: { presetId: string; revisionId: string; reviewerId: string | null; decision: "approve" | "reject"; issues: PresetIssue[]; now?: Date }): Promise<PresetReviewResult>;
   deletePreset(presetId: string, userId: string): Promise<{ result: "deleted" | "forbidden" | "not_found" }>;
 }

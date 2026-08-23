@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
