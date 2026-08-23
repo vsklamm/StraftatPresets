@@ -380,7 +380,10 @@ export default function Home() {
       const updated = dashboardItemToPreset(effectiveItem, tagLabels);
       const savedSignature = JSON.stringify(data.preset.content);
       serverContentByPresetRef.current.set(data.preset.id, savedSignature);
-      updateDashboardItems((current) => [effectiveItem, ...current.filter((item) => item.id !== data.preset!.id)]);
+      updateDashboardItems((current) => {
+        const exists = current.some((item) => item.id === data.preset!.id);
+        return exists ? current.map((item) => item.id === data.preset!.id ? effectiveItem : item) : [effectiveItem, ...current];
+      });
 
       if (openPresetIdRef.current === presetId) {
         setSelected((current) => {
@@ -468,7 +471,10 @@ export default function Home() {
       const updated = dashboardItemToPreset(savedPreset, tagLabels);
       const savedSignature = JSON.stringify(savedPreset.content);
       serverContentByPresetRef.current.set(savedPreset.id, savedSignature);
-      updateDashboardItems((current) => [savedPreset, ...current.filter((item) => item.id !== savedPreset.id)]);
+      updateDashboardItems((current) => {
+        const exists = current.some((item) => item.id === savedPreset.id);
+        return exists ? current.map((item) => item.id === savedPreset.id ? savedPreset : item) : [savedPreset, ...current];
+      });
       clearMatchingLocalDraft(savedPreset.id, signature);
       if (openPresetIdRef.current === preset.id) {
         savedContentRef.current = savedSignature;
@@ -679,7 +685,10 @@ export default function Home() {
               const effectiveItem = localContent ? { ...data.preset, content: localContent } : data.preset;
               linked = dashboardItemToPreset(effectiveItem, tagLabels);
               openPresetIdRef.current = linked.id;
-              updateDashboardItems((current) => [effectiveItem, ...current.filter((item) => item.id !== data.preset!.id)]);
+              updateDashboardItems((current) => {
+                const exists = current.some((item) => item.id === data.preset!.id);
+                return exists ? current.map((item) => item.id === data.preset!.id ? effectiveItem : item) : [effectiveItem, ...current];
+              });
               setSelected(linked);
               setVersionLabel(latestVersion(linked).label);
               setDraftContent(linked.content ?? null);
@@ -960,7 +969,10 @@ export default function Home() {
       const submitted = dashboardItemToPreset(result.preset, tagLabels);
       clearLocalDraft(result.preset.id);
       serverContentByPresetRef.current.set(result.preset.id, JSON.stringify(result.preset.content));
-      updateDashboardItems((current) => [result.preset!, ...current.filter((item) => item.id !== result.preset!.id)]);
+      updateDashboardItems((current) => {
+        const exists = current.some((item) => item.id === result.preset!.id);
+        return exists ? current.map((item) => item.id === result.preset!.id ? result.preset! : item) : [result.preset!, ...current];
+      });
       setShowSubmissionIssues(false);
       selectPreset(submitted, false);
     } catch (error) {
