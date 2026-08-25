@@ -85,7 +85,7 @@ button { color: inherit; }
 
 .radial-items-container { position: absolute; inset: 0; z-index: 2; }
 
-.radial-weapon-btn { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; outline: none; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease; animation: weapon-orbit-slide 0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.radial-weapon-btn { position: absolute; transform: translate(calc(-50% + var(--repel-x, 0px)), calc(-50% + var(--repel-y, 0px))); display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; outline: none; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease; animation: weapon-orbit-slide 0.38s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @keyframes weapon-orbit-slide {
   0% {
@@ -98,9 +98,9 @@ button { color: inherit; }
   }
 }
 
-.radial-weapon-btn:hover { z-index: 60; border: 0; background: transparent; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.4)); }
-.radial-weapon-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); transform: scale(1); transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease; user-select: none; pointer-events: none; }
-.radial-weapon-btn:hover .radial-weapon-img { transform: scale(var(--hover-scale)); filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.9)) brightness(1.28); }
+.radial-weapon-btn:hover { z-index: 70; border: 0; background: transparent; filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.98)) drop-shadow(0 0 14px rgba(255, 255, 255, 0.5)); }
+.radial-weapon-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); transform: scale(1); transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease; user-select: none; pointer-events: none; }
+.radial-weapon-btn:hover .radial-weapon-img { transform: scale(var(--hover-scale, 1.55)); filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.95)) brightness(1.35); }
 .radial-item-tooltip { position: fixed; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; padding: 3px 8px; border-radius: 5px; background: rgba(9, 9, 11, 0.96); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85); color: #ffffff; font-size: 11px; font-weight: 600; line-height: 1.2; z-index: 140; }
 
 /* Search Tag Picker */

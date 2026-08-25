@@ -47,19 +47,13 @@ Set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` in `.env.local`. Local setup
 npm run dev                 # initialize local state and start Next.js
 npm run preview             # build and run a local Worker preview
 npm run check               # catalogs, lint, types, tests, and Next.js build
-npm run check:cloudflare    # all checks plus the Worker bundle
 npm run db:schema           # generate a migration after changing db/schema.ts
-npm run db:setup:local      # apply migrations to local D1
-npm run db:backup           # export local D1 to the ignored backups directory
-npm run game:check          # validate the game catalog and weapon assets
-npm run game:sync           # mirror the reviewed catalog into local D1
-npm run tags:check          # validate the tag catalog
+npm run db:migrate          # apply migrations to local D1
+npm run db:backup           # export D1 database to the ignored backups directory
+npm run game:sync           # mirror the reviewed game catalog into local D1
 npm run tags:sync           # mirror the reviewed tags into local D1
-npm run stats               # inspect local ranking and abuse signals
-npm run review              # process the local moderation queue
+npm run stats               # inspect ranking and abuse signals
 ```
-
-Commands ending in `:remote` and `npm run deploy` can mutate remote state. Run them only for an intentional production operation.
 
 ## Catalogs and assets
 
@@ -69,14 +63,14 @@ Weapon images are metadata-free transparent WebP files in `public/weapons/`. To 
 
 ```bash
 npm run game:update
-npm run game:check
+npm run weapons:normalize
 npm run game:sync
 npm run check
 ```
 
 Review all generated catalog and image changes before committing. Runtime requests never scrape the wiki.
 
-Tag entries contain only `slug`, `label`, and `category`. Presets can use at most eight tags and gallery cards show at most five. Run `npm run tags` to list local tags; the supported edit commands are `add`, `rename`, `enable`, and `disable`.
+Tag entries contain only `slug`, `label`, and `category`. Presets can use at most eight tags and gallery cards show at most five.
 
 ## Presets and moderation
 
@@ -85,6 +79,8 @@ Published presets require a name, a useful description, at least one version, at
 Uploaded thumbnails are limited to JPEG or PNG input of at most 2 MB. The browser and server validate the file, the server converts it to WebP, and only the processed image is stored in private R2. New or changed thumbnails require manual review before publication.
 
 Automatic profanity screening uses a secondary English library and reviewed high-confidence dictionaries for French, Spanish, German, Russian, Chinese, Arabic, Portuguese, Italian, Hindi, Japanese, and Korean. A small project dictionary also covers common transliterated Russian and Polish terms. English matches require review; non-English matches are rejected automatically.
+
+Moderators can approve, reject, or retract presets directly via the Telegram bot integration.
 
 ## Cloudflare setup
 
@@ -105,10 +101,10 @@ https://your-domain.example/api/auth/callback/discord
 Initialize and validate the fresh remote database before the first deployment:
 
 ```bash
-npm run db:setup:remote
-npm run game:sync:remote -- --confirm <supported-release>
-npm run tags:sync:remote -- --confirm <tag-count>
-npm run check:cloudflare
+npm run db:migrate -- --remote
+npm run game:sync -- remote --confirm <supported-release>
+npm run tags:sync -- remote --confirm <tag-count>
+npm run check
 ```
 
 Deploy only after reviewing the Worker configuration and environment:

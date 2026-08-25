@@ -45,4 +45,4 @@ When editing `AGENTS.md`, harness files, or skills:
 
 ## Complete the change
 
-Run focused tests during implementation. Before handoff, run `npm run check:cloudflare`. For visual changes, inspect the local page. For persistence changes, run fresh-D1 integration tests. Finish with `git diff --check` and a clean accounting of every working-tree change.
+Run focused tests during implementation. Before handoff, run `npm run check`. For visual changes, inspect the local page. For persistence changes, run fresh-D1 integration tests. Finish with `git diff --check` and a clean accounting of every working-tree change.

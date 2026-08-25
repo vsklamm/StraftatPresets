@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-catalog";
 import { TAG_CATEGORIES, type TagCatalogEntry } from "@/src/domain/tag-catalog";
 
-const RADIAL_ORIGIN_X_OFFSET = 4;
-const RADIAL_ORIGIN_Y_OFFSET = -4;
+const RADIAL_ORIGIN_X_OFFSET = 18;
+const RADIAL_ORIGIN_Y_OFFSET = -18;
 
 export function RadialWeaponPicker({
   weapons,
@@ -65,8 +65,8 @@ export function RadialWeaponPicker({
     const total = weapons.length;
     if (!total) return { positionedWeapons: [], ringRadii: [], imgW: 44, imgH: 44 };
 
-    const minRadius = Math.max(42, dishDimension * 0.12);
-    const maxRadius = dishDimension - 34;
+    const minRadius = Math.max(38, dishDimension * 0.10);
+    const maxRadius = dishDimension - 14;
     const Sr = maxRadius - minRadius;
     const r_avg = (minRadius + maxRadius) / 2;
 
@@ -166,8 +166,10 @@ export function RadialWeaponPicker({
 
   const originX = dishDimension + RADIAL_ORIGIN_X_OFFSET;
   const originY = RADIAL_ORIGIN_Y_OFFSET;
-  const hoverGrowth = Math.min(12, Math.max(8, imgW * 0.16));
-  const hoverScale = (imgW + hoverGrowth) / imgW;
+  const hoverScale = 1.55;
+  const hoveredPosition = hoveredWeapon
+    ? positionedWeapons.find((item) => item.weapon.name === hoveredWeapon.name)
+    : null;
 
   return (
     <div
@@ -190,36 +192,54 @@ export function RadialWeaponPicker({
       </svg>
 
       <div className="radial-items-container">
-        {positionedWeapons.map(({ weapon, x, y, slideDx, slideDy, delay }) => (
-          <button
-            key={weapon.name}
-            type="button"
-            className="radial-weapon-btn"
-            style={
-              {
-                left: `${x}px`,
-                top: `${y}px`,
-                width: `${imgW}px`,
-                height: `${imgH}px`,
-                "--slide-dx": `${slideDx}px`,
-                "--slide-dy": `${slideDy}px`,
-                "--hover-scale": hoverScale,
-                animationDelay: `${delay}ms`,
-              } as React.CSSProperties
+        {positionedWeapons.map(({ weapon, x, y, slideDx, slideDy, delay }) => {
+          let repelX = 0;
+          let repelY = 0;
+          if (hoveredPosition && hoveredPosition.weapon.name !== weapon.name) {
+            const dx = x - hoveredPosition.x;
+            const dy = y - hoveredPosition.y;
+            const dist = Math.hypot(dx, dy);
+            const repelRadius = imgW * 2.4;
+            if (dist > 0 && dist < repelRadius) {
+              const force = Math.pow(1 - dist / repelRadius, 1.4) * 14;
+              repelX = (dx / dist) * force;
+              repelY = (dy / dist) * force;
             }
-            onMouseEnter={(event) => {
-              const bounds = event.currentTarget.getBoundingClientRect();
-              setHoveredWeapon({ name: weapon.name, left: bounds.left + bounds.width / 2, top: bounds.top - 5 });
-            }}
-            onMouseLeave={() => setHoveredWeapon(null)}
-            onClick={() => {
-              onSelect(weapon.name);
-            }}
-            aria-label={weapon.name}
-          >
-            <Image src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
-          </button>
-        ))}
+          }
+
+          return (
+            <button
+              key={weapon.name}
+              type="button"
+              className="radial-weapon-btn"
+              style={
+                {
+                  left: `${x}px`,
+                  top: `${y}px`,
+                  width: `${imgW}px`,
+                  height: `${imgH}px`,
+                  "--slide-dx": `${slideDx}px`,
+                  "--slide-dy": `${slideDy}px`,
+                  "--hover-scale": hoverScale,
+                  "--repel-x": `${repelX.toFixed(1)}px`,
+                  "--repel-y": `${repelY.toFixed(1)}px`,
+                  animationDelay: `${delay}ms`,
+                } as React.CSSProperties
+              }
+              onMouseEnter={(event) => {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                setHoveredWeapon({ name: weapon.name, left: bounds.left + bounds.width / 2, top: bounds.top - 5 });
+              }}
+              onMouseLeave={() => setHoveredWeapon(null)}
+              onClick={() => {
+                onSelect(weapon.name);
+              }}
+              aria-label={weapon.name}
+            >
+              <Image src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
+            </button>
+          );
+        })}
       </div>
       {hoveredWeapon && typeof document !== "undefined" ? createPortal(
         <span className="radial-item-tooltip" style={{ left: hoveredWeapon.left, top: hoveredWeapon.top }}>{hoveredWeapon.name}</span>,

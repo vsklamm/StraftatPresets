@@ -45,6 +45,7 @@ import { copyTargetKeys, createPresetCopyManifest } from "@/src/domain/preset-co
 import { runServerModeration } from "@/src/lib/moderation";
 import { deleteTelegramModerationMessage, notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
+import { decodeSwapperExport } from "@/src/domain/swapper-export";
 import { PRESET_EVENT_POLICY, type PresetEventKind } from "@/src/domain/preset-events";
 import {
   calculateFreshnessScore,
@@ -73,9 +74,11 @@ import {
 
 const dashboardRevision = alias(presetRevisions, "dashboard_revision");
 
-async function decodeRevisionPlaylists(content: PresetRevisionContent) {
+async function decodeRevisionContentData(content: PresetRevisionContent) {
   const issues: PresetIssue[] = [];
   const invalidPlaylistPrefixes = new Set<string>();
+  const invalidSwapperPrefixes = new Set<string>();
+
   const versions = await Promise.all(content.versions.map(async (version, versionIndex) => ({
     ...version,
     mapPlaylists: await Promise.all(version.mapPlaylists.map(async (playlist, playlistIndex) => {
@@ -95,9 +98,44 @@ async function decodeRevisionPlaylists(content: PresetRevisionContent) {
         return { ...playlist, name: "", mapNames: [] };
       }
     })),
+    weaponConfigurations: await Promise.all(version.weaponConfigurations.map(async (config, configIndex) => {
+      if (config.kind !== "swapper") return config;
+      if (!config.encodedValue.trim()) return config;
+      try {
+        const decoded = await decodeSwapperExport(config.encodedValue);
+        const prefix = `versions.${versionIndex}.weaponConfigurations.${configIndex}`;
+        if (decoded.invalidMaps.length > 0) {
+          issues.push({
+            source: "validation",
+            field: `${prefix}.encodedValue`,
+            code: "unsupported_swapper_map",
+            message: `Swapper references unsupported map(s): ${decoded.invalidMaps.slice(0, 3).join(", ")}`,
+          });
+        }
+        if (decoded.invalidWeapons.length > 0) {
+          issues.push({
+            source: "validation",
+            field: `${prefix}.encodedValue`,
+            code: "unsupported_swapper_weapon",
+            message: `Swapper references unsupported weapon(s): ${decoded.invalidWeapons.slice(0, 3).join(", ")}`,
+          });
+        }
+        return { ...config, name: decoded.name };
+      } catch {
+        const prefix = `versions.${versionIndex}.weaponConfigurations.${configIndex}`;
+        invalidSwapperPrefixes.add(prefix);
+        issues.push({
+          source: "validation",
+          field: `${prefix}.encodedValue`,
+          code: "invalid_swapper_code",
+          message: "The swapper settings export is invalid.",
+        });
+        return { ...config, name: "" };
+      }
+    })),
   })));
   issues.sort((left, right) => left.field.localeCompare(right.field));
-  return { content: { ...content, versions }, issues, invalidPlaylistPrefixes };
+  return { content: { ...content, versions }, issues, invalidPlaylistPrefixes, invalidSwapperPrefixes };
 }
 
 type DashboardRow = {
@@ -601,7 +639,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     }
 
     const storedContent = parsePresetRevisionContent(JSON.parse(revision.contentJson));
-    const decoded = await decodeRevisionPlaylists(storedContent);
+    const decoded = await decodeRevisionContentData(storedContent);
     const content = parsePresetRevisionContent(decoded.content);
 
     const previousPublished = revision.publishedRevisionId
@@ -660,8 +698,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       };
     }
 
-    const contentIssues = validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId }).filter((issue) => !["missing_playlist_name", "empty_map_playlist"].includes(issue.code)
-      || ![...decoded.invalidPlaylistPrefixes].some((prefix) => issue.field.startsWith(prefix)));
+    const contentIssues = validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId })
+      .filter((issue) => !["missing_playlist_name", "empty_map_playlist"].includes(issue.code) || ![...decoded.invalidPlaylistPrefixes].some((prefix) => issue.field.startsWith(prefix)))
+      .filter((issue) => !["missing_swapper_code", "invalid_swapper_code"].includes(issue.code) || ![...decoded.invalidSwapperPrefixes].some((prefix) => issue.field.startsWith(prefix)));
     const issues = [...decoded.issues, ...contentIssues, ...await this.validateActiveTags(content.tags)];
     if (issues.length) {
       await this.database.update(presetRevisions).set({ validationIssuesJson: JSON.stringify(issues), updatedAt: now }).where(and(

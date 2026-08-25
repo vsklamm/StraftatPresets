@@ -172,6 +172,15 @@ export function validatePresetRevision(content: PresetRevisionContent, options: 
         } else if (!swapperNameTrimmed) {
           issues.push(validationIssue(`${configPrefix}.encodedValue`, "invalid_swapper_code", "The swapper export is invalid or missing a name"));
         }
+        const swapperDescriptionTrimmed = configuration.description?.trim() ?? "";
+        if (swapperDescriptionTrimmed) {
+          if (MASHING_REGEX.test(swapperDescriptionTrimmed) || CONSONANT_MASH_REGEX.test(swapperDescriptionTrimmed)) {
+            issues.push(validationIssue(`${configPrefix}.description`, "low_quality_swapper_description", "Use a descriptive summary instead of random characters"));
+          }
+          if (swapperDescriptionTrimmed.length > 10 && /[A-Z]/.test(swapperDescriptionTrimmed) && UPPERCASE_REGEX.test(swapperDescriptionTrimmed)) {
+            issues.push(validationIssue(`${configPrefix}.description`, "uppercase_swapper_description", "Avoid excessive capitalization"));
+          }
+        }
         continue;
       }
       if (configuration.kind !== "randomized") continue;

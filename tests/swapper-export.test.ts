@@ -71,6 +71,8 @@ test("decodeSwapperExport translates Game IDs back to canonical display names", 
   assert.equal(decoded.remapCount, 2);
   assert.equal(decoded.rules.length, 1);
   assert.equal(decoded.rules[0].mapString, "Adobe_00");
+  assert.equal(decoded.invalidMaps.length, 0);
+  assert.equal(decoded.invalidWeapons.length, 0);
 
   assert.deepEqual(decoded.rules[0].remaps[0], {
     precursor: "Serac",
@@ -80,4 +82,34 @@ test("decodeSwapperExport translates Game IDs back to canonical display names", 
     precursor: "Pistol",
     result: "God Sword",
   });
+});
+
+test("decodeSwapperExport supports wildcard map patterns and flags unknown maps/weapons", async () => {
+  const payload = {
+    type: "swap",
+    Preset: {
+      Name: "Wildcard Swapper",
+      Maps: [
+        {
+          MapString: "Adobe_*", // Wildcard pattern matching official maps
+          WeaponRemaps: [
+            { Precursor: "Serac", Result: "Katana" },
+          ],
+        },
+        {
+          MapString: "NonExistentMap_999", // Invalid map
+          WeaponRemaps: [
+            { Precursor: "FakeGun123", Result: "Pistol" }, // Invalid weapon
+          ],
+        },
+      ],
+    },
+  };
+
+  const encoded = await encodeCompressedJson(payload);
+  const decoded = await decodeSwapperExport(encoded);
+
+  assert.equal(decoded.name, "Wildcard Swapper");
+  assert.deepEqual(decoded.invalidMaps, ["NonExistentMap_999"]);
+  assert.deepEqual(decoded.invalidWeapons, ["FakeGun123"]);
 });
