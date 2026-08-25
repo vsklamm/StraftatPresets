@@ -107,6 +107,7 @@ async function sendPhoto(
 
 export async function notifyModeratorOfPendingPreset(input: {
   revisionId: string;
+  authorName?: string;
   content: PresetRevisionContent;
   previousContent?: PresetRevisionContent | null;
   requiresTextReview: boolean;
@@ -118,6 +119,7 @@ export async function notifyModeratorOfPendingPreset(input: {
   }
 
   const message = buildTelegramModerationMessage({
+    authorName: input.authorName,
     content: input.content,
     previousContent: input.previousContent,
     requiresTextReview: input.requiresTextReview,
@@ -141,6 +143,25 @@ export async function notifyModeratorOfPendingPreset(input: {
     }),
   });
   return parseSentMessage(response, input.revisionId, "text", message.html);
+}
+
+export async function sendTelegramReply(chatId: string, replyToMessageId: number | undefined, htmlText: string) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const response = await fetch(telegramUrl("sendMessage"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: htmlText,
+      parse_mode: "HTML",
+      ...(replyToMessageId ? { reply_parameters: { message_id: replyToMessageId } } : {}),
+    }),
+  });
+  if (!response.ok) {
+    await logTelegramFailure("sendReply", response);
+    return false;
+  }
+  return true;
 }
 
 export async function editTelegramModerationDecision(message: TelegramModerationMessage, decision: string) {

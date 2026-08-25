@@ -10,7 +10,7 @@ export const TELEGRAM_TEXT_LIMIT = 4_096;
 export const TELEGRAM_PHOTO_CAPTION_LIMIT = 1_024;
 const DECISION_RESERVE = 48;
 
-type MessageBlock = { text: string; bold?: boolean };
+type MessageBlock = { text: string; bold?: boolean; italic?: boolean };
 
 function normalizeTelegramText(value: string) {
   return stripColorAndFormattingTags(value)
@@ -20,7 +20,7 @@ function normalizeTelegramText(value: string) {
     .trim();
 }
 
-function escapeTelegramHtml(value: string) {
+export function escapeTelegramHtml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
@@ -58,7 +58,7 @@ function renderBlocks(blocks: readonly MessageBlock[], maximum: number) {
     const renderedText = truncateText(text, available);
     visibleParts.push(renderedText);
     const escaped = escapeTelegramHtml(renderedText);
-    htmlParts.push(block.bold ? `<b>${escaped}</b>` : escaped);
+    htmlParts.push(block.bold ? `<b>${escaped}</b>` : block.italic ? `<i>${escaped}</i>` : escaped);
     visibleLength += separatorLength + Array.from(renderedText).length;
     if (renderedText !== text) break;
   }
@@ -87,6 +87,7 @@ function isSwapperDescription(field: ModeratableField) {
 }
 
 export function buildTelegramModerationMessage(input: {
+  authorName?: string;
   content: PresetRevisionContent;
   previousContent?: PresetRevisionContent | null;
   requiresTextReview: boolean;
@@ -101,6 +102,10 @@ export function buildTelegramModerationMessage(input: {
     { text: previousContent ? "✏️ Edit" : "🆕 New", bold: true },
     { text: input.content.title, bold: true },
   ];
+
+  if (input.authorName) {
+    blocks.push({ text: `by ${input.authorName}`, italic: true });
+  }
 
   if (descriptionChanged) blocks.push({ text: input.content.description });
 

@@ -127,3 +127,14 @@ test("moderation diffs trust unchanged nested text after versions are reordered"
   const reordered = { ...published, versions: [secondVersion, published.versions[0]] };
   assert.deepEqual(getChangedModeratableFields(previous, reordered), []);
 });
+
+test("moderation message includes author name in italics when provided", () => {
+  const message = buildTelegramModerationMessage({
+    authorName: "ProGamer42",
+    content: published,
+    requiresTextReview: false,
+    hasThumbnail: true,
+  });
+  assert.match(message.html, /<i>by ProGamer42<\/i>/);
+  assert.match(message.text, /by ProGamer42/);
+});

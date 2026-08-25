@@ -243,3 +243,32 @@ test("updated view sorts presets strictly by updated_at timestamp rather than cr
     rmSync(stateDirectory, { recursive: true, force: true });
   }
 });
+
+test("retraction sets resubmission_blocked_until on preset and suspended_until on author", () => {
+  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-retract-"));
+  try {
+    runD1(stateDirectory, ["migrations", "apply", "DB"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('bad-actor', 'Spammer')"]);
+
+    const now = Date.now();
+    const weekLater = now + 7 * 24 * 60 * 60 * 1000;
+
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-bad', 'preset-bad', 'bad-actor', 'Bad Preset', 'published', 'rev-bad', ${now}, ${now}, ${now})`]);
+    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-bad', 'preset-bad', 1, 'published', '{}', 'hash-bad')`]);
+
+    // Retract preset and suspend author for 1 week
+    runD1(stateDirectory, ["execute", "DB", "--command", `UPDATE presets SET status = 'draft', published_revision_id = NULL, published_at = NULL, resubmission_blocked_until = ${weekLater}, retracted_at = ${now}, retracted_reason = 'Hate speech' WHERE id = 'preset-bad'`]);
+    runD1(stateDirectory, ["execute", "DB", "--command", `UPDATE users SET suspended_until = ${weekLater} WHERE id = 'bad-actor'`]);
+
+    const updatedPreset = queryD1<{ status: string; published_revision_id: string | null; resubmission_blocked_until: number; retracted_reason: string }>(stateDirectory, "SELECT status, published_revision_id, resubmission_blocked_until, retracted_reason FROM presets WHERE id = 'preset-bad'").results[0];
+    assert.equal(updatedPreset.status, "draft");
+    assert.equal(updatedPreset.published_revision_id, null);
+    assert.equal(updatedPreset.resubmission_blocked_until, weekLater);
+    assert.equal(updatedPreset.retracted_reason, "Hate speech");
+
+    const updatedUser = queryD1<{ suspended_until: number }>(stateDirectory, "SELECT suspended_until FROM users WHERE id = 'bad-actor'").results[0];
+    assert.equal(updatedUser.suspended_until, weekLater);
+  } finally {
+    rmSync(stateDirectory, { recursive: true, force: true });
+  }
+});

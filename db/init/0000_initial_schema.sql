@@ -190,6 +190,9 @@ CREATE TABLE `presets` (
 	`published_revision_id` text,
 	`revision_counter` integer DEFAULT 0 NOT NULL,
 	`featured` integer DEFAULT false NOT NULL,
+	`resubmission_blocked_until` integer,
+	`retracted_at` integer,
+	`retracted_reason` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`published_at` integer,
@@ -226,6 +229,7 @@ CREATE TABLE `users` (
 	`name` text NOT NULL,
 	`role` text DEFAULT 'member' NOT NULL,
 	`is_active` integer DEFAULT true NOT NULL,
+	`suspended_until` integer,
 	`last_login_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL

@@ -24,6 +24,7 @@ import type {
   PresetDashboardView,
   PresetInteractionRepository,
   PresetMutationResult,
+  PresetRetractResult,
   PresetReviewResult,
   PresetSubmitResult,
   RankedPresetOrderEntry,
@@ -381,6 +382,13 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return Number(update.meta.changes) === 1;
   }
 
+  async findPresetIdByTelegramMessageId(messageId: number): Promise<string | undefined> {
+    const row = await this.database.select({
+      presetId: presetRevisions.presetId,
+    }).from(presetRevisions).where(eq(presetRevisions.telegramMessageId, messageId)).get();
+    return row?.presetId;
+  }
+
   private toTelegramModerationMessage(
     revisionId: string,
     row: {
@@ -557,6 +565,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const now = input.now ?? new Date();
     const revision = await this.database.select({
       authorId: presets.authorId,
+      authorName: users.name,
+      userSuspendedUntil: users.suspendedUntil,
+      resubmissionBlockedUntil: presets.resubmissionBlockedUntil,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
       status: presetRevisions.status,
@@ -564,10 +575,30 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       contentJson: presetRevisions.contentJson,
       thumbnailKey: presets.thumbnailKey,
       thumbnailModerationStatus: presets.thumbnailModerationStatus,
-    }).from(presets).innerJoin(presetRevisions, eq(presetRevisions.id, presets.workingRevisionId)).where(eq(presets.id, input.presetId)).get();
+    }).from(presets)
+      .innerJoin(presetRevisions, eq(presetRevisions.id, presets.workingRevisionId))
+      .innerJoin(users, eq(users.id, presets.authorId))
+      .where(eq(presets.id, input.presetId))
+      .get();
     if (!revision) return { result: "not_found" };
     if (revision.authorId !== input.userId) return { result: "forbidden" };
     if (revision.workingRevisionId !== input.revisionId || revision.status !== "draft" || revision.editVersion !== input.editVersion) return { result: "conflict" };
+
+    if (revision.userSuspendedUntil && new Date(revision.userSuspendedUntil).getTime() > now.getTime()) {
+      const daysLeft = Math.max(1, Math.ceil((new Date(revision.userSuspendedUntil).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+      return {
+        result: "rate_limited",
+        message: `Your account is temporarily suspended from submitting presets for ${daysLeft} more day${daysLeft === 1 ? "" : "s"} due to moderation action.`,
+      };
+    }
+
+    if (revision.resubmissionBlockedUntil && new Date(revision.resubmissionBlockedUntil).getTime() > now.getTime()) {
+      const daysLeft = Math.max(1, Math.ceil((new Date(revision.resubmissionBlockedUntil).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+      return {
+        result: "rate_limited",
+        message: `This preset was retracted by moderation and cannot be resubmitted for ${daysLeft} more day${daysLeft === 1 ? "" : "s"}.`,
+      };
+    }
 
     const storedContent = parsePresetRevisionContent(JSON.parse(revision.contentJson));
     const decoded = await decodeRevisionPlaylists(storedContent);
@@ -694,6 +725,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       const thumbnailUrl = revision.thumbnailKey ? `/api/media/${revision.thumbnailKey}` : undefined;
       const notification = await notifyModeratorOfPendingPreset({
         revisionId: input.revisionId,
+        authorName: revision.authorName,
         content,
         previousContent,
         requiresTextReview: modResult.decision === "review_required",
@@ -850,6 +882,98 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
 
     await this.database.delete(presets).where(and(eq(presets.id, presetId), eq(presets.authorId, userId))).run();
     return { result: "deleted" };
+  }
+
+  async retractPreset(input: {
+    identifier: string;
+    reason?: string;
+    suspensionDays?: number;
+    reviewerId?: string | null;
+    now?: Date;
+  }): Promise<PresetRetractResult> {
+    const now = input.now ?? new Date();
+    const cleanId = input.identifier.trim().replace(/^https?:\/\/[^/]+\/(?:\?p=|\/p\/|\/api\/presets\/)?/i, "").replace(/^\?p=/, "").trim();
+
+    const preset = await this.database.select({
+      id: presets.id,
+      slug: presets.slug,
+      authorId: presets.authorId,
+      title: presets.title,
+      status: presets.status,
+      workingRevisionId: presets.workingRevisionId,
+      publishedRevisionId: presets.publishedRevisionId,
+      authorName: users.name,
+    }).from(presets)
+      .innerJoin(users, eq(users.id, presets.authorId))
+      .where(or(eq(presets.id, cleanId), eq(presets.slug, cleanId)))
+      .get();
+
+    if (!preset) return { result: "not_found" };
+    if (preset.status !== "published" && !preset.publishedRevisionId) return { result: "not_published" };
+
+    const days = input.suspensionDays ?? 7;
+    const suspendedUntil = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const reasonText = input.reason?.trim() || "Prohibited or invalid content.";
+
+    const retractionIssue: PresetIssue = {
+      source: "moderation",
+      field: "content",
+      code: "retracted",
+      message: `Preset retracted: ${reasonText} Submissions are blocked for ${days} days.`,
+    };
+
+    const statements: BatchItem<"sqlite">[] = [
+      this.database.update(presets).set({
+        status: "draft",
+        publishedRevisionId: null,
+        publishedAt: null,
+        resubmissionBlockedUntil: suspendedUntil,
+        retractedAt: now,
+        retractedReason: reasonText,
+        updatedAt: now,
+      }).where(eq(presets.id, preset.id)),
+
+      this.database.update(users).set({
+        suspendedUntil,
+        updatedAt: now,
+      }).where(eq(users.id, preset.authorId)),
+    ];
+
+    if (preset.publishedRevisionId) {
+      statements.push(
+        this.database.update(presetRevisions).set({
+          status: "rejected",
+          reviewIssuesJson: JSON.stringify([retractionIssue]),
+          reviewedAt: now,
+          reviewerId: input.reviewerId ?? null,
+          updatedAt: now,
+        }).where(eq(presetRevisions.id, preset.publishedRevisionId)),
+      );
+    }
+
+    if (preset.workingRevisionId && preset.workingRevisionId !== preset.publishedRevisionId) {
+      statements.push(
+        this.database.update(presetRevisions).set({
+          status: "rejected",
+          reviewIssuesJson: JSON.stringify([retractionIssue]),
+          reviewedAt: now,
+          reviewerId: input.reviewerId ?? null,
+          updatedAt: now,
+        }).where(eq(presetRevisions.id, preset.workingRevisionId)),
+      );
+    }
+
+    await this.database.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    await this.recalculatePresetStatistics(preset.id, now);
+
+    const updated = await this.getPresetForViewer(preset.id, preset.authorId);
+    return {
+      result: "retracted",
+      preset: updated!,
+      authorName: preset.authorName,
+      title: preset.title,
+      suspendedUntil,
+    };
   }
 
   async findThumbnailTarget(presetId: string): Promise<PresetThumbnailTarget | undefined> {

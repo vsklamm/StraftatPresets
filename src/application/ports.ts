@@ -69,6 +69,11 @@ export type PresetReviewResult =
   | { result: "not_found" }
   | { result: "conflict" };
 
+export type PresetRetractResult =
+  | { result: "retracted"; preset: PresetDashboardItem; authorName: string; title: string; suspendedUntil: Date }
+  | { result: "not_found" }
+  | { result: "not_published" };
+
 export type TelegramModerationMessage = {
   revisionId: string;
   chatId: string;
@@ -91,9 +96,11 @@ export interface PresetWorkflowRepository {
   getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined>;
   getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined>;
   clearTelegramModerationMessage(revisionId: string, messageId: number): Promise<boolean>;
+  findPresetIdByTelegramMessageId(messageId: number): Promise<string | undefined>;
   savePresetDraft(input: { presetId: string; userId: string; revisionId: string; editVersion: number; content: PresetRevisionContent; now?: Date }): Promise<PresetSaveDraftResult>;
   submitPreset(input: { presetId: string; userId: string; revisionId: string; editVersion: number; now?: Date }): Promise<PresetSubmitResult>;
   reviewPreset(input: { presetId: string; revisionId: string; reviewerId: string | null; decision: "approve" | "reject"; issues: PresetIssue[]; now?: Date }): Promise<PresetReviewResult>;
+  retractPreset(input: { identifier: string; reason?: string; suspensionDays?: number; reviewerId?: string | null; now?: Date }): Promise<PresetRetractResult>;
   deletePreset(presetId: string, userId: string): Promise<{ result: "deleted" | "forbidden" | "not_found" }>;
 }
 
