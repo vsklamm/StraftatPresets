@@ -7,6 +7,15 @@ const targetDir = path.join(process.cwd(), "public", "weapons");
 const sourceDir = fs.existsSync(rawDir) ? rawDir : targetDir;
 const files = fs.readdirSync(sourceDir).filter((file) => file.endsWith(".webp"));
 
+const ALIAS_MAP: Record<string, string[]> = {
+  "the-katana.webp": ["katana.webp"],
+  "godsword.webp": ["god-sword.webp"],
+  "aaa-12.webp": ["aaa12.webp"],
+  "flashlight.webp": ["flash-light.webp"],
+  "hand-canon.webp": ["hand-cannon.webp"],
+  "javal-mahmaerd.webp": ["jahval-mahmaerd.webp"],
+};
+
 interface WeaponAnalysis {
   filename: string;
   sourceFilePath: string;
@@ -59,12 +68,11 @@ async function analyzeWeapon(filename: string): Promise<WeaponAnalysis> {
         const bLin = Math.pow(b / 255, 2.2);
         const Y = 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
 
-        // CIELAB L* perceptual lightness difference from #09090b (L*_bg ≈ 0.87)
+        // Contrast and saturation weighting
         const Lstar = 116 * Math.pow(Math.max(0, Y), 1 / 3) - 16;
         const contrast = Math.max(0, Lstar - 0.87);
         const wc = 0.35 + 0.65 * Math.pow(contrast / 100, 0.65);
 
-        // Color saturation boost
         const maxC = Math.max(r, g, b);
         const minC = Math.min(r, g, b);
         const sat = maxC > 0 ? (maxC - minC) / maxC : 0;
@@ -102,20 +110,13 @@ async function main() {
   const analyses = await Promise.all(files.map(analyzeWeapon));
   analyses.sort((a, b) => b.opticalMass - a.opticalMass);
 
-  const medianOptMass = analyses[Math.floor(analyses.length / 2)].opticalMass;
-  console.log(`Median Optical Mass: ${medianOptMass}`);
-
   const CANVAS_SIZE = 512;
-  const MAX_DIM = 460;
+  const TARGET_LONG_DIM = 460; // Max dimension for elongated/horizontal weapons and diagonal blades
+  const TARGET_SQUARE_DIM = 410; // Max dimension for compact square/round objects (mines, grenades)
 
   for (const w of analyses) {
-    // Optical mass scaling factor (damped power-law, clamped to [0.65, 1.40])
-    const optRatio = medianOptMass / w.opticalMass;
-    const optScale = Math.pow(optRatio, 0.30);
-    const clampedScale = Math.min(1.40, Math.max(0.65, optScale));
-
-    // For elongated vertical blades/poles (aspect < 0.25), rotate 45 deg diagonally
-    const isBlade = w.aspect < 0.25;
+    // For elongated vertical blades/poles/weapons (aspect <= 0.45), rotate 45 deg diagonally
+    const isVerticalWeapon = w.aspect <= 0.45;
 
     let sourceBuffer = await sharp(w.sourceFilePath)
       .extract({
@@ -129,7 +130,7 @@ async function main() {
     let curW = w.bboxW;
     let curH = w.bboxH;
 
-    if (isBlade) {
+    if (isVerticalWeapon) {
       const rotated = await sharp(sourceBuffer)
         .rotate(45, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .toBuffer({ resolveWithObject: true });
@@ -138,9 +139,15 @@ async function main() {
       curH = rotated.info.height;
     }
 
+    // Determine target dimension based on resulting aspect ratio
+    const postAspect = curW / curH;
+    const isCompactShape = postAspect >= 0.75 && postAspect <= 1.35;
+    const targetBaseDim = isCompactShape ? TARGET_SQUARE_DIM : TARGET_LONG_DIM;
+
     const maxBBoxDim = Math.max(curW, curH);
-    const fitScale = MAX_DIM / maxBBoxDim;
-    let finalScale = fitScale * clampedScale;
+    let finalScale = targetBaseDim / maxBBoxDim;
+
+    // Ensure it strictly stays within canvas safe area
     if (curW * finalScale > 470) finalScale = 470 / curW;
     if (curH * finalScale > 470) finalScale = 470 / curH;
 
@@ -163,16 +170,24 @@ async function main() {
       },
     })
       .composite([{ input: resizedBuffer, left: leftOffset, top: topOffset }])
-      .webp({ quality: 92, alphaQuality: 100, effort: 6 })
+      .webp({ quality: 95, alphaQuality: 100, effort: 6 })
       .toBuffer();
 
     await sharp(finalImageBuffer).toFile(w.targetFilePath);
+
+    // Also write canonical aliases if present
+    if (ALIAS_MAP[w.filename]) {
+      for (const alias of ALIAS_MAP[w.filename]) {
+        await sharp(finalImageBuffer).toFile(path.join(targetDir, alias));
+      }
+    }
+
     console.log(
-      `✓ ${w.filename}: ${w.bboxW}x${w.bboxH} (OptMass ${w.opticalMass}, scale ${clampedScale.toFixed(2)}x) -> ${targetW}x${targetH} centered on ${CANVAS_SIZE}x${CANVAS_SIZE}`,
+      `✓ ${w.filename}${ALIAS_MAP[w.filename] ? ` (+ ${ALIAS_MAP[w.filename].join(", ")})` : ""}: ${w.bboxW}x${w.bboxH} (aspect ${w.aspect.toFixed(2)}${isVerticalWeapon ? ", 45° rot" : ""}) -> ${targetW}x${targetH} centered on ${CANVAS_SIZE}x${CANVAS_SIZE}`,
     );
   }
 
-  console.log("All weapon images normalized successfully with unified optical mass!");
+  console.log("All 72 weapon images and aliases normalized and centered successfully!");
 }
 
 main().catch((error) => {
