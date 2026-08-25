@@ -36,6 +36,7 @@ function loadRankingInput(presetId: string) {
       p.id, p.title, p.description, p.thumbnail_key, p.published_at,
       (SELECT COUNT(*) FROM preset_versions WHERE preset_id = p.id) AS version_count,
       (SELECT COUNT(*) FROM map_playlists JOIN preset_versions ON preset_versions.id = map_playlists.preset_version_id WHERE preset_versions.preset_id = p.id) AS playlist_count,
+      (SELECT COUNT(*) FROM map_playlists JOIN preset_versions ON preset_versions.id = map_playlists.preset_version_id WHERE preset_versions.preset_id = p.id AND description != '') AS playlist_with_desc_count,
       (SELECT COUNT(*) FROM preset_tags WHERE preset_id = p.id) AS tag_count,
       (SELECT COUNT(*) FROM weapon_configurations JOIN preset_versions ON preset_versions.id = weapon_configurations.preset_version_id WHERE preset_versions.preset_id = p.id) AS weapon_count,
       (SELECT COUNT(*) FROM preset_events WHERE preset_id = p.id AND kind = 'view' AND is_invalidated = 0) AS views_total,
@@ -58,7 +59,7 @@ function loadRankingInput(presetId: string) {
     hasThumbnail: Boolean(row.thumbnail_key),
     versionCount: number(row.version_count),
     mapPlaylistCount: number(row.playlist_count),
-    mapPlaylistWithDescriptionCount: 0,
+    mapPlaylistWithDescriptionCount: number(row.playlist_with_desc_count),
     tagCount: number(row.tag_count),
     weaponConfigurationCount: number(row.weapon_count),
   };

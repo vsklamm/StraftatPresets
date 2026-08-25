@@ -16,9 +16,9 @@ import {
 import { MAX_PRESET_TAGS } from "./tag-policy";
 
 export const PRESET_RANKING_LIMITS = {
-  quality: 70,
-  engagement: 26,
-  freshness: 4,
+  quality: 40,
+  engagement: 55,
+  freshness: 5,
   total: 100,
   freshnessDays: 14,
 } as const;
@@ -100,38 +100,88 @@ export function validatePresetPublication(content: PresetContentSignals): Public
   return { publishable: validationErrors.length === 0, validationErrors };
 }
 
+/**
+ * Calculates preset content completeness and polish score (0–40 points).
+ * Focuses on meaningful quality signals (thumbnail, tags, clear descriptions, map pool descriptions)
+ * without penalizing compact, laser-focused presets.
+ */
 export function calculateQualityScore(content: PresetContentSignals) {
   const publication = validatePresetPublication(content);
-  const descriptionLength = content.description.trim().length;
-  const score =
-    (publication.publishable ? 20 : 0) +
-    (content.hasThumbnail ? 10 : 0) +
-    logarithmicPoints(content.versionCount, 5, 10) +
-    clamp(boundedCount(content.tagCount), 0, PRESET_PUBLICATION_RULES.maximumTags) * 1.5 +
-    logarithmicPoints(content.mapPlaylistCount, 5, 10) +
-    (boundedCount(content.mapPlaylistWithDescriptionCount) > 0 ? 3 : 0) +
-    (boundedCount(content.weaponConfigurationCount) > 0 ? 4 : 0) +
-    4 * clamp((descriptionLength - PRESET_PUBLICATION_RULES.minimumDescriptionCharacters) / 190, 0, 1);
-  return roundScore(clamp(score, 0, PRESET_RANKING_LIMITS.quality));
+  const descLen = content.description.trim().length;
+
+  // 1. Base publishable standard (5 pts)
+  const baseScore = publication.publishable ? 5 : 0;
+
+  // 2. Custom thumbnail (8 pts)
+  const thumbnailScore = content.hasThumbnail ? 8 : 0;
+
+  // 3. Tags (8 pts max) - 2 tags = 3 pts, 3-4 tags = 5 pts, 5-6 tags = 7 pts, 7-8 tags = 8 pts
+  const tagCount = clamp(boundedCount(content.tagCount), 0, PRESET_PUBLICATION_RULES.maximumTags);
+  const tagScore = tagCount === 0 ? 0
+    : tagCount === 1 ? 1.5
+    : tagCount === 2 ? 3
+    : tagCount <= 4 ? 3 + (tagCount - 2) * 1.0
+    : tagCount <= 6 ? 5 + (tagCount - 4) * 1.0
+    : 7 + (tagCount - 6) * 0.5;
+
+  // 4. Description depth (7 pts max) - 40-80 chars (2 pts), 80-160 chars (5 pts), 160-250+ chars (7 pts)
+  const descScore = descLen < 40 ? 0
+    : descLen <= 80 ? 2 * ((descLen - 40) / 40)
+    : descLen <= 160 ? 2 + 3 * ((descLen - 80) / 80)
+    : descLen <= 250 ? 5 + 2 * ((descLen - 160) / 90)
+    : 7;
+
+  // 5. Map Playlist & Descriptions (6 pts max)
+  // 1 playlist with custom description = 5 pts (sweet spot), 2+ playlists with descriptions = 6 pts
+  const playlistCount = boundedCount(content.mapPlaylistCount);
+  const playlistWithDesc = boundedCount(content.mapPlaylistWithDescriptionCount);
+  const playlistBase = playlistCount >= 1 ? 2 : 0;
+  const playlistDescBonus = playlistWithDesc >= 1 ? 3 : 0;
+  const multiPlaylistBonus = playlistCount >= 2 && playlistWithDesc >= 2 ? 1 : 0;
+  const playlistScore = playlistBase + playlistDescBonus + multiPlaylistBonus;
+
+  // 6. Weapon configuration setup (4 pts max)
+  const weaponScore = boundedCount(content.weaponConfigurationCount) >= 1 ? 4 : 0;
+
+  // 7. Version maintenance (2 pts max)
+  const versionScore = boundedCount(content.versionCount) >= 2 ? 2 : 0;
+
+  const totalQuality = baseScore + thumbnailScore + tagScore + descScore + playlistScore + weaponScore + versionScore;
+  return roundScore(clamp(totalQuality, 0, PRESET_RANKING_LIMITS.quality));
 }
 
+/**
+ * Calculates effective interaction value with anti-abuse dampening.
+ * Authenticated Discord users receive 2.0x weight, anonymous unique actors receive 1.0x,
+ * and repeat clicks from the same actor flatline quickly to prevent self-boosting.
+ */
 export function calculateEffectiveInteractions(signals: InteractionSignals) {
   const total = boundedCount(signals.total);
   const anonymous = boundedCount(signals.uniqueAnonymous);
   const authenticated = boundedCount(signals.uniqueAuthenticated);
   const unique = anonymous + authenticated;
   const repeats = Math.max(0, total - unique);
-  const repeatCredit = Math.min(repeats * 0.05, unique * 0.5);
-  return anonymous + authenticated * 1.5 + repeatCredit;
+  const repeatCredit = Math.min(repeats * 0.02, 0.5);
+  return anonymous * 1.0 + authenticated * 2.0 + repeatCredit;
 }
 
-function calculateEngagementScore(signals: PresetEngagementSignals) {
-  const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 10_000, 18);
-  const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 40, 5);
-  const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 20, 3);
+/**
+ * Calculates engagement score (0–55 points).
+ * Rebalanced for a small-community browsing dynamic:
+ * - Copies: 28 pts (primary intent action, saturating around 25 copies)
+ * - Card Opens / Views: 20 pts (browsing interest, saturating around 35 unique viewers)
+ * - Direct Link Referrals: 7 pts (external shares from Discord/forums, saturating around 10 visitors)
+ */
+export function calculateEngagementScore(signals: PresetEngagementSignals) {
+  const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 28);
+  const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 35, 20);
+  const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 10, 7);
   return roundScore(clamp(copies + opens + linkOpens, 0, PRESET_RANKING_LIMITS.engagement));
 }
 
+/**
+ * Calculates freshness boost (0–5 points) decaying linearly over 14 days.
+ */
 export function calculateFreshnessScore(publishedAt: Date | number | string | null, now: Date | number = Date.now()) {
   if (publishedAt === null) return 0;
   const publishedTime = publishedAt instanceof Date ? publishedAt.getTime() : new Date(publishedAt).getTime();
@@ -141,7 +191,12 @@ export function calculateFreshnessScore(publishedAt: Date | number | string | nu
   return roundScore(PRESET_RANKING_LIMITS.freshness * clamp(1 - ageDays / PRESET_RANKING_LIMITS.freshnessDays, 0, 1));
 }
 
-export function calculatePresetRanking(content: PresetContentSignals, engagement: PresetEngagementSignals, publishedAt: Date | number | string | null, now: Date | number = Date.now()): RankingBreakdown {
+export function calculatePresetRanking(
+  content: PresetContentSignals,
+  engagement: PresetEngagementSignals,
+  publishedAt: Date | number | string | null,
+  now: Date | number = Date.now(),
+): RankingBreakdown {
   const quality = calculateQualityScore(content);
   const engagementScore = calculateEngagementScore(engagement);
   const freshness = calculateFreshnessScore(publishedAt, now);

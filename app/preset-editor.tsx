@@ -228,7 +228,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
     {version.weaponConfigurations.some(c => c.kind === "swapper") ? <SwapperSettingsEditor version={version} onChange={updateVersion} /> : null}
     <MapPlaylistsEditor version={version} onChange={updateVersion} />
     <div className="editor-quality-tip">
-      <strong>Tip:</strong> Completeness directly affects ranking in <b>Popular</b>. Adding a custom thumbnail, clear description, map pools, and maintained versions gets your preset ranked higher and makes it easier for players to find and use.
+      <strong>Tip:</strong> Completeness directly affects ranking in <b>Popular</b>. Adding a custom thumbnail, choosing tags, writing a clear description, and setting map pool notes gets your preset ranked higher and makes it easier for players to find and use.
     </div>
   </div>
 );
