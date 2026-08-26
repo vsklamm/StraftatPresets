@@ -1,4 +1,4 @@
-import { stripColorAndFormattingTags } from "./strip-color-codes";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 
 export const COMMON_TLDS = [
   "com", "org", "net", "edu", "gov", "mil", "io", "gg", "co", "xyz",

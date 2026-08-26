@@ -60,7 +60,7 @@ import { MAX_PRESETS_PER_AUTHOR, PresetLimitReachedError } from "@/src/domain/pr
 import {
   thumbnailKeysToDeleteAfterDraftSave,
   thumbnailKeysToDeleteAfterPublish,
-} from "@/src/domain/thumbnail-lifecycle";
+} from "@/src/domain/thumbnail-policy";
 import {
   deriveUserPresetState,
   MAX_PRESET_SUBMISSIONS_PER_HOUR,
@@ -163,7 +163,7 @@ function parseIssues(value: string): PresetIssue[] {
 }
 
 import { sha256Hex } from "@/src/lib/crypto-utils";
-import { slugifyPresetTitle } from "@/src/domain/preset-slug";
+import { slugifyPresetTitle } from "@/src/domain/preset-content";
 
 async function hashRevisionContent(contentJson: string) {
   return sha256Hex(contentJson);

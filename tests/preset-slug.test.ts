@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { slugifyPresetTitle } from "@/src/domain/preset-slug";
+import { slugifyPresetTitle } from "@/src/domain/preset-content";
 
 test("slugifyPresetTitle creates slug with sanitized title and 7-character suffix", () => {
   const id = "a1b2c3d4-5678-90ab-cdef-1234567890ab";

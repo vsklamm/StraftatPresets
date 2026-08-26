@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { weaponAssetUrl } from "@/src/domain/game-catalog";
+import { weaponAssetUrl } from "@/src/domain/game-weapons";
 import { TAG_CATEGORIES, type TagCatalogEntry } from "@/src/domain/tag-catalog";
 
-const RADIAL_ORIGIN_X_OFFSET = 18;
-const RADIAL_ORIGIN_Y_OFFSET = -18;
+const RADIAL_ORIGIN_X_OFFSET = 8;
+const RADIAL_ORIGIN_Y_OFFSET = -8;
 
 export function RadialWeaponPicker({
   weapons,
@@ -65,8 +65,8 @@ export function RadialWeaponPicker({
     const total = weapons.length;
     if (!total) return { positionedWeapons: [], ringRadii: [], imgW: 44, imgH: 44 };
 
-    const minRadius = Math.max(38, dishDimension * 0.10);
-    const maxRadius = dishDimension - 14;
+    const minRadius = Math.max(40, dishDimension * 0.11);
+    const maxRadius = dishDimension - 26;
     const Sr = maxRadius - minRadius;
     const r_avg = (minRadius + maxRadius) / 2;
 
@@ -166,7 +166,7 @@ export function RadialWeaponPicker({
 
   const originX = dishDimension + RADIAL_ORIGIN_X_OFFSET;
   const originY = RADIAL_ORIGIN_Y_OFFSET;
-  const hoverScale = 1.55;
+  const hoverScale = 1.42;
   const hoveredPosition = hoveredWeapon
     ? positionedWeapons.find((item) => item.weapon.name === hoveredWeapon.name)
     : null;
@@ -199,9 +199,9 @@ export function RadialWeaponPicker({
             const dx = x - hoveredPosition.x;
             const dy = y - hoveredPosition.y;
             const dist = Math.hypot(dx, dy);
-            const repelRadius = imgW * 2.4;
+            const repelRadius = imgW * 2.2;
             if (dist > 0 && dist < repelRadius) {
-              const force = Math.pow(1 - dist / repelRadius, 1.4) * 14;
+              const force = Math.pow(1 - dist / repelRadius, 1.4) * 8;
               repelX = (dx / dist) * force;
               repelY = (dy / dist) * force;
             }

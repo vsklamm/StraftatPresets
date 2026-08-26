@@ -1,5 +1,16 @@
-const TMPRO_TAG_SPLIT_REGEX = /(<#[0-9a-fA-F]{3,8}>|<\/?[a-zA-Z0-9_]+(?:=[^>]+)?>)/gi;
 export const COLOR_AND_FORMAT_TAGS_REGEX = /<#[0-9a-fA-F]{3,8}>|<\/?[a-zA-Z0-9_]+(?:=[^>]+)?>/gi;
+const TMPRO_TAG_SPLIT_REGEX = /(<#[0-9a-fA-F]{3,8}>|<\/?[a-zA-Z0-9_]+(?:=[^>]+)?>)/gi;
+
+export function stripColorAndFormattingTags(text: string): string {
+  if (!text) return "";
+  return text.replace(COLOR_AND_FORMAT_TAGS_REGEX, "").trim();
+}
+
+export function hasColorOrFormattingTags(text: string): boolean {
+  if (!text) return false;
+  COLOR_AND_FORMAT_TAGS_REGEX.lastIndex = 0;
+  return COLOR_AND_FORMAT_TAGS_REGEX.test(text);
+}
 
 const NAMED_COLORS: Readonly<Record<string, string>> = {
   black: "000000",

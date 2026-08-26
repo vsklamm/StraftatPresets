@@ -7,7 +7,6 @@ import { checkLevel3Computery } from "./level3-computery";
 import { checkLevel4QualityAndLibraries } from "./level4-quality-libraries";
 
 export * from "./types";
-export * from "./strip-color-codes";
 export * from "./extract-fields";
 export * from "./level1-limits";
 export * from "./level2-hard-reject";

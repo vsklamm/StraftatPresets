@@ -14,9 +14,9 @@ import {
   CONSONANT_MASH_REGEX,
   MASHING_REGEX,
   runClientModeration,
-  stripColorAndFormattingTags,
   UPPERCASE_REGEX,
 } from "@/src/lib/moderation";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 
 export type { PresetRevisionContent } from "@/src/domain/preset-content";
 export type PresetRevisionStatus = "draft" | "pending" | "rejected" | "published" | "archived" | "superseded";

@@ -11,7 +11,7 @@ import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
 import { getPresetLimitMessage, MAX_PRESETS_PER_AUTHOR } from "@/src/domain/preset-policy";
-import { gameCatalog, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-catalog";
+import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
 import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
@@ -34,7 +34,7 @@ import type { PresetIssue, UserPresetState } from "@/src/domain/preset-workflow"
 import { MAX_THUMBNAIL_UPLOAD_BYTES } from "@/src/domain/thumbnail-policy";
 import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization";
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
-import { stripColorAndFormattingTags } from "@/src/lib/moderation/strip-color-codes";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import type { MapPlaylist, Preset, PresetVersion, SortDirection, WeaponSortKey } from "@/src/application/preset-view";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -262,7 +262,7 @@ export default function Home() {
   const dialogSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    void Promise.allSettled(gameCatalog.weapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
+    void Promise.allSettled(catalogWeapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
   }, []);
 
   useEffect(() => {
@@ -1123,7 +1123,7 @@ export default function Home() {
                   </button>
                 </div>
                 {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(label) => { setQuery(label); setSearchTagPickerOpen(false); }} onClose={() => setSearchTagPickerOpen(false)} /> : null}
-                {weaponPickerOpen ? <RadialWeaponPicker triggerRef={weaponPickerTriggerRef} weapons={gameCatalog.weapons} onSelect={(weaponName) => {
+                {weaponPickerOpen ? <RadialWeaponPicker triggerRef={weaponPickerTriggerRef} weapons={catalogWeapons} onSelect={(weaponName) => {
                   setQuery((current) => {
                     const terms = current.split(",").map((term) => term.trim()).filter(Boolean);
                     if (terms.some((term) => term.toLocaleLowerCase("en-US") === weaponName.toLocaleLowerCase("en-US"))) return current;

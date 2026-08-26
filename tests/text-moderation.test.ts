@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   stripColorAndFormattingTags,
   hasColorOrFormattingTags,
-} from "../src/lib/moderation/strip-color-codes";
+} from "../src/domain/straftat-markup";
 import {
   extractModeratableFields,
   getChangedModeratableFields,

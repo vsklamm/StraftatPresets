@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
-import { supportedWeaponCount } from "@/src/domain/game-catalog";
+import { supportedWeaponCount } from "@/src/domain/game-weapons";
 import { MAX_PRESET_TAGS } from "@/src/domain/tag-policy";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 
 export const MAX_PRESET_TITLE_CHARACTERS = 500;
 export const MAX_PRESET_TITLE_SYMBOLS = 70;
@@ -203,4 +204,16 @@ export function formatCardDescriptionPreview(description: string): string {
     return first;
   }
   return `${first} ${paragraphs[1]}`;
+}
+
+export function slugifyPresetTitle(title: string, id: string): string {
+  const cleanTitle = stripColorAndFormattingTags(title);
+  const base = cleanTitle
+    .trim()
+    .toLocaleLowerCase("en-US")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50) || "preset";
+  const shortId = id.replace(/-/g, "").slice(0, 7);
+  return `${base}-${shortId}`;
 }

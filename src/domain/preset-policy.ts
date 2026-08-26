@@ -1,4 +1,5 @@
 export const MAX_PRESETS_PER_AUTHOR = 4;
+export const AUTH_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export function getPresetLimitMessage(limit = MAX_PRESETS_PER_AUTHOR) {
   return `You have reached the limit of ${limit} presets. Update an existing preset before creating another.`;

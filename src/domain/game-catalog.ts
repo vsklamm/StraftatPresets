@@ -1,5 +1,13 @@
-import rawCatalog from "@/game-data/catalog.json";
+import rawWeapons from "@/game-data/weapons.json";
+import rawMaps from "@/game-data/maps.json";
 import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
+
+const rawCatalog = {
+  schemaVersion: rawWeapons.schemaVersion,
+  supportedRelease: rawWeapons.supportedRelease,
+  weapons: rawWeapons.weapons,
+  maps: rawMaps as CatalogMap[],
+};
 
 export type MapKind = "core" | "alt" | "dlc";
 

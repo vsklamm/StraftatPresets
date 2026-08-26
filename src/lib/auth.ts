@@ -1,6 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
-import { AUTH_SESSION_MAX_AGE_SECONDS } from "@/src/domain/auth-policy";
+import { AUTH_SESSION_MAX_AGE_SECONDS } from "@/src/domain/preset-policy";
 import { env } from "@/src/env";
 import { getApplicationServices } from "@/src/infrastructure/runtime";
 

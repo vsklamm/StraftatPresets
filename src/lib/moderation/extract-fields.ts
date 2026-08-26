@@ -1,6 +1,6 @@
 import type { PresetRevisionContent } from "@/src/domain/preset-content";
 import type { ModeratableField } from "./types";
-import { hasColorOrFormattingTags, stripColorAndFormattingTags } from "./strip-color-codes";
+import { hasColorOrFormattingTags, stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 
 export function extractModeratableFields(content: PresetRevisionContent): ModeratableField[] {
   const fields: ModeratableField[] = [];

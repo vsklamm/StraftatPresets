@@ -255,8 +255,10 @@ async function main() {
       weapon.backgroundRemoval = await removeFlatBackground(sourcePath, rawOutputPath);
     }
     await writeFile("game-data/catalog.json", `${JSON.stringify(catalog, null, 2)}\n`);
+    await writeFile("game-data/weapons.json", `${JSON.stringify({ schemaVersion: catalog.schemaVersion, supportedRelease: catalog.supportedRelease, weapons: catalog.weapons }, null, 2)}\n`);
+    await writeFile("game-data/maps.json", `${JSON.stringify(catalog.maps, null, 2)}\n`);
     await writeFile("game-data/weapon-sources.json", `${JSON.stringify(provenance, null, 2)}\n`);
-    console.log("Updated game-data/catalog.json, weapon-sources.json, and raw weapon assets.");
+    console.log("Updated game-data/catalog.json, weapons.json, maps.json, weapon-sources.json, and raw weapon assets.");
 
     // Run optical normalization from raw assets into public/weapons
     const { execSync } = await import("node:child_process");

@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   thumbnailKeysToDeleteAfterDraftSave,
   thumbnailKeysToDeleteAfterPublish,
-} from "../src/domain/thumbnail-lifecycle";
+} from "../src/domain/thumbnail-policy";
 
 test("draft thumbnail cleanup preserves the image used by the published revision", () => {
   assert.deepEqual(thumbnailKeysToDeleteAfterDraftSave("published.webp", "published.webp", null), []);

@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 2,
+  "supportedRelease": {
+    "version": "1.4.8",
+    "publishedAt": "2026-07-22",
+    "sourceUrl": "https://store.steampowered.com/app/2386720/STRAFTAT/"
+  },
+  "weapons": [
+    {
+      "name": "AAA12",
+      "gameId": "AAA12",
+      "image": "/weapons/aaa12.webp"
+    },
+    {
+      "name": "AK",
+      "gameId": "AK-K",
+      "image": "/weapons/ak.webp"
+    },
+    {
+      "name": "AP Mine",
+      "gameId": "APMine",
+      "image": "/weapons/ap-mine.webp"
+    },
+    {
+      "name": "AR",
+      "gameId": "AR15",
+      "image": "/weapons/ar.webp"
+    },
+    {
+      "name": "Baseball Bat",
+      "gameId": "BaseballBat",
+      "image": "/weapons/baseball-bat.webp"
+    },
+    {
+      "name": "Bayshore",
+      "gameId": "Bayshore",
+      "image": "/weapons/bayshore.webp"
+    },
+    {
+      "name": "Beam Load",
+      "gameId": "BeamLoad",
+      "image": "/weapons/beam-load.webp"
+    },
+    {
+      "name": "Bender",
+      "gameId": "Bender",
+      "image": "/weapons/bender.webp"
+    },
+    {
+      "name": "Blank State",
+      "gameId": "BlankState",
+      "image": "/weapons/blank-state.webp"
+    },
+    {
+      "name": "Blister",
+      "gameId": "DF_Blister",
+      "image": "/weapons/blister.webp"
+    },
+    {
+      "name": "Bublee",
+      "gameId": "Bubble",
+      "image": "/weapons/bublee.webp"
+    },
+    {
+      "name": "Bukanee",
+      "gameId": "Bukanee",
+      "image": "/weapons/bukanee.webp"
+    },
+    {
+      "name": "Claymore",
+      "gameId": "Claymore",
+      "image": "/weapons/claymore.webp"
+    },
+    {
+      "name": "Couperet",
+      "gameId": "Couperet",
+      "image": "/weapons/couperet.webp"
+    },
+    {
+      "name": "Crisis",
+      "gameId": "Crisis",
+      "image": "/weapons/crisis.webp"
+    },
+    {
+      "name": "Curved Knife",
+      "gameId": "CurvedKnife",
+      "image": "/weapons/curved-knife.webp"
+    },
+    {
+      "name": "Cyst",
+      "gameId": "DF_Cyst",
+      "image": "/weapons/cyst.webp"
+    },
+    {
+      "name": "Dispenser",
+      "gameId": "Dispenser",
+      "image": "/weapons/dispenser.webp"
+    },
+    {
+      "name": "Dual Launcher",
+      "gameId": "DualLauncher",
+      "image": "/weapons/dual-launcher.webp"
+    },
+    {
+      "name": "Elephant",
+      "gameId": "Elephant",
+      "image": "/weapons/elephant.webp"
+    },
+    {
+      "name": "FG42",
+      "gameId": "FG42",
+      "image": "/weapons/fg42.webp"
+    },
+    {
+      "name": "Flamberge",
+      "gameId": "Flamberge",
+      "image": "/weapons/flamberge.webp"
+    },
+    {
+      "name": "Flash Light",
+      "gameId": "FlashLight",
+      "image": "/weapons/flash-light.webp"
+    },
+    {
+      "name": "Gamma",
+      "gameId": "Gamma",
+      "image": "/weapons/gamma.webp"
+    },
+    {
+      "name": "Gamma Gen 2",
+      "gameId": "GammaGen2",
+      "image": "/weapons/gamma-gen-2.webp"
+    },
+    {
+      "name": "Glaive Gun",
+      "gameId": "GlaiveGun",
+      "image": "/weapons/glaive-gun.webp"
+    },
+    {
+      "name": "Gland Grenade",
+      "gameId": "GlandGrenade",
+      "image": "/weapons/gland-grenade.webp"
+    },
+    {
+      "name": "Glock",
+      "gameId": "Glock",
+      "image": "/weapons/glock.webp"
+    },
+    {
+      "name": "God Sword",
+      "gameId": "DF_GodSword",
+      "image": "/weapons/god-sword.webp"
+    },
+    {
+      "name": "Gust",
+      "gameId": "Gust",
+      "image": "/weapons/gust.webp"
+    },
+    {
+      "name": "Hand Cannon",
+      "gameId": "HandCanon",
+      "image": "/weapons/hand-cannon.webp"
+    },
+    {
+      "name": "Hand Grenade",
+      "gameId": "HandGrenade",
+      "image": "/weapons/hand-grenade.webp"
+    },
+    {
+      "name": "Havoc",
+      "gameId": "Havoc",
+      "image": "/weapons/havoc.webp"
+    },
+    {
+      "name": "Hill_H15",
+      "gameId": "Hill_H15",
+      "image": "/weapons/hill-h15.webp"
+    },
+    {
+      "name": "HK_Caws",
+      "gameId": "HK_Caws",
+      "image": "/weapons/hk-caws.webp"
+    },
+    {
+      "name": "HK_G11",
+      "gameId": "HK_G11",
+      "image": "/weapons/hk-g11.webp"
+    },
+    {
+      "name": "Impetus",
+      "gameId": "Impetus",
+      "image": "/weapons/impetus.webp"
+    },
+    {
+      "name": "Jahval Mahmaerd",
+      "gameId": "JahvalMahmaerd",
+      "image": "/weapons/jahval-mahmaerd.webp"
+    },
+    {
+      "name": "Kanye",
+      "gameId": "Kanye",
+      "image": "/weapons/kanye.webp"
+    },
+    {
+      "name": "Katana",
+      "gameId": "Katana",
+      "image": "/weapons/katana.webp"
+    },
+    {
+      "name": "Keso",
+      "gameId": "Keso",
+      "image": "/weapons/keso.webp"
+    },
+    {
+      "name": "Kusma",
+      "gameId": "Kusma",
+      "image": "/weapons/kusma.webp"
+    },
+    {
+      "name": "M2000",
+      "gameId": "M2000",
+      "image": "/weapons/m2000.webp"
+    },
+    {
+      "name": "Mac10",
+      "gameId": "Mac10",
+      "image": "/weapons/mac10.webp"
+    },
+    {
+      "name": "Minigun",
+      "gameId": "Minigun",
+      "image": "/weapons/minigun.webp"
+    },
+    {
+      "name": "Mortini",
+      "gameId": "Mortini",
+      "image": "/weapons/mortini.webp"
+    },
+    {
+      "name": "Nizeh",
+      "gameId": "Nizeh",
+      "image": "/weapons/nizeh.webp"
+    },
+    {
+      "name": "Oklahoma",
+      "gameId": "BigFattyBro",
+      "image": "/weapons/oklahoma.webp"
+    },
+    {
+      "name": "Phoenix",
+      "gameId": "Phoenix",
+      "image": "/weapons/phoenix.webp"
+    },
+    {
+      "name": "Pistol",
+      "gameId": "Gun",
+      "image": "/weapons/pistol.webp"
+    },
+    {
+      "name": "Propeller",
+      "gameId": "Propeller",
+      "image": "/weapons/propeller.webp"
+    },
+    {
+      "name": "Prophet",
+      "gameId": "Prophet",
+      "image": "/weapons/prophet.webp"
+    },
+    {
+      "name": "Proximity Mine",
+      "gameId": "ProximityMine",
+      "image": "/weapons/proximity-mine.webp"
+    },
+    {
+      "name": "QCW05",
+      "gameId": "QCW05",
+      "image": "/weapons/qcw05.webp"
+    },
+    {
+      "name": "Repulsar",
+      "gameId": "Repulsar",
+      "image": "/weapons/repulsar.webp"
+    },
+    {
+      "name": "Revolver",
+      "gameId": "Revolver",
+      "image": "/weapons/revolver.webp"
+    },
+    {
+      "name": "Rocket Launcher",
+      "gameId": "RocketLauncher",
+      "image": "/weapons/rocket-launcher.webp"
+    },
+    {
+      "name": "Sawed Off",
+      "gameId": "SawedOff",
+      "image": "/weapons/sawed-off.webp"
+    },
+    {
+      "name": "Serac",
+      "gameId": "Nugget",
+      "image": "/weapons/serac.webp"
+    },
+    {
+      "name": "Shotgun",
+      "gameId": "Shotgun",
+      "image": "/weapons/shotgun.webp"
+    },
+    {
+      "name": "Silenzzio",
+      "gameId": "Silenzzio",
+      "image": "/weapons/silenzzio.webp"
+    },
+    {
+      "name": "SMG",
+      "gameId": "SMG",
+      "image": "/weapons/smg.webp"
+    },
+    {
+      "name": "Smith Carbine",
+      "gameId": "SmithCarbine",
+      "image": "/weapons/smith-carbine.webp"
+    },
+    {
+      "name": "Stun Grenade",
+      "gameId": "StunGrenade",
+      "image": "/weapons/stun-grenade.webp"
+    },
+    {
+      "name": "Stun Mine",
+      "gameId": "StunMine",
+      "image": "/weapons/stun-mine.webp"
+    },
+    {
+      "name": "Stylus",
+      "gameId": "Stylus",
+      "image": "/weapons/stylus.webp"
+    },
+    {
+      "name": "Taser",
+      "gameId": "Taser",
+      "image": "/weapons/taser.webp"
+    },
+    {
+      "name": "Torrent",
+      "gameId": "DF_Torrent",
+      "image": "/weapons/torrent.webp"
+    },
+    {
+      "name": "Tromblonj",
+      "gameId": "Tromblonj",
+      "image": "/weapons/tromblonj.webp"
+    },
+    {
+      "name": "Warden",
+      "gameId": "Warden",
+      "image": "/weapons/warden.webp"
+    },
+    {
+      "name": "Webley",
+      "gameId": "Webley",
+      "image": "/weapons/webley.webp"
+    },
+    {
+      "name": "Yangtse",
+      "gameId": "Yangtse",
+      "image": "/weapons/yangtse.webp"
+    }
+  ]
+}

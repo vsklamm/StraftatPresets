@@ -2,8 +2,8 @@ import type { PresetRevisionContent } from "@/src/domain/preset-content";
 import {
   extractModeratableFields,
   getChangedModeratableFields,
-  stripColorAndFormattingTags,
 } from "@/src/lib/moderation";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import type { ModeratableField } from "@/src/lib/moderation/types";
 
 export const TELEGRAM_TEXT_LIMIT = 4_096;

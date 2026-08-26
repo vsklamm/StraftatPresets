@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
-import { gameCatalog, weaponAssetUrl } from "@/src/domain/game-catalog";
+import { catalogWeapons, getWeaponImage, weaponAssetUrl } from "@/src/domain/game-weapons";
 import { calculateWeaponChances, formatWeaponPercent, MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
 import { createEmptyMapPlaylist, createPresetVersionFromPrevious, findPreviousPresetVersion, MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS, MAX_MAP_PLAYLISTS, MAX_PRESET_VERSIONS, MAX_RANDOMIZED_WEAPONS, MAX_SWAPPER_CONFIGURATIONS, type PresetMapPlaylistContent, type PresetRevisionContent, type PresetVersionContent, type PresetWeaponConfigurationContent } from "@/src/domain/preset-content";
 import { formatPresetVersionLabel, isPresetVersionInRange, isPresetVersionInputCandidate, nextPresetVersionLabel, sortPresetVersionsNewestFirst } from "@/src/domain/preset-version";
@@ -277,7 +277,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
   const selectedNames = useMemo(() => new Set(configuration?.weapons.map((weapon) => weapon.name) ?? []), [configuration]);
   const matchingWeapons = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("en-US");
-    return gameCatalog.weapons
+    return catalogWeapons
       .filter((weapon) => !selectedNames.has(weapon.name))
       .filter((weapon) => !term || weapon.name.toLocaleLowerCase("en-US").includes(term));
   }, [query, selectedNames]);
@@ -332,7 +332,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
     {weaponsWithChance.length ? <div className="randomized-entry-table" role="table" aria-label="Randomized weapons">
       <div className="randomized-entry-head" role="row"><span role="columnheader">Weapon</span><span role="columnheader">Weight</span><span role="columnheader">Chance</span><span aria-hidden="true" /></div>
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
-        <span className="weapon-entry-name" role="cell"><Image src={weaponAssetUrl(gameCatalog.weapons.find((item) => item.name === weapon.name)?.image ?? "/discord-symbol.svg")} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
+        <span className="weapon-entry-name" role="cell"><Image src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
         <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const raw = event.target.value; const num = raw === "" ? 0 : Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(Number(raw) || 0))); updateConfiguration({ ...configuration, weapons: configuration.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) }); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
         <span role="cell"><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
         <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration({ ...configuration, weapons: configuration.weapons.filter((item) => item.name !== weapon.name) })} />

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { getWeaponImage } from "@/src/domain/game-catalog";
+import { getWeaponImage } from "@/src/domain/game-weapons";
 import { calculateWeaponChances, type WeightedWeapon } from "@/src/domain/weapon-weights";
 
 const MAX_VISIBLE_WEAPONS = 18;
