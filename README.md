@@ -52,6 +52,8 @@ npm run db:migrate          # apply migrations to local D1
 npm run db:backup           # export D1 database to the ignored backups directory
 npm run game:sync           # mirror the reviewed game catalog into local D1
 npm run tags:sync           # mirror the reviewed tags into local D1
+npm run search:rebuild        # rebuild the local published-preset search index
+npm run search:rebuild:remote # rebuild the remote published-preset search index
 npm run stats               # inspect ranking and abuse signals
 ```
 

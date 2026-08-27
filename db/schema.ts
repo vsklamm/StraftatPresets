@@ -125,6 +125,31 @@ export const presetTags = sqliteTable("preset_tags", {
   index("idx_preset_tags_tag_slug").on(table.tagSlug),
 ]);
 
+export const presetSearchDocuments = sqliteTable("preset_search_documents", {
+  presetId: text("preset_id").primaryKey().references(() => presets.id, { onDelete: "cascade" }),
+  publishedRevisionId: text("published_revision_id").notNull(),
+  schemaVersion: integer("schema_version").notNull(),
+  title: text("title").notNull(),
+  author: text("author").notNull(),
+  description: text("description").notNull(),
+  secondaryText: text("secondary_text").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
+}, (table) => [
+  uniqueIndex("uq_preset_search_documents_revision").on(table.publishedRevisionId),
+  index("idx_preset_search_documents_schema").on(table.schemaVersion),
+]);
+
+export const presetSearchTerms = sqliteTable("preset_search_terms", {
+  presetId: text("preset_id").notNull().references(() => presetSearchDocuments.presetId, { onDelete: "cascade" }),
+  publishedRevisionId: text("published_revision_id").notNull(),
+  field: text("field").notNull(),
+  value: text("value").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.presetId, table.field, table.value] }),
+  index("idx_preset_search_terms_lookup").on(table.field, table.value, table.presetId),
+  index("idx_preset_search_terms_revision").on(table.publishedRevisionId),
+]);
+
 export const presetVersions = sqliteTable("preset_versions", {
   id: text("id").primaryKey(),
   presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),

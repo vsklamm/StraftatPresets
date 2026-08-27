@@ -187,6 +187,8 @@ function configLabels(version: PresetVersion) {
 export default function Home() {
   const { status: authStatus } = useSession();
   const [query, setQuery] = useState("");
+  const [selectedSearchTags, setSelectedSearchTags] = useState<Array<{ slug: string; label: string }>>([]);
+  const [selectedSearchWeapons, setSelectedSearchWeapons] = useState<Array<{ gameId: string; name: string }>>([]);
   const [searchTagPickerOpen, setSearchTagPickerOpen] = useState(false);
   const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
   const weaponPickerTriggerRef = useRef<HTMLButtonElement>(null);
@@ -222,6 +224,10 @@ export default function Home() {
   }, []);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState("");
+  const [searchItems, setSearchItems] = useState<PresetDashboardItem[] | undefined>();
+  const [searchResultKey, setSearchResultKey] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [tagCatalog, setTagCatalog] = useState<ActiveTag[]>([]);
   const [selected, setSelected] = useState<Preset | null>(null);
   const [versionLabel, setVersionLabel] = useState("");
@@ -286,6 +292,21 @@ export default function Home() {
   }, []);
 
   const activeDashboardView: PresetDashboardView = (authStatus === "unauthenticated" && dashboardView === "mine") || !isMounted ? "popular" : dashboardView;
+  const selectedSearchLabels = useMemo(() => new Set([
+    ...selectedSearchTags.map((tag) => tag.label.toLocaleLowerCase("en-US")),
+    ...selectedSearchWeapons.map((weapon) => weapon.name.toLocaleLowerCase("en-US")),
+  ]), [selectedSearchTags, selectedSearchWeapons]);
+  const freeSearchQuery = useMemo(() => query.split(",")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && !selectedSearchLabels.has(segment.toLocaleLowerCase("en-US")))
+    .join(", "), [query, selectedSearchLabels]);
+  const searchActive = Boolean(query.trim() || selectedSearchTags.length || selectedSearchWeapons.length);
+  const currentSearchKey = JSON.stringify([
+    activeDashboardView,
+    freeSearchQuery,
+    selectedSearchTags.map((tag) => tag.slug),
+    selectedSearchWeapons.map((weapon) => weapon.gameId),
+  ]);
 
   useEffect(() => {
     if (authStatus === "loading" || (activeDashboardView === "mine" && authStatus !== "authenticated")) return;
@@ -309,18 +330,48 @@ export default function Home() {
     return () => controller.abort();
   }, [activeDashboardView, authStatus]);
 
+  useEffect(() => {
+    if (!searchActive || authStatus === "loading" || (activeDashboardView === "mine" && authStatus !== "authenticated")) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearchLoading(true);
+      setSearchError("");
+      const params = new URLSearchParams({ view: activeDashboardView === "mine" ? "mine" : activeDashboardView === "updated" ? "updated" : "popular", limit: "48" });
+      if (freeSearchQuery) params.set("q", freeSearchQuery);
+      if (selectedSearchTags.length) params.set("tags", selectedSearchTags.map((tag) => tag.slug).join(","));
+      if (selectedSearchWeapons.length) params.set("weapons", selectedSearchWeapons.map((weapon) => weapon.gameId).join(","));
+      void fetch(`/api/presets/search?${params}`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Presets could not be searched.");
+          return response.json() as Promise<{ items: PresetDashboardItem[] }>;
+        })
+        .then((result) => { if (!controller.signal.aborted) { setSearchItems(result.items); setSearchResultKey(currentSearchKey); } })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) {
+            setSearchItems([]);
+            setSearchResultKey(currentSearchKey);
+            setSearchError(error instanceof Error ? error.message : "Presets could not be searched.");
+          }
+        })
+        .finally(() => { if (!controller.signal.aborted) setSearchLoading(false); });
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeDashboardView, authStatus, currentSearchKey, freeSearchQuery, searchActive, selectedSearchTags, selectedSearchWeapons]);
+
   const tagLabels = useMemo(() => new Map(tagCatalog.map((tag) => [tag.slug, tag.label])), [tagCatalog]);
   const dashboardItems = itemsByView[activeDashboardView];
-  const isViewLoaded = dashboardItems !== undefined;
-  const storedPresets = useMemo(() => (dashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [dashboardItems, tagLabels]);
+  const effectiveDashboardItems = searchActive ? (searchResultKey === currentSearchKey ? searchItems : undefined) : dashboardItems;
+  const isViewLoaded = effectiveDashboardItems !== undefined;
+  const storedPresets = useMemo(() => (effectiveDashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [effectiveDashboardItems, tagLabels]);
   const dashboardPresets = storedPresets;
-
-  const visiblePresets = useMemo(() => dashboardPresets.filter((preset) => {
-    const versionWeapons = preset.versions.flatMap((v) => (v.randomizedWeapons ?? []).map((w) => w.name)).join(" ");
-    const searchable = `${preset.title} ${preset.author} ${preset.description} ${preset.tags.join(" ")} ${versionWeapons}`.toLowerCase();
-    const terms = query.split(",").map((term) => term.trim().toLowerCase()).filter(Boolean);
-    return terms.every((term) => searchable.includes(term));
-  }), [dashboardPresets, query]);
+  const visiblePresets = dashboardPresets;
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
   const weightedWeapons = useMemo(() => calculateWeaponChances(selectedVersion?.randomizedWeapons ?? []), [selectedVersion]);
@@ -1112,9 +1163,13 @@ export default function Home() {
             </div>
             <div className="search-row">
               <div className="search-input-wrap">
-                <input aria-label="Search community presets" placeholder="Search..." value={query} onChange={(event) => setQuery(event.target.value)} />
+                <input aria-label="Search community presets" placeholder="Search..." value={query} onChange={(event) => {
+                  setSelectedSearchTags([]);
+                  setSelectedSearchWeapons([]);
+                  setQuery(event.target.value);
+                }} />
                 <div className="search-tools-right">
-                  {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => setQuery("")}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
+                  {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
                   <button className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                   </button>
@@ -1122,8 +1177,15 @@ export default function Home() {
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="15" width="15" xmlns="http://www.w3.org/2000/svg"><path d="M11 5.07089C7.93431 5.5094 5.5094 7.93431 5.07089 11H7V13H5.07089C5.5094 16.0657 7.93431 18.4906 11 18.9291V17H13V18.9291C16.0657 18.4906 18.4906 16.0657 18.9291 13H17V11H18.9291C18.4906 7.93431 16.0657 5.5094 13 5.07089V7H11V5.07089ZM3.05493 11C3.51608 6.82838 6.82838 3.51608 11 3.05493V1H13V3.05493C17.1716 3.51608 20.4839 6.82838 20.9451 11H23V13H20.9451C20.4839 17.1716 17.1716 20.4839 13 20.9451V23H11V20.9451C6.82838 20.4839 3.51608 17.1716 3.05493 13H1V11H3.05493ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" /></svg>
                   </button>
                 </div>
-                {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(label) => { setQuery(label); setSearchTagPickerOpen(false); }} onClose={() => setSearchTagPickerOpen(false)} /> : null}
+                {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(tag) => {
+                  setQuery(tag.label);
+                  setSelectedSearchTags([{ slug: tag.slug, label: tag.label }]);
+                  setSelectedSearchWeapons([]);
+                  setSearchTagPickerOpen(false);
+                }} onClose={() => setSearchTagPickerOpen(false)} /> : null}
                 {weaponPickerOpen ? <RadialWeaponPicker triggerRef={weaponPickerTriggerRef} weapons={catalogWeapons} onSelect={(weaponName) => {
+                  const weapon = catalogWeapons.find((candidate) => candidate.name === weaponName);
+                  if (weapon) setSelectedSearchWeapons((current) => current.some((candidate) => candidate.gameId === weapon.gameId) ? current : [...current, { gameId: weapon.gameId, name: weapon.name }]);
                   setQuery((current) => {
                     const terms = current.split(",").map((term) => term.trim()).filter(Boolean);
                     if (terms.some((term) => term.toLocaleLowerCase("en-US") === weaponName.toLocaleLowerCase("en-US"))) return current;
@@ -1193,8 +1255,8 @@ export default function Home() {
                 ) : null}
               </>
             );
-          })()}</div> : !isViewLoaded || dashboardLoading
-            ? <div className="empty-state"><h2>Loading presets…</h2><p>{dashboardError || ""}</p></div>
+          })()}</div> : !isViewLoaded || (searchActive ? searchLoading : dashboardLoading)
+            ? <div className="empty-state"><h2>{searchActive ? "Searching presets…" : "Loading presets…"}</h2><p>{searchActive ? searchError : dashboardError}</p></div>
             : activeDashboardView === "mine" && authStatus === "authenticated" && !query
             ? <div className="preset-grid">
                 <button className="create-preset-slot" type="button" disabled={isCreating} onClick={submitPreset} aria-label="Create preset">
@@ -1203,7 +1265,7 @@ export default function Home() {
                   <span className="create-slot-desc">Draft custom weapon pools &amp; map rotations</span>
                 </button>
               </div>
-            : <div className="empty-state"><h2>No presets found</h2><p>{dashboardError || (activeDashboardView === "mine" ? "No presets matched your search." : "Try a different search.")}</p></div>}
+            : <div className="empty-state"><h2>No presets found</h2><p>{searchError || dashboardError || (activeDashboardView === "mine" ? "No published presets matched your search." : "Try a different search.")}</p></div>}
         </section>
       </div>
 

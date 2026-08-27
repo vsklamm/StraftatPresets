@@ -25,6 +25,16 @@ export type UserRole = "member" | "moderator" | "admin";
 
 export type PresetDashboardView = "popular" | "newest" | "updated" | "mine";
 
+export type PresetSearchInput = {
+  query: string;
+  tagSlugs: string[];
+  weaponGameIds: string[];
+  authorId?: string;
+  order: "popular" | "updated";
+  limit: number;
+  offset: number;
+};
+
 export type PresetDashboardItem = {
   id: string;
   slug: string;
@@ -93,6 +103,7 @@ export type RevisionModerationContext = {
 export interface PresetWorkflowRepository {
   createPresetDraft(userId: string, title: string, now?: Date): Promise<PresetDashboardItem>;
   listDashboardPresets(view: PresetDashboardView, userId: string | undefined, limit: number, offset: number): Promise<{ items: PresetDashboardItem[]; total: number }>;
+  searchPublishedPresets(input: PresetSearchInput, userId?: string): Promise<{ items: PresetDashboardItem[]; total: number }>;
   getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined>;
   getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined>;
   clearTelegramModerationMessage(revisionId: string, messageId: number): Promise<boolean>;

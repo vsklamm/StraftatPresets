@@ -26,6 +26,8 @@
     "game:update": "node scripts/update-game-catalog.mjs --write",
     "weapons:normalize": "tsx scripts/normalize-weapons.ts",
     "tags:sync": "tsx scripts/check-tag-catalog.ts && tsx scripts/sync-tag-catalog.ts",
+    "search:rebuild": "wrangler d1 migrations apply DB --local && tsx scripts/rebuild-preset-search.ts",
+    "search:rebuild:remote": "tsx scripts/rebuild-preset-search.ts remote --confirm rebuild-published-search",
     "stats": "tsx scripts/preset-stats.ts"
   },
   "dependencies": {

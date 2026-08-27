@@ -255,7 +255,7 @@ export function SearchTagPicker({
   onClose,
 }: {
   tags: readonly TagCatalogEntry[];
-  onSelect: (label: string) => void;
+  onSelect: (tag: TagCatalogEntry) => void;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -295,7 +295,7 @@ export function SearchTagPicker({
                     type="button"
                     className="search-tag-pill"
                     onClick={() => {
-                      onSelect(tag.label);
+                      onSelect(tag);
                     }}
                   >
                     {tag.label}

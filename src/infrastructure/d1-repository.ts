@@ -7,6 +7,8 @@ import {
   presetAbuseSignals,
   presetEvents,
   presetRevisions,
+  presetSearchDocuments,
+  presetSearchTerms,
   presetStatistics,
   presetTags,
   presetUniqueActors,
@@ -26,6 +28,7 @@ import type {
   PresetMutationResult,
   PresetRetractResult,
   PresetReviewResult,
+  PresetSearchInput,
   PresetSubmitResult,
   RankedPresetOrderEntry,
   PresetStatisticsSnapshot,
@@ -41,6 +44,14 @@ import type {
   UserRole,
 } from "@/src/application/ports";
 import { createStarterPresetContent, parsePresetRevisionContent, type PresetRevisionContent } from "@/src/domain/preset-content";
+import {
+  buildFtsMatch,
+  buildPresetSearchProjection,
+  normalizeSearchValue,
+  PRESET_SEARCH_SCHEMA_VERSION,
+  resolveSearchEntities,
+  splitSearchQuery,
+} from "@/src/domain/preset-search";
 import { copyTargetKeys, createPresetCopyManifest } from "@/src/domain/preset-copy";
 import { runServerModeration } from "@/src/lib/moderation";
 import { deleteTelegramModerationMessage, notifyModeratorOfPendingPreset } from "@/src/infrastructure/telegram";
@@ -153,6 +164,8 @@ type DashboardRow = {
   reviewIssuesJson: string;
   editVersion: number;
   copies: number | null;
+  qualityScoreMilli: number | null;
+  engagementScoreMilli: number | null;
   updatedAt: Date;
   publishedAt: Date | null;
 };
@@ -184,9 +197,79 @@ const dashboardColumns = {
   reviewIssuesJson: dashboardRevision.reviewIssuesJson,
   editVersion: dashboardRevision.editVersion,
   copies: presetStatistics.copiesTotal,
+  qualityScoreMilli: presetStatistics.qualityScoreMilli,
+  engagementScoreMilli: presetStatistics.engagementScoreMilli,
   updatedAt: dashboardRevision.updatedAt,
   publishedAt: presets.publishedAt,
 };
+
+type SearchCandidateRow = { presetId: string; score: number };
+const MAX_SEARCH_CANDIDATES = 96;
+
+function searchCandidateQuery(segment: string) {
+  const matches = [
+    ["title", 100] as const,
+    ["author", 40] as const,
+    ["description", 25] as const,
+    ["secondary_text", 10] as const,
+  ].flatMap(([column, score]) => {
+    const match = buildFtsMatch(segment, column);
+    return match ? [sql`select preset_id as presetId, ${score} as score from preset_search_fts where preset_search_fts match ${match}`] : [];
+  });
+
+  const normalized = normalizeSearchValue(segment);
+  matches.push(sql`
+    select ${presetTags.presetId} as presetId, 90 as score
+    from ${presetTags}
+    inner join ${tags} on ${tags.slug} = ${presetTags.tagSlug}
+    where lower(${tags.label}) = ${normalized}
+  `);
+
+  const entities = resolveSearchEntities(segment);
+  if (entities.weaponGameIds.length) {
+    matches.push(sql`
+      select ${presetSearchTerms.presetId} as presetId, 70 as score
+      from ${presetSearchTerms}
+      where ${presetSearchTerms.field} in ('randomized_weapon', 'swapper_result')
+        and ${presetSearchTerms.value} in (${sql.join(entities.weaponGameIds.map((value) => sql`${value}`), sql`, `)})
+    `);
+  }
+  if (entities.mapNames.length) {
+    matches.push(sql`
+      select ${presetSearchTerms.presetId} as presetId, 70 as score
+      from ${presetSearchTerms}
+      where ${presetSearchTerms.field} = 'map'
+        and ${presetSearchTerms.value} in (${sql.join(entities.mapNames.map((value) => sql`${value}`), sql`, `)})
+    `);
+  }
+
+  return sql<SearchCandidateRow>`
+    select presetId, max(score) as score
+    from (${sql.join(matches, sql` union all `)})
+    group by presetId
+    order by score desc, presetId asc
+    limit ${MAX_SEARCH_CANDIDATES}
+  `;
+}
+
+function exactTagCandidateQuery(tagSlug: string) {
+  return sql<SearchCandidateRow>`
+    select ${presetTags.presetId} as presetId, 90 as score
+    from ${presetTags}
+    where ${presetTags.tagSlug} = ${tagSlug}
+    limit ${MAX_SEARCH_CANDIDATES}
+  `;
+}
+
+function exactWeaponCandidateQuery(gameId: string) {
+  return sql<SearchCandidateRow>`
+    select ${presetSearchTerms.presetId} as presetId, 70 as score
+    from ${presetSearchTerms}
+    where ${presetSearchTerms.field} in ('randomized_weapon', 'swapper_result')
+      and ${presetSearchTerms.value} = ${gameId}
+    limit ${MAX_SEARCH_CANDIDATES}
+  `;
+}
 
 const zeroInteractions = (): InteractionSignals => ({ total: 0, uniqueAnonymous: 0, uniqueAuthenticated: 0 });
 
@@ -221,10 +304,20 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
 
   async upsertDiscordUser(id: string, name: string) {
     const now = new Date();
-    return this.database.insert(users).values({ id, name, lastLoginAt: now, createdAt: now, updatedAt: now }).onConflictDoUpdate({
+    const user = await this.database.insert(users).values({ id, name, lastLoginAt: now, createdAt: now, updatedAt: now }).onConflictDoUpdate({
       target: users.id,
       set: { name, lastLoginAt: now, updatedAt: now },
     }).returning({ isActive: users.isActive }).get();
+    await this.database.run(sql`
+      update ${presetSearchDocuments}
+      set ${presetSearchDocuments.author} = ${name}, ${presetSearchDocuments.updatedAt} = ${now}
+      where ${presetSearchDocuments.author} <> ${name}
+        and ${presetSearchDocuments.presetId} in (
+          select ${presets.id} from ${presets}
+          where ${presets.authorId} = ${id} and ${presets.status} = 'published'
+        )
+    `);
+    return user;
   }
 
   async getUserRole(id: string): Promise<UserRole | undefined> {
@@ -361,6 +454,60 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       items: await Promise.all((rows as DashboardRow[]).map((row) => this.toDashboardItem(row, userId))),
       total: Number(total?.value ?? 0),
     };
+  }
+
+  async searchPublishedPresets(input: PresetSearchInput, userId?: string) {
+    const candidateQueries = [
+      ...splitSearchQuery(input.query).map(searchCandidateQuery),
+      ...input.tagSlugs.map(exactTagCandidateQuery),
+      ...input.weaponGameIds.map(exactWeaponCandidateQuery),
+    ];
+    if (!candidateQueries.length) return { items: [], total: 0 };
+
+    const prepared = candidateQueries.map((query) => this.database.all<SearchCandidateRow>(query)) as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+    const resultSets = await this.database.batch(prepared) as SearchCandidateRow[][];
+    const scores = new Map(resultSets[0].map((candidate) => [candidate.presetId, Number(candidate.score)]));
+    for (const resultSet of resultSets.slice(1)) {
+      const current = new Map(resultSet.map((candidate) => [candidate.presetId, Number(candidate.score)]));
+      for (const [presetId, score] of scores) {
+        const additional = current.get(presetId);
+        if (additional === undefined) scores.delete(presetId);
+        else scores.set(presetId, score + additional);
+      }
+    }
+    if (!scores.size) return { items: [], total: 0 };
+
+    const candidateIds = [...scores.keys()];
+    const visibility = and(
+      eq(presets.status, "published"),
+      isNotNull(presets.publishedRevisionId),
+      eq(presetSearchDocuments.schemaVersion, PRESET_SEARCH_SCHEMA_VERSION),
+      eq(presetSearchDocuments.publishedRevisionId, presets.publishedRevisionId),
+      input.authorId ? eq(presets.authorId, input.authorId) : undefined,
+      inArray(presets.id, candidateIds),
+    );
+    const rows = await this.database.select(dashboardColumns).from(presets)
+      .innerJoin(users, eq(users.id, presets.authorId))
+      .innerJoin(dashboardRevision, eq(dashboardRevision.id, presets.publishedRevisionId))
+      .innerJoin(presetSearchDocuments, eq(presetSearchDocuments.presetId, presets.id))
+      .leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id))
+      .where(visibility)
+      .all() as DashboardRow[];
+
+    rows.sort((left, right) => {
+      const relevance = (scores.get(right.id) ?? 0) - (scores.get(left.id) ?? 0);
+      if (relevance) return relevance;
+      if (input.order === "updated") {
+        return right.updatedAt.getTime() - left.updatedAt.getTime() || left.id.localeCompare(right.id);
+      }
+      const rightPopularity = Number(right.qualityScoreMilli ?? 0) + Number(right.engagementScoreMilli ?? 0);
+      const leftPopularity = Number(left.qualityScoreMilli ?? 0) + Number(left.engagementScoreMilli ?? 0);
+      return rightPopularity - leftPopularity || right.updatedAt.getTime() - left.updatedAt.getTime() || left.id.localeCompare(right.id);
+    });
+
+    const total = rows.length;
+    const page = rows.slice(input.offset, input.offset + input.limit);
+    return { items: await Promise.all(page.map((row) => this.toDashboardItem(row, userId))), total };
   }
 
   async getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined> {
@@ -788,6 +935,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const now = input.now ?? new Date();
     const revision = await this.database.select({
       authorId: presets.authorId,
+      authorName: users.name,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
       publishedAt: presets.publishedAt,
@@ -795,6 +943,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       contentJson: presetRevisions.contentJson,
     }).from(presets)
       .innerJoin(presetRevisions, eq(presetRevisions.id, presets.workingRevisionId))
+      .innerJoin(users, eq(users.id, presets.authorId))
       .where(eq(presets.id, input.presetId))
       .get();
     if (!revision) return { result: "not_found" };
@@ -832,11 +981,31 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const thumbnailKeysToDelete = thumbnailKeysToDeleteAfterPublish(previousPublishedThumbnailKey, content.thumbnailKey);
     const validationIssues = [...validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId }), ...await this.validateActiveTags(content.tags)];
     if (validationIssues.length) return { result: "invalid", issues: validationIssues };
+    const searchProjection = await buildPresetSearchProjection(content, revision.authorName);
 
     const statements: BatchItem<"sqlite">[] = [
+      this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, input.presetId)),
       this.database.delete(presetTags).where(eq(presetTags.presetId, input.presetId)),
       this.database.delete(presetVersions).where(eq(presetVersions.presetId, input.presetId)),
+      this.database.insert(presetSearchDocuments).values({
+        presetId: input.presetId,
+        publishedRevisionId: input.revisionId,
+        schemaVersion: searchProjection.document.schemaVersion,
+        title: searchProjection.document.title,
+        author: searchProjection.document.author,
+        description: searchProjection.document.description,
+        secondaryText: searchProjection.document.secondaryText,
+        updatedAt: now,
+      }),
     ];
+    if (searchProjection.terms.length) statements.push(this.database.insert(presetSearchTerms).values(
+      searchProjection.terms.map((term) => ({
+        presetId: input.presetId,
+        publishedRevisionId: input.revisionId,
+        field: term.field,
+        value: term.value,
+      })),
+    ));
     if (content.tags.length) statements.push(this.database.insert(presetTags).values(
       content.tags.map((tagSlug, position) => ({ presetId: input.presetId, tagSlug, position })),
     ));
@@ -919,7 +1088,10 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     if (!presetRow) return { result: "not_found" };
     if (presetRow.authorId !== userId) return { result: "forbidden" };
 
-    await this.database.delete(presets).where(and(eq(presets.id, presetId), eq(presets.authorId, userId))).run();
+    await this.database.batch([
+      this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, presetId)),
+      this.database.delete(presets).where(and(eq(presets.id, presetId), eq(presets.authorId, userId))),
+    ]);
     return { result: "deleted" };
   }
 
@@ -962,6 +1134,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     };
 
     const statements: BatchItem<"sqlite">[] = [
+      this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, preset.id)),
       this.database.update(presets).set({
         status: "draft",
         publishedRevisionId: null,

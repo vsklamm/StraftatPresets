@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseD1RowsWritten } from "../scripts/wrangler-output";
+import { parseD1QueryRows, parseD1RowsWritten } from "../scripts/wrangler-output";
 
 test("reads rows written from plain Wrangler JSON", () => {
   assert.equal(parseD1RowsWritten('[{"meta":{"rows_written":3}}]'), 3);
@@ -15,6 +15,12 @@ test("ignores Wrangler progress output before remote JSON", () => {
 ]`;
 
   assert.equal(parseD1RowsWritten(output), 6);
+});
+
+test("reads query rows from Wrangler JSON with progress output", () => {
+  const output = `├ Checking database
+[{"results":[{"id":"preset-1"}]}]`;
+  assert.deepEqual(parseD1QueryRows<{ id: string }>(output), [{ id: "preset-1" }]);
 });
 
 test("rejects output without a JSON response", () => {

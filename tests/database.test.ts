@@ -29,7 +29,7 @@ test("the initializer creates the application tables in D1", () => {
     runD1(stateDirectory, ["migrations", "apply", "DB"]);
     const tables = queryD1<{ name: string }>(stateDirectory, "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name");
     const tableNames = tables.results.map((row) => row.name);
-    for (const table of ["presets", "preset_revisions", "preset_versions", "map_playlists", "weapon_configurations", "preset_events", "preset_unique_actors", "preset_statistics", "preset_abuse_signals", "tags", "preset_tags", "game_releases", "game_maps", "game_weapons"]) assert.ok(tableNames.includes(table));
+    for (const table of ["presets", "preset_revisions", "preset_versions", "map_playlists", "weapon_configurations", "preset_events", "preset_unique_actors", "preset_statistics", "preset_abuse_signals", "tags", "preset_tags", "preset_search_documents", "preset_search_terms", "preset_search_fts", "game_releases", "game_maps", "game_weapons"]) assert.ok(tableNames.includes(table));
     assert.equal(tableNames.includes("map_playlist_maps"), false);
     assert.equal(tableNames.includes("randomized_weapons"), false);
     assert.equal(tableNames.includes("likes"), false);
@@ -70,7 +70,18 @@ test("the initializer creates the application tables in D1", () => {
       () => runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_tags (preset_id, tag_slug, position) VALUES ('preset-1', 'tag-${MAX_PRESET_TAGS}', ${MAX_PRESET_TAGS})`]),
       /at most 8 tags/,
     );
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('revision-1', 'preset-1', 1, 'pending', '{}', 'hash'); UPDATE preset_revisions SET status = 'published' WHERE id = 'revision-1'; UPDATE presets SET published_revision_id = 'revision-1' WHERE id = 'preset-1'"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('revision-1', 'preset-1', 1, 'pending', '{}', 'hash'); UPDATE preset_revisions SET status = 'published' WHERE id = 'revision-1'; UPDATE presets SET published_revision_id = 'revision-1', status = 'published' WHERE id = 'preset-1'"]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_search_documents (preset_id, published_revision_id, schema_version, title, author, description, secondary_text) SELECT 'preset-1', 'revision-1', 1, 'Game of Mines', 'Tester', 'Explosives and traps', 'Carefully picked maps' WHERE EXISTS (SELECT 1 FROM presets WHERE id = 'preset-1' AND status = 'published' AND published_revision_id = 'revision-1') ON CONFLICT(preset_id) DO UPDATE SET published_revision_id = excluded.published_revision_id, schema_version = excluded.schema_version, title = excluded.title, author = excluded.author, description = excluded.description, secondary_text = excluded.secondary_text; DELETE FROM preset_search_terms WHERE preset_id = 'preset-1' AND EXISTS (SELECT 1 FROM preset_search_documents WHERE preset_id = 'preset-1' AND published_revision_id = 'revision-1'); INSERT INTO preset_search_terms (preset_id, published_revision_id, field, value) SELECT 'preset-1', 'revision-1', 'randomized_weapon', 'Claymore' WHERE EXISTS (SELECT 1 FROM preset_search_documents WHERE preset_id = 'preset-1' AND published_revision_id = 'revision-1')"]);
+    const ftsMatch = queryD1<{ preset_id: string }>(stateDirectory, "SELECT preset_id FROM preset_search_fts WHERE preset_search_fts MATCH 'title : (\"game\"* AND \"of\"* AND \"mines\"*)'");
+    assert.deepEqual(ftsMatch.results, [{ preset_id: "preset-1" }]);
+    const visibleSearch = "SELECT p.id FROM presets p INNER JOIN preset_search_documents d ON d.preset_id = p.id INNER JOIN preset_search_fts f ON f.preset_id = p.id WHERE p.status = 'published' AND p.published_revision_id IS NOT NULL AND d.schema_version = 1 AND d.published_revision_id = p.published_revision_id AND preset_search_fts MATCH 'title : mines'";
+    assert.deepEqual(queryD1<{ id: string }>(stateDirectory, visibleSearch).results, [{ id: "preset-1" }]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "UPDATE presets SET status = 'draft', published_revision_id = NULL WHERE id = 'preset-1'"]);
+    assert.deepEqual(queryD1<{ id: string }>(stateDirectory, visibleSearch).results, []);
+    assert.deepEqual(queryD1<{ preset_id: string }>(stateDirectory, "SELECT preset_id FROM preset_search_fts").results, [{ preset_id: "preset-1" }]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "DELETE FROM preset_search_documents WHERE preset_id = 'preset-1'"]);
+    assert.deepEqual(queryD1<{ preset_id: string }>(stateDirectory, "SELECT preset_id FROM preset_search_fts").results, []);
+    assert.deepEqual(queryD1<{ preset_id: string }>(stateDirectory, "SELECT preset_id FROM preset_search_terms").results, []);
     const removedIndexes = ["idx_preset_events_ranking", "idx_preset_unique_actors_counts", "idx_preset_statistics_ranking"];
     const indexes = queryD1<{ name: string }>(stateDirectory, "SELECT name FROM sqlite_schema WHERE type = 'index'").results.map((row) => row.name);
     for (const indexName of removedIndexes) assert.equal(indexes.includes(indexName), false);
