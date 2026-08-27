@@ -1,6 +1,6 @@
 import rawCatalog from "@/game-data/tags.json";
 
-export const TAG_CATEGORIES = ["lobby", "maps", "weapons", "gameplay"] as const;
+export const TAG_CATEGORIES = ["lobby", "gameplay", "weapons", "maps"] as const;
 type TagCategory = (typeof TAG_CATEGORIES)[number];
 
 export type TagCatalogEntry = {

@@ -61,8 +61,8 @@ button { color: inherit; }
 .tool-tabs a.tool-tab-link { display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 2px 9px; line-height: 1; }
 .tool-tabs a:hover, .tool-tabs button:hover { color: #ffffff; background: rgba(255,255,255,.05); }
 .tool-tabs .active, .tool-tabs button.active { color: #f4f4f6; font-weight: 600; background: transparent; }
-.tab-title-row { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 550; line-height: 1.1; }
-.tab-author { font-size: 9.5px; font-weight: 400; color: #7a7a86; line-height: 1; margin-top: 0; letter-spacing: 0.01em; }
+.tab-title-row { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 550; line-height: 1.1; }
+.tab-author { font-size: 9.5px; font-weight: 400; color: #7a7a86; line-height: 1; margin-top: -1px; letter-spacing: 0.01em; }
 .tool-tabs a.tool-tab-link:hover .tab-author { color: #9c9ca8; }
 .fx-link-text { background: linear-gradient(135deg, #f43f5e, #a855f7, #3b82f6); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 600; }
 .external-link-icon { width: 11px; height: 11px; flex: 0 0 auto; opacity: 0.8; }

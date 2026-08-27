@@ -1250,7 +1250,7 @@ export default function Home() {
                   <button className="create-preset-slot" type="button" disabled={isCreating} onClick={submitPreset} aria-label="Create preset">
                     <span className="create-slot-icon" aria-hidden="true"><PlusIcon /></span>
                     <span className="create-slot-title">{isCreating ? "Opening draft…" : "Create preset"}</span>
-                    <span className="create-slot-desc">Draft custom weapon pools &amp; map rotations</span>
+                    <span className="create-slot-desc">Create, edit, and submit presets anytime.</span>
                   </button>
                 ) : null}
               </>
@@ -1262,7 +1262,7 @@ export default function Home() {
                 <button className="create-preset-slot" type="button" disabled={isCreating} onClick={submitPreset} aria-label="Create preset">
                   <span className="create-slot-icon" aria-hidden="true"><PlusIcon /></span>
                   <span className="create-slot-title">{isCreating ? "Opening draft…" : "Create preset"}</span>
-                  <span className="create-slot-desc">Draft custom weapon pools &amp; map rotations</span>
+                  <span className="create-slot-desc">Create, edit, and submit presets anytime.</span>
                 </button>
               </div>
             : <div className="empty-state"><h2>No presets found</h2><p>{searchError || dashboardError || (activeDashboardView === "mine" ? "No published presets matched your search." : "Try a different search.")}</p></div>}
