@@ -36,3 +36,7 @@ export type Preset = {
   content?: PresetRevisionContent;
   copyPublicationId?: string;
 };
+
+export function presetUrlIdentifier(preset: Pick<Preset, "id" | "slug" | "state" | "canEdit">) {
+  return preset.canEdit && preset.state === "draft" ? preset.id : preset.slug || preset.id;
+}

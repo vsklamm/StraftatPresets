@@ -110,9 +110,10 @@ async function main() {
   const analyses = await Promise.all(files.map(analyzeWeapon));
   analyses.sort((a, b) => b.opticalMass - a.opticalMass);
 
+  const medianOpticalMass = analyses[Math.floor(analyses.length / 2)].opticalMass;
+
   const CANVAS_SIZE = 512;
-  const TARGET_LONG_DIM = 460; // Max dimension for elongated/horizontal weapons and diagonal blades
-  const TARGET_SQUARE_DIM = 410; // Max dimension for compact square/round objects (mines, grenades)
+  const MAX_DIM = 460;
 
   for (const w of analyses) {
     // For elongated vertical blades/poles/weapons (aspect <= 0.45), rotate 45 deg diagonally
@@ -139,13 +140,10 @@ async function main() {
       curH = rotated.info.height;
     }
 
-    // Determine target dimension based on resulting aspect ratio
-    const postAspect = curW / curH;
-    const isCompactShape = postAspect >= 0.75 && postAspect <= 1.35;
-    const targetBaseDim = isCompactShape ? TARGET_SQUARE_DIM : TARGET_LONG_DIM;
-
     const maxBBoxDim = Math.max(curW, curH);
-    let finalScale = targetBaseDim / maxBBoxDim;
+    const fitScale = MAX_DIM / maxBBoxDim;
+    const opticalScale = Math.min(1.4, Math.max(0.65, Math.pow(medianOpticalMass / w.opticalMass, 0.3)));
+    let finalScale = fitScale * opticalScale;
 
     // Ensure it strictly stays within canvas safe area
     if (curW * finalScale > 470) finalScale = 470 / curW;

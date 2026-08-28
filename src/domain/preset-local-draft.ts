@@ -14,6 +14,10 @@ export function localDraftKey(presetId: string): string {
   return `${LOCAL_DRAFT_PREFIX}${presetId}`;
 }
 
+export function shouldQueueDraftSave(signature: string, savedSignature: string, hasPendingSave: boolean): boolean {
+  return signature !== savedSignature || hasPendingSave;
+}
+
 export function isUnmodifiedStarterDraft(content: PresetRevisionContent, savedContentSignature: string | undefined): boolean {
   if (!savedContentSignature || JSON.stringify(content) !== savedContentSignature) return false;
   const title = content.title.trim().toLocaleLowerCase("en-US");

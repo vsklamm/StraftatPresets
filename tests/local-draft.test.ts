@@ -6,11 +6,18 @@ import {
   serializeLocalDraftSnapshot,
   parseLocalDraftSnapshot,
   reconcileLocalDraftWithRemote,
+  shouldQueueDraftSave,
 } from "../src/domain/preset-local-draft";
 import { createStarterPresetContent } from "../src/domain/preset-content";
 
 test("localDraftKey generates consistent prefixed keys", () => {
   assert.equal(localDraftKey("abc-123"), "straftat-presets:draft:abc-123");
+});
+
+test("a reverted draft still queues behind an older in-flight save", () => {
+  assert.equal(shouldQueueDraftSave("current", "current", false), false);
+  assert.equal(shouldQueueDraftSave("changed", "current", false), true);
+  assert.equal(shouldQueueDraftSave("current", "current", true), true);
 });
 
 test("only the unchanged starter content is treated as a disposable draft", () => {

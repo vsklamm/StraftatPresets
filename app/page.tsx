@@ -8,7 +8,7 @@ import { signIn, useSession } from "next-auth/react";
 import { AuthControl } from "@/app/auth-control";
 import { WeaponMix } from "@/app/weapon-mix";
 import { StraftatText } from "./straftat-text";
-import { PresetContentEditor, starterPresetContent } from "@/app/preset-editor";
+import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
 import { getPresetLimitMessage, MAX_PRESETS_PER_AUTHOR } from "@/src/domain/preset-policy";
 import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-weapons";
@@ -34,8 +34,9 @@ import type { PresetIssue, UserPresetState } from "@/src/domain/preset-workflow"
 import { MAX_THUMBNAIL_UPLOAD_BYTES } from "@/src/domain/thumbnail-policy";
 import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization";
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
+import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import type { MapPlaylist, Preset, PresetVersion, SortDirection, WeaponSortKey } from "@/src/application/preset-view";
+import { presetUrlIdentifier, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
@@ -44,6 +45,7 @@ import {
   parseLocalDraftSnapshot,
   reconcileLocalDraftWithRemote,
   serializeLocalDraftSnapshot,
+  shouldQueueDraftSave,
 } from "@/src/domain/preset-local-draft";
 
 type AuthPrompt = { action: "submit" };
@@ -246,6 +248,7 @@ export default function Home() {
   const [tagQuery, setTagQuery] = useState("");
   const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
@@ -263,6 +266,7 @@ export default function Home() {
   const saveQueueRef = useRef(new SerializedTaskQueue());
   const queuedSaveCountsRef = useRef(new Map<string, number>());
   const latestQueuedSaveRef = useRef(new Map<string, QueuedPresetSave>());
+  const pendingEditorChangesRef = useRef(new PendingTaskTracker());
   const linkedInteractionRef = useRef("");
   const openPresetIdRef = useRef("");
   const dialogSectionRef = useRef<HTMLElement>(null);
@@ -486,7 +490,7 @@ export default function Home() {
   const openPreset = (preset: Preset) => {
     selectPreset(preset);
     const url = new URL(window.location.href);
-    const identifier = preset.slug || preset.id;
+    const identifier = presetUrlIdentifier(preset);
     url.searchParams.set("p", identifier);
     window.history.pushState(null, "", url);
     if (preset.persisted) {
@@ -528,6 +532,14 @@ export default function Home() {
       const updated = dashboardItemToPreset(savedPreset, tagLabels);
       const savedSignature = JSON.stringify(savedPreset.content);
       serverContentByPresetRef.current.set(savedPreset.id, savedSignature);
+      if (openPresetIdRef.current === savedPreset.id) {
+        const url = new URL(window.location.href);
+        const identifier = presetUrlIdentifier(updated);
+        if (url.searchParams.get("p") !== identifier) {
+          url.searchParams.set("p", identifier);
+          window.history.replaceState(null, "", url);
+        }
+      }
       updateDashboardItems((current) => {
         const exists = current.some((item) => item.id === savedPreset.id);
         return exists ? current.map((item) => item.id === savedPreset.id ? savedPreset : item) : [savedPreset, ...current];
@@ -549,7 +561,9 @@ export default function Home() {
       const remaining = (queuedSaveCountsRef.current.get(preset.id) ?? 1) - 1;
       if (remaining > 0) queuedSaveCountsRef.current.set(preset.id, remaining);
       else queuedSaveCountsRef.current.delete(preset.id);
-      if (remaining === 0 && openPresetIdRef.current === preset.id) setSaveStatus("saved");
+      if (remaining === 0 && openPresetIdRef.current === preset.id) {
+        setSaveStatus(JSON.stringify(draftContentRef.current) === savedContentRef.current ? "saved" : "idle");
+      }
       return result;
     }, (error) => {
       const remaining = (queuedSaveCountsRef.current.get(preset.id) ?? 1) - 1;
@@ -567,19 +581,28 @@ export default function Home() {
     return completion;
   }, [tagLabels, updateDashboardItems]);
 
+  const trackPendingEditorChange = useCallback((task: Promise<void>) => {
+    pendingEditorChangesRef.current.track(task);
+  }, []);
+
+  const waitForPendingEditorChanges = useCallback(async () => {
+    await pendingEditorChangesRef.current.waitForIdle();
+  }, []);
+
   const flushSelectedDraft = useCallback(async () => {
-    if (!isEditing || !selected?.persisted || !selected.canEdit || !selected.revisionId || selected.editVersion === undefined) return true;
+    if (!selected?.persisted || !selected.canEdit || !selected.revisionId || selected.editVersion === undefined) return true;
+    await waitForPendingEditorChanges();
     const content = draftContentRef.current ?? draftContent;
     if (!content) return true;
     const signature = JSON.stringify(content);
-    if (signature === savedContentRef.current) return true;
+    if (!shouldQueueDraftSave(signature, savedContentRef.current, saveQueueRef.current.hasPending(selected.id))) return true;
     try {
       await persistDraft(selected, content, signature);
       return true;
     } catch {
       return false;
     }
-  }, [isEditing, selected, draftContent, persistDraft]);
+  }, [selected, draftContent, persistDraft, waitForPendingEditorChanges]);
 
   const enterEditMode = useCallback(() => {
     if (!selected?.canEdit) return;
@@ -620,28 +643,35 @@ export default function Home() {
     }
   }, [updateDashboardItems]);
 
-  const exitEditMode = useCallback(() => {
+  const exitEditMode = useCallback(async () => {
     const content = draftContentRef.current ?? draftContent;
     if (selected?.persisted && selected.canEdit && selected.state === "draft" && content &&
       isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
-      void discardUnmodifiedDraft(selected).then((ok) => { if (ok) dismissPreset(); });
+      if (await discardUnmodifiedDraft(selected)) dismissPreset();
       return;
     }
-    setIsEditing(false);
-    void flushSelectedDraft();
+    if (await flushSelectedDraft()) {
+      setIsEditing(false);
+    } else {
+      setActionError("Changes are safe on this device, but could not be synced. Try again.");
+    }
   }, [selected, draftContent, discardUnmodifiedDraft, dismissPreset, flushSelectedDraft]);
 
-  const closePreset = useCallback(() => {
+  const closePreset = useCallback(async () => {
+    if (isSubmitting) return;
     const content = draftContentRef.current ?? draftContent;
     if (isEditing && selected?.persisted && selected.canEdit && content) {
       if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
-        void discardUnmodifiedDraft(selected);
+        if (!await discardUnmodifiedDraft(selected)) return;
       } else {
-        void flushSelectedDraft();
+        if (!await flushSelectedDraft()) {
+          setActionError("Changes are safe on this device, but could not be synced. Try closing again.");
+          return;
+        }
       }
     }
     dismissPreset();
-  }, [isEditing, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
+  }, [isEditing, isSubmitting, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -838,43 +868,12 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, [draftContent, isEditing, persistDraft, selected]);
 
-  // Flush remote autosave on tab backgrounding or page unload
-  useEffect(() => {
-    if (!isEditing || !selected?.persisted || !selected.canEdit || !draftContent || !selected.revisionId || selected.editVersion === undefined) return;
-
-    const flushRemoteSave = () => {
-      const signature = JSON.stringify(draftContent);
-      if (signature !== savedContentRef.current && !saveQueueRef.current.hasPending(selected.id)) {
-        const token = presetRevisionTokensRef.current.get(selected.id) ?? {
-          revisionId: selected.revisionId!,
-          editVersion: selected.editVersion!,
-        };
-        fetch(`/api/presets/${encodeURIComponent(selected.id)}`, {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...token, content: draftContent }),
-          keepalive: true,
-        }).catch(() => undefined);
-      }
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden") flushRemoteSave();
-    };
-
-    window.addEventListener("pagehide", flushRemoteSave);
-    window.addEventListener("beforeunload", flushRemoteSave);
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      window.removeEventListener("pagehide", flushRemoteSave);
-      window.removeEventListener("beforeunload", flushRemoteSave);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [isEditing, selected, draftContent]);
-
-  const updateDraftContent = (content: PresetRevisionContent) => {
+  const updateDraftContent = (update: PresetContentUpdate) => {
+    const currentContent = draftContentRef.current;
+    const content = typeof update === "function"
+      ? (currentContent ? update(currentContent) : null)
+      : update;
+    if (!content || content === currentContent) return;
     draftContentRef.current = content;
     setDraftContent(content);
     if (selected?.workingStatus === "rejected") {
@@ -975,7 +974,7 @@ export default function Home() {
       selectPreset(created, true);
       setDraftContent(starterPresetContent(result.preset.content));
       const url = new URL(window.location.href);
-      const identifier = created.slug || created.id;
+      const identifier = presetUrlIdentifier(created);
       url.searchParams.set("p", identifier);
       window.history.pushState(null, "", url);
     } catch (error) {
@@ -995,14 +994,14 @@ export default function Home() {
   }, [authStatus, isCreating]);
 
   const submitSelectedPreset = async () => {
-    if (!selected?.revisionId || selected.editVersion === undefined) return;
-
-    if (isEditing && !await flushSelectedDraft()) {
-      setActionError("Could not save draft before submitting. Please check your connection.");
-      return;
-    }
+    if (!selected?.revisionId || selected.editVersion === undefined || isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
+      if (!await flushSelectedDraft()) {
+        setActionError("Changes are safe on this device, but could not be synced. Try Submit again.");
+        return;
+      }
       const token = presetRevisionTokensRef.current.get(selected.id) ?? {
         revisionId: selected.revisionId,
         editVersion: selected.editVersion,
@@ -1034,6 +1033,8 @@ export default function Home() {
       selectPreset(submitted, false);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The preset could not be submitted. Try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
   const deleteSelectedPreset = async () => {
@@ -1062,12 +1063,14 @@ export default function Home() {
   };
   const addTag = (slug: string) => {
     if (!draftContent || draftContent.tags.includes(slug) || draftContent.tags.length >= 8) return;
-    updateDraftContent({ ...draftContent, tags: [...draftContent.tags, slug] });
+    updateDraftContent((content) => content.tags.includes(slug) || content.tags.length >= 8
+      ? content
+      : { ...content, tags: [...content.tags, slug] });
     setTagPickerOpen(false);
     setTagQuery("");
   };
   const removeTag = (slug: string) => {
-    if (draftContent) updateDraftContent({ ...draftContent, tags: draftContent.tags.filter((tag) => tag !== slug) });
+    if (draftContent) updateDraftContent((content) => ({ ...content, tags: content.tags.filter((tag) => tag !== slug) }));
   };
   const uploadThumbnail = async (file: File) => {
     if (!selected?.persisted || !isEditing) return;
@@ -1092,7 +1095,7 @@ export default function Home() {
         return next;
       });
       setSelected((current) => current ? { ...current, image: result.url } : current);
-      if (draftContent) updateDraftContent({ ...draftContent, thumbnailKey: result.key });
+      updateDraftContent((content) => ({ ...content, thumbnailKey: result.key! }));
       setThumbnailStatus("idle");
     } catch (error) {
       setThumbnailStatus("error");
@@ -1277,7 +1280,7 @@ export default function Home() {
       {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
         <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
           <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-            <button className="dialog-close" type="button" aria-label="Close preset" onClick={closePreset}>×</button>
+            <button className="dialog-close" type="button" aria-label="Close preset" disabled={isSubmitting} onClick={closePreset}>×</button>
           {(() => {
             const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
             return (
@@ -1298,7 +1301,7 @@ export default function Home() {
                       aria-label="Upload pic"
                       onChange={(event) => {
                         const file = event.target.files?.[0];
-                        if (file) void uploadThumbnail(file);
+                        if (file) trackPendingEditorChange(uploadThumbnail(file));
                       }}
                     />
                     <div className="thumbnail-actions">
@@ -1342,17 +1345,17 @@ export default function Home() {
           })()}
           <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
             {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent({ ...draftContent, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
-                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = selected.slug || selected.id; url.searchParams.set("p", identifier); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
-                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={saveStatus === "saving"} onClick={() => void submitSelectedPreset()}>Submit</button> : null}
+                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
+                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = presetUrlIdentifier(selected); url.searchParams.set("p", identifier); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
                 {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
               </div>
-              {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
+              {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
-            {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Could not save - reload before continuing" : "Changes autosave"}</p> : null}
+            {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Saved on this device - sync failed" : "Changes autosave"}</p> : null}
             {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { setVersionLabel(version.label); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
             {isEditing && draftContent ? (
               <div className="editable-field">
@@ -1362,7 +1365,7 @@ export default function Home() {
                   maxLength={MAX_PRESET_DESCRIPTION_CHARACTERS}
                   placeholder="What makes your preset unique compared to similar ones? Which weapons, maps, or rules define the gameplay, and how is it tuned to be played?"
                   value={draftContent.description}
-                  onChange={(event) => updateDraftContent({ ...draftContent, description: event.target.value })}
+                  onChange={(event) => updateDraftContent((content) => ({ ...content, description: event.target.value }))}
                 />
                 <div className="field-meta">
                   {hasConsecutiveEmptyLines(draftContent.description) ? (
@@ -1385,7 +1388,7 @@ export default function Home() {
               {tagPickerOpen ? <div className="tag-picker"><input autoFocus aria-label="Search tags" placeholder="Search tags" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} /> <div>{matchingTags.map((tag) => <button key={tag.slug} type="button" onClick={() => addTag(tag.slug)}>{tag.label}</button>)}</div></div> : null}
             </div> : <div className="tag-row">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
 
-            {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} /> : null}
+            {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} onPendingChange={trackPendingEditorChange} /> : null}
 
             {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
               <span className="manual-entry-note">Enter manually in-game</span>

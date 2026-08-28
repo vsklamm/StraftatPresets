@@ -414,7 +414,7 @@ button { color: inherit; }
 .preset-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .preset-title-row h2 { margin: 0; overflow: hidden; font-size: 14.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; color: var(--card-text-primary); }
 .card-badges { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
-.version-badge { flex: 0 0 auto; padding: 0; color: var(--card-text-primary); border: 0; background: transparent; font-size: 12px; font-weight: 600; line-height: 1.2; letter-spacing: .01em; }
+.version-badge { flex: 0 0 auto; padding: 0; color: var(--card-text-primary); border: 0; background: transparent; font-size: 13.5px; font-weight: 650; line-height: 1.1; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .preset-state {
   display: inline-flex;
   align-items: center;

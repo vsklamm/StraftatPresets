@@ -14,12 +14,17 @@ type EditorProps = {
   content: PresetRevisionContent;
   activeVersionIndex: number;
   onActiveVersionChange: (index: number) => void;
-  onChange: (content: PresetRevisionContent) => void;
+  onChange: (update: PresetContentUpdate) => void;
+  onPendingChange: (task: Promise<void>) => void;
 };
+
+export type PresetContentUpdate = PresetRevisionContent | ((content: PresetRevisionContent) => PresetRevisionContent);
+type PresetVersionUpdate = PresetVersionContent | ((version: PresetVersionContent) => PresetVersionContent);
+type RandomizedWeaponConfiguration = Extract<PresetWeaponConfigurationContent, { kind: "randomized" }>;
 
 export { normalizePresetContent as starterPresetContent } from "@/src/domain/preset-content";
 
-export function PresetContentEditor({ content, activeVersionIndex, onActiveVersionChange, onChange }: EditorProps) {
+export function PresetContentEditor({ content, activeVersionIndex, onActiveVersionChange, onChange, onPendingChange }: EditorProps) {
   const [newVersionLabel, setNewVersionLabel] = useState<string | null>(null);
   const [editingVersionIndex, setEditingVersionIndex] = useState<number | null>(null);
   const [editingVersionValue, setEditingVersionValue] = useState<string>("");
@@ -29,10 +34,17 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   const version = versions[safeIndex];
   const versioningEnabled = content.versioningEnabled;
 
-  const updateVersion = (next: PresetVersionContent) => {
-    const sorted = sortPresetVersionsNewestFirst(content.versions.map((item) => item === version ? next : item));
-    onChange({ ...content, versions: sorted });
-    onActiveVersionChange(Math.max(0, sorted.indexOf(next)));
+  const updateVersion = (update: PresetVersionUpdate) => {
+    const targetLabel = version.label;
+    onChange((currentContent) => {
+      const currentVersion = currentContent.versions.find((item) => item.label === targetLabel);
+      if (!currentVersion) return currentContent;
+      const next = typeof update === "function" ? update(currentVersion) : update;
+      return {
+        ...currentContent,
+        versions: sortPresetVersionsNewestFirst(currentContent.versions.map((item) => item === currentVersion ? next : item)),
+      };
+    });
   };
   const beginVersion = () => {
     if (!versioningEnabled || content.versions.length >= MAX_PRESET_VERSIONS) return;
@@ -225,8 +237,8 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
 
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />
     {version.weaponConfigurations.some(c => c.kind === "randomized") ? <RandomizedWeaponsEditor version={version} onChange={updateVersion} /> : null}
-    {version.weaponConfigurations.some(c => c.kind === "swapper") ? <SwapperSettingsEditor version={version} onChange={updateVersion} /> : null}
-    <MapPlaylistsEditor version={version} onChange={updateVersion} />
+    {version.weaponConfigurations.some(c => c.kind === "swapper") ? <SwapperSettingsEditor version={version} onChange={updateVersion} onPendingChange={onPendingChange} /> : null}
+    <MapPlaylistsEditor version={version} onChange={updateVersion} onPendingChange={onPendingChange} />
     <div className="editor-quality-tip">
       <strong>Tip:</strong> Completeness directly affects ranking in <b>Popular</b>. Adding a custom thumbnail, choosing tags, writing a clear description, and setting map pool notes gets your preset ranked higher and makes it easier for players to find and use.
     </div>
@@ -234,7 +246,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
 );
 }
 
-function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
+function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersionContent; onChange: (update: PresetVersionUpdate) => void }) {
   if (version.weaponConfigurations.length > 0) return null;
 
   return (
@@ -246,7 +258,7 @@ function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersi
         <button
           type="button"
           className="weapon-type-button"
-          onClick={() => onChange({ ...version, weaponConfigurations: [{ kind: "randomized", name: "Randomized weapons", weapons: [] }] })}
+          onClick={() => onChange((current) => ({ ...current, weaponConfigurations: [{ kind: "randomized", name: "Randomized weapons", weapons: [] }] }))}
         >
           <DiceIcon />
           <span>Randomized weapons</span>
@@ -254,7 +266,7 @@ function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersi
         <button
           type="button"
           className="weapon-type-button"
-          onClick={() => onChange({ ...version, weaponConfigurations: [{ kind: "swapper", name: "", encodedValue: "" }] })}
+          onClick={() => onChange((current) => ({ ...current, weaponConfigurations: [{ kind: "swapper", name: "", encodedValue: "" }] }))}
         >
           <SwapIcon />
           <span>Swapper settings</span>
@@ -264,7 +276,7 @@ function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersi
   );
 }
 
-function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
+function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (update: PresetVersionUpdate) => void }) {
   const configurationIndex = version.weaponConfigurations.findIndex((configuration) => configuration.kind === "randomized");
   const configuration = configurationIndex >= 0 && version.weaponConfigurations[configurationIndex]?.kind === "randomized"
     ? version.weaponConfigurations[configurationIndex]
@@ -282,13 +294,25 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
       .filter((weapon) => !term || weapon.name.toLocaleLowerCase("en-US").includes(term));
   }, [query, selectedNames]);
 
-  const updateConfiguration = (next: NonNullable<typeof configuration>) => {
-    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.map((item, index) => index === configurationIndex ? next : item) });
+  const updateConfiguration = (
+    update: RandomizedWeaponConfiguration | ((configuration: RandomizedWeaponConfiguration) => RandomizedWeaponConfiguration),
+  ) => {
+    onChange((currentVersion) => {
+      const index = currentVersion.weaponConfigurations.findIndex((item) => item.kind === "randomized");
+      const current = currentVersion.weaponConfigurations[index];
+      if (index < 0 || current?.kind !== "randomized") return currentVersion;
+      const next = typeof update === "function" ? update(current) : update;
+      return {
+        ...currentVersion,
+        weaponConfigurations: currentVersion.weaponConfigurations.map((item, itemIndex) => itemIndex === index ? next : item),
+      };
+    });
   };
   const addWeapon = (name: string) => {
     if (!configuration || selectedNames.has(name) || configuration.weapons.length >= MAX_RANDOMIZED_WEAPONS) return;
-    const weapons = [...configuration.weapons, { name, weight: 100 }].sort((left, right) => left.name.localeCompare(right.name));
-    updateConfiguration({ ...configuration, weapons });
+    updateConfiguration((current) => current.weapons.some((weapon) => weapon.name === name)
+      ? current
+      : { ...current, weapons: [...current.weapons, { name, weight: 100 }].sort((left, right) => left.name.localeCompare(right.name)) });
     setQuery("");
     setPickerOpen(false);
     setHighlightedIndex(0);
@@ -300,7 +324,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
   };
 
   const removeConfiguration = () => {
-    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.filter((_, index) => index !== configurationIndex) });
+    onChange((current) => ({ ...current, weaponConfigurations: current.weaponConfigurations.filter((item) => item.kind !== "randomized") }));
   };
 
   if (!configuration) return null;
@@ -333,25 +357,47 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
       <div className="randomized-entry-head" role="row"><span role="columnheader">Weapon</span><span role="columnheader">Weight</span><span role="columnheader">Chance</span><span aria-hidden="true" /></div>
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
         <span className="weapon-entry-name" role="cell"><Image src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
-        <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const raw = event.target.value; const num = raw === "" ? 0 : Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(Number(raw) || 0))); updateConfiguration({ ...configuration, weapons: configuration.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) }); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
+        <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const raw = event.target.value; const num = raw === "" ? 0 : Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(Number(raw) || 0))); updateConfiguration((current) => ({ ...current, weapons: current.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) })); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
         <span role="cell"><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
-        <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration({ ...configuration, weapons: configuration.weapons.filter((item) => item.name !== weapon.name) })} />
+        <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration((current) => ({ ...current, weapons: current.weapons.filter((item) => item.name !== weapon.name) }))} />
       </div>)}
     </div> : null}
   </section>;
 }
 
-function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
+function MapPlaylistsEditor({
+  version,
+  onChange,
+  onPendingChange,
+}: {
+  version: PresetVersionContent;
+  onChange: (update: PresetVersionUpdate) => void;
+  onPendingChange: (task: Promise<void>) => void;
+}) {
   const [decodeErrors, setDecodeErrors] = useState<Record<number, string>>({});
+  const latestEncodedValuesRef = useRef(new Map<number, string>());
 
-  const updatePlaylist = (index: number, playlist: PresetMapPlaylistContent) => {
-    onChange({ ...version, mapPlaylists: version.mapPlaylists.map((item, itemIndex) => itemIndex === index ? playlist : item) });
+  const updatePlaylist = (
+    index: number,
+    update: PresetMapPlaylistContent | ((playlist: PresetMapPlaylistContent) => PresetMapPlaylistContent),
+  ) => {
+    onChange((currentVersion) => {
+      const playlist = currentVersion.mapPlaylists[index];
+      if (!playlist) return currentVersion;
+      const next = typeof update === "function" ? update(playlist) : update;
+      if (next === playlist) return currentVersion;
+      return {
+        ...currentVersion,
+        mapPlaylists: currentVersion.mapPlaylists.map((item, itemIndex) => itemIndex === index ? next : item),
+      };
+    });
   };
 
   const handlePlaylistCodeChange = async (index: number, encodedValue: string) => {
+    latestEncodedValuesRef.current.set(index, encodedValue);
+    updatePlaylist(index, (playlist) => ({ ...playlist, encodedValue, name: "", mapNames: [] }));
     const trimmed = encodedValue.trim();
     if (!trimmed) {
-      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue: "", name: "", mapNames: [] });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -362,7 +408,10 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
     }
     try {
       const decoded = await decodeMapPlaylistExport(trimmed);
-      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue: trimmed, name: decoded.name, mapNames: decoded.mapNames });
+      if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
+      updatePlaylist(index, (playlist) => playlist.encodedValue === encodedValue
+        ? { ...playlist, encodedValue: trimmed, name: decoded.name, mapNames: decoded.mapNames }
+        : playlist);
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -370,24 +419,33 @@ function MapPlaylistsEditor({ version, onChange }: { version: PresetVersionConte
         return next;
       });
     } catch (error) {
-      updatePlaylist(index, { ...version.mapPlaylists[index], encodedValue, name: "", mapNames: [] });
+      if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode this playlist." }));
     }
   };
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Map playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange({ ...version, mapPlaylists: [...version.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add playlist</button></header>
+    <header><h3>Map playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange((current) => current.mapPlaylists.length >= MAX_MAP_PLAYLISTS ? current : { ...current, mapPlaylists: [...current.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add playlist</button></header>
     <div className="playlist-editor-list">{version.mapPlaylists.map((playlist, index) => <article className="playlist-editor-item" key={index}>
-      <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange({ ...version, mapPlaylists: version.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) })} /></header>
-      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => void handlePlaylistCodeChange(index, event.target.value)} /></label>
+      <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange((current) => ({ ...current, mapPlaylists: current.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) }))} /></header>
+      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => onPendingChange(handlePlaylistCodeChange(index, event.target.value))} /></label>
       {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
-      <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="Which maps or pacing define this playlist, and why choose it?" value={playlist.description} onChange={(event) => updatePlaylist(index, { ...playlist, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
+      <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="Which maps or pacing define this playlist, and why choose it?" value={playlist.description} onChange={(event) => updatePlaylist(index, (current) => ({ ...current, description: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
     </article>)}</div>
   </section>;
 }
 
-function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionContent; onChange: (version: PresetVersionContent) => void }) {
+function SwapperSettingsEditor({
+  version,
+  onChange,
+  onPendingChange,
+}: {
+  version: PresetVersionContent;
+  onChange: (update: PresetVersionUpdate) => void;
+  onPendingChange: (task: Promise<void>) => void;
+}) {
   const [decodeErrors, setDecodeErrors] = useState<Record<number, string>>({});
+  const latestEncodedValuesRef = useRef(new Map<number, string>());
 
   const swapperIndices = version.weaponConfigurations
     .map((c, index) => c.kind === "swapper" ? index : -1)
@@ -395,23 +453,40 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
 
   const addSwapper = () => {
     if (version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS) return;
-    onChange({ ...version, weaponConfigurations: [...version.weaponConfigurations, { kind: "swapper", name: "", encodedValue: "" }] });
+    onChange((current) => current.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS
+      ? current
+      : { ...current, weaponConfigurations: [...current.weaponConfigurations, { kind: "swapper", name: "", encodedValue: "" }] });
   };
 
-  const updateSwapper = (index: number, next: PresetWeaponConfigurationContent) => {
-    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.map((item, i) => i === index ? next : item) });
+  const updateSwapper = (
+    index: number,
+    update: PresetWeaponConfigurationContent | ((configuration: PresetWeaponConfigurationContent) => PresetWeaponConfigurationContent),
+  ) => {
+    onChange((currentVersion) => {
+      const configuration = currentVersion.weaponConfigurations[index];
+      if (!configuration) return currentVersion;
+      const next = typeof update === "function" ? update(configuration) : update;
+      if (next === configuration) return currentVersion;
+      return {
+        ...currentVersion,
+        weaponConfigurations: currentVersion.weaponConfigurations.map((item, itemIndex) => itemIndex === index ? next : item),
+      };
+    });
   };
 
   const removeSwapper = (index: number) => {
-    onChange({ ...version, weaponConfigurations: version.weaponConfigurations.filter((_, i) => i !== index) });
+    onChange((current) => ({ ...current, weaponConfigurations: current.weaponConfigurations.filter((_, itemIndex) => itemIndex !== index) }));
   };
 
   const handleSwapperCodeChange = async (index: number, encodedValue: string) => {
     const configuration = version.weaponConfigurations[index];
     if (configuration.kind !== "swapper") return;
+    latestEncodedValuesRef.current.set(index, encodedValue);
+    updateSwapper(index, (current) => current.kind === "swapper"
+      ? { ...current, encodedValue, name: "" }
+      : current);
     const trimmed = encodedValue.trim();
     if (!trimmed) {
-      updateSwapper(index, { ...configuration, encodedValue: "", name: "" });
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -422,7 +497,10 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
     }
     try {
       const decoded = await decodeSwapperExport(trimmed);
-      updateSwapper(index, { ...configuration, encodedValue: trimmed, name: decoded.name });
+      if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
+      updateSwapper(index, (current) => current.kind === "swapper" && current.encodedValue === encodedValue
+        ? { ...current, encodedValue: trimmed, name: decoded.name }
+        : current);
       setDecodeErrors((current) => {
         if (!current[index]) return current;
         const next = { ...current };
@@ -430,7 +508,7 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
         return next;
       });
     } catch (error) {
-      updateSwapper(index, { ...configuration, encodedValue, name: "" });
+      if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode swapper." }));
     }
   };
@@ -444,9 +522,9 @@ function SwapperSettingsEditor({ version, onChange }: { version: PresetVersionCo
       if (configuration.kind !== "swapper") return null;
       return <article className="playlist-editor-item" key={index}>
         <header><div><strong><StraftatText text={configuration.name || `Swapper ${renderIndex + 1}`} /></strong></div><ConfirmDeleteButton label={`Remove swapper ${renderIndex + 1}`} onConfirm={() => removeSwapper(index)} /></header>
-        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => void handleSwapperCodeChange(index, event.target.value)} /></label>
+        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => onPendingChange(handleSwapperCodeChange(index, event.target.value))} /></label>
         {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
-        <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What key weapon swaps happen here, and how does it change the match?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, { ...configuration, description: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
+        <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What key weapon swaps happen here, and how does it change the match?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, (current) => ({ ...current, description: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
       </article>;
     })}</div>
   </section>;
