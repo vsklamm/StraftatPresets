@@ -139,6 +139,6 @@ test("decodeSwapperExport accepts empty or None result remaps representing weapo
   assert.equal(decoded.remapCount, 3);
   assert.deepEqual(decoded.rules[0].remaps[0], { precursor: "Repulsar", result: "None" });
   assert.deepEqual(decoded.rules[0].remaps[1], { precursor: "Proximity Mine", result: "None" });
-  assert.deepEqual(decoded.rules[0].remaps[2], { precursor: "Claymore", result: "AR-15" });
+  assert.deepEqual(decoded.rules[0].remaps[2], { precursor: "Claymore", result: "AR" });
   assert.deepEqual(decoded.invalidWeapons, []);
 });
