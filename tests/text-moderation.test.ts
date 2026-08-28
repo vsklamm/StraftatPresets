@@ -526,47 +526,47 @@ test("runServerModeration with previousContent auto-approves trusted revisions w
   assert.equal(resultForeignProfanity.flags.some((flag) => flag.code === "non_english_profanity_dictionary_match"), true);
 });
 
-test("link detection prohibits direct, obfuscated, and colored text links in all fields", () => {
-  // 1. Direct URLs & Protocols
+test("link detection blocks recognizable links without guessing obfuscated text", () => {
   assert.equal(detectLinks("Check out https://example.com for info").hasLink, true);
   assert.equal(detectLinks("Visit http://straftat.org/maps").hasLink, true);
   assert.equal(detectLinks("Go to www.somewebsite.net").hasLink, true);
   assert.equal(detectLinks("Connect to ws://myserver.io").hasLink, true);
   assert.equal(detectLinks("Check 192.168.1.50:8080").hasLink, true);
-
-  // 2. Platform shortcuts & Social links
   assert.equal(detectLinks("Join discord.gg/straftat").hasLink, true);
   assert.equal(detectLinks("Add me on t.me/mychannel").hasLink, true);
   assert.equal(detectLinks("Watch youtu.be/dQw4w9WgXcQ").hasLink, true);
   assert.equal(detectLinks("Stream on twitch.tv/gamer").hasLink, true);
   assert.equal(detectLinks("Link bit.ly/3xyz").hasLink, true);
-
-  // 3. Obfuscated Dot / Slash Text Hacks
-  assert.equal(detectLinks("somewebsite [dot] com").hasLink, true);
-  assert.equal(detectLinks("somewebsite(dot)com").hasLink, true);
-  assert.equal(detectLinks("somewebsite{dot}com").hasLink, true);
-  assert.equal(detectLinks("somewebsite<dot>com").hasLink, true);
-  assert.equal(detectLinks("somewebsite dot com").hasLink, true);
-  assert.equal(detectLinks("somewebsite[.]com").hasLink, true);
-  assert.equal(detectLinks("somewebsite .com").hasLink, true);
-  assert.equal(detectLinks("somewebsite . com").hasLink, true);
-  assert.equal(detectLinks("somewebsite com / invite").hasLink, true);
-  assert.equal(detectLinks("youtube com").hasLink, true);
-  assert.equal(detectLinks("somewebsite net").hasLink, true);
-  assert.equal(detectLinks("somewebsite ru").hasLink, true);
-  assert.equal(detectLinks("somewebsite io").hasLink, true);
-  assert.equal(detectLinks("discord gg / myinvite").hasLink, true);
-  assert.equal(detectLinks("t me / channel").hasLink, true);
-
-  // 4. Colored / TMPro Text Hacks
+  assert.equal(detectLinks("Visit somewebsite.fun").hasLink, true);
   assert.equal(detectLinks("<#FF0000>https://<#00FF00>example.com").hasLink, true);
   assert.equal(detectLinks("<#FF0000>somewebsite<#00FF00>.com").hasLink, true);
-  assert.equal(detectLinks("<b>somewebsite</b> [dot] <i>com</i>").hasLink, true);
-  assert.equal(detectLinks("<#FFF>somewebsite<#000> .com").hasLink, true);
-  assert.equal(detectLinks("<#FFF>somewebsite<#000> net").hasLink, true);
 
-  // 5. Valid text that must NOT trigger false positives
+  for (const text of [
+    "somewebsite [dot] com",
+    "somewebsite(dot)com",
+    "somewebsite{dot}com",
+    "somewebsite<dot>com",
+    "somewebsite dot com",
+    "somewebsite[.]com",
+    "somewebsite .com",
+    "somewebsite . com",
+    "somewebsite .fun",
+    "somewebsite com / invite",
+    "youtube com",
+    "somewebsite net",
+    "somewebsite ru",
+    "somewebsite io",
+    "discord gg / myinvite",
+    "t me / channel",
+    "<b>somewebsite</b> [dot] <i>com</i>",
+    "<#FFF>somewebsite<#000> .com",
+    "<#FFF>somewebsite<#000> net",
+  ]) {
+    assert.equal(detectLinks(text).hasLink, false, text);
+  }
+
   assert.equal(detectLinks("A tactical arena preset with 10 weapons. Come try it!").hasLink, false);
+  assert.equal(detectLinks("1v1 Playlists I made for fun. Both playlists will use the same swapper.").hasLink, false);
   assert.equal(detectLinks("Also, a flashlight. It kills.").hasLink, false);
   assert.equal(detectLinks("Hide AP mines inside weapon spawn circles. Spread them out").hasLink, false);
   assert.equal(detectLinks("GoM: an explosives-only mode. Weapon chances balance aggressive play with trap-setting. Also, a flashlight. It kills.\n\nTips & tricks\n- Place Claymores low to hide them and make them easier to jump over\n- Crouch/slide under enemy Clays only if the laser is high or angled up\n- Find Clay angles that cover long or unexpected paths\n- Hide AP mines inside weapon spawn circles. Spread them out\n- Throw flashlights onto AP mines to trigger them near enemies").hasLink, false);
@@ -586,7 +586,7 @@ test("client and server moderation reject presets containing links in any field"
 
   const presetWithLinkInDesc: PresetRevisionContent = {
     ...sampleValidPreset,
-    description: "Join our community at <#FF0000>discord<#00FF00> gg / invite for tournaments.",
+    description: "Join our community at <#FF0000>discord<#00FF00>.gg/invite for tournaments.",
   };
   const serverRes = await runServerModeration(presetWithLinkInDesc);
   assert.equal(serverRes.decision, "rejected");
