@@ -10,7 +10,7 @@ export const COMMON_TLDS = [
   "zone", "vip", "fun", "games", "bot", "press", "news",
 ] as const;
 
-// Distinct TLDs that do not clash with natural language words (prepositions/pronouns in French, German, Spanish, English, etc.)
+// Distinct TLDs that do not clash with natural language words (prepositions/pronouns in French, German, Spanish, English, Portuguese, etc.)
 export const DISTINCT_SPACED_TLDS = [
   "org", "net", "xyz", "io", "gg", "ru", "app", "dev", "site",
   "top", "online", "store", "tv", "link", "shop", "tech", "info", "biz",
@@ -19,6 +19,7 @@ export const DISTINCT_SPACED_TLDS = [
 
 const TLD_PATTERN = COMMON_TLDS.join("|");
 const DISTINCT_SPACED_TLD_PATTERN = DISTINCT_SPACED_TLDS.join("|");
+const SPACED_DOT_TLD_PATTERN = ["com", ...DISTINCT_SPACED_TLDS].join("|");
 
 // Regex for direct protocols
 const PROTOCOL_REGEX = /\b(?:https?|ftp|ws|wss|file|git):\/\/[^\s<>'"]+/i;
@@ -45,9 +46,9 @@ const STANDARD_DOMAIN_REGEX = new RegExp(
   "i",
 );
 
-// Obfuscated spaced dot domain + TLD: "somewebsite .com", "somewebsite . com"
+// Obfuscated spaced dot domain + TLD: "somewebsite .com", "somewebsite . com", "somewebsite. com"
 const SPACED_DOT_DOMAIN_REGEX = new RegExp(
-  `\\b([a-z0-9-]{2,})\\s*\\.\\s*(${TLD_PATTERN})\\b`,
+  `\\b([a-z0-9-]{2,})(?:\\s+\\.\\s*|\\.\\s+)(${SPACED_DOT_TLD_PATTERN})\\b`,
   "i",
 );
 
