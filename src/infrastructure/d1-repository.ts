@@ -996,14 +996,18 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         updatedAt: now,
       }),
     ];
-    if (searchProjection.terms.length) statements.push(this.database.insert(presetSearchTerms).values(
-      searchProjection.terms.map((term) => ({
-        presetId: input.presetId,
-        publishedRevisionId: input.revisionId,
-        field: term.field,
-        value: term.value,
-      })),
-    ));
+    const SEARCH_TERMS_CHUNK_SIZE = 20;
+    for (let i = 0; i < searchProjection.terms.length; i += SEARCH_TERMS_CHUNK_SIZE) {
+      const chunk = searchProjection.terms.slice(i, i + SEARCH_TERMS_CHUNK_SIZE);
+      statements.push(this.database.insert(presetSearchTerms).values(
+        chunk.map((term) => ({
+          presetId: input.presetId,
+          publishedRevisionId: input.revisionId,
+          field: term.field,
+          value: term.value,
+        })),
+      ));
+    }
     if (content.tags.length) statements.push(this.database.insert(presetTags).values(
       content.tags.map((tagSlug, position) => ({ presetId: input.presetId, tagSlug, position })),
     ));
@@ -1070,8 +1074,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       }).where(and(eq(presets.id, input.presetId), eq(presets.workingRevisionId, input.revisionId))),
     );
 
+    const BATCH_CHUNK_SIZE = 50;
     try {
-      await this.database.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+      for (let i = 0; i < statements.length; i += BATCH_CHUNK_SIZE) {
+        const chunk = statements.slice(i, i + BATCH_CHUNK_SIZE);
+        await this.database.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+      }
     } catch (error) {
       if (isUniqueConstraintError(error)) return { result: "conflict" };
       throw error;
