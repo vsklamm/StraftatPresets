@@ -5,7 +5,7 @@ import "./globals.css";
 import "./weapon-animations.css";
 
 const geist = Geist({ subsets: ["latin"], display: "swap" });
-const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost" });
+const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost", style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
