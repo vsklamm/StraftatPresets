@@ -308,15 +308,13 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       target: users.id,
       set: { name, lastLoginAt: now, updatedAt: now },
     }).returning({ isActive: users.isActive }).get();
-    await this.database.run(sql`
-      update ${presetSearchDocuments}
-      set ${presetSearchDocuments.author} = ${name}, ${presetSearchDocuments.updatedAt} = ${now}
-      where ${presetSearchDocuments.author} <> ${name}
-        and ${presetSearchDocuments.presetId} in (
-          select ${presets.id} from ${presets}
-          where ${presets.authorId} = ${id} and ${presets.status} = 'published'
-        )
-    `);
+    const publishedPresetIds = this.database.select({ id: presets.id })
+      .from(presets)
+      .where(and(eq(presets.authorId, id), eq(presets.status, "published")));
+    await this.database.update(presetSearchDocuments).set({ author: name, updatedAt: now }).where(and(
+      ne(presetSearchDocuments.author, name),
+      inArray(presetSearchDocuments.presetId, publishedPresetIds),
+    )).run();
     return user;
   }
 

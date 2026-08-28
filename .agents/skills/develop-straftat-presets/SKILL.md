@@ -31,7 +31,10 @@ Design deep modules: a lot of behaviour behind a small interface, placed at a cl
 - Keep credentials, environment files, `.wrangler/`, backups, logs, caches, and user data outside commits and tool output.
 - Preserve local-first draft recovery, serialized remote saves, conflict checks, and timestamps when changing autosave.
 - Preserve submitted and published revisions as immutable snapshots. Edits belong to a working revision.
-- Change D1 through `db/schema.ts`, generate and review the SQL, preserve required custom triggers, and test against a fresh local D1 database. Applied migrations remain immutable.
+- Treat v1.0 and later as live production: account for existing D1 rows, R2 objects, moderation work, stored limits, older clients, cookies, local drafts, and cache keys before changing contracts or state transitions.
+- Change D1 through `db/schema.ts`; create a forward-only migration with `npm run db:schema`, review its SQL, preserve custom triggers, and test both fresh initialization and upgrade behavior. Never rewrite an applied migration.
+- Version or expire browser-persisted data and cached assets deliberately. Preserve recoverable drafts and avoid silently invalidating data accepted by an earlier release.
+- Back up production state before destructive work. Do not tighten limits below valid stored data without an explicit transition plan.
 - Treat `game-data/catalog.json` and `game-data/tags.json` as reviewed input. Runtime code does not scrape the wiki.
 
 ## Keep agent instructions relevant
@@ -45,4 +48,4 @@ When editing `AGENTS.md`, harness files, or skills:
 
 ## Complete the change
 
-Run focused tests during implementation. Before handoff, run `npm run check`. For visual changes, inspect the local page. For persistence changes, run fresh-D1 integration tests. Finish with `git diff --check` and a clean accounting of every working-tree change.
+Use `npm run setup` for fresh local state and `npm run cf:types` after changing Wrangler bindings. Run focused tests during implementation and `npm run check` before handoff. For visual changes, inspect the local page. For persistence changes, test fresh D1 plus the production upgrade path. Finish with `git diff --check` and a clean accounting of every working-tree change.

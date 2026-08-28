@@ -103,7 +103,7 @@ https://your-domain.example/api/auth/callback/discord
 Initialize and validate the fresh remote database before the first deployment:
 
 ```bash
-npm run db:migrate -- --remote
+npx wrangler d1 migrations apply DB --remote
 npm run game:sync -- remote --confirm <supported-release>
 npm run tags:sync -- remote --confirm <tag-count>
 npm run check
@@ -134,5 +134,6 @@ tests/                unit and fresh-D1 integration tests
 
 ## Acknowledgments
 
-- **[STRAFTOOLS](https://straftools.vercel.app/)** by **clodcan** — Inspiration and reference for STRAFTAT preset structure, map playlist encoding, and tool UX.
-- **[StraftatFX](https://matthewknorr.github.io/StraftatFX/)** by **Matthew Knorr** (`matthewknorr`) — Rich text color formatting concepts and text gradient tooling for STRAFTAT.
+- **[STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public)** by **Lemaitre Logiciels**: reference for game logic, interface behavior, and animation details used by this project.
+- **[STRAFTOOLS](https://straftools.vercel.app/)** by **clodcan**: inspiration and reference for STRAFTAT preset structure, map playlist encoding, and tool UX.
+- **[StraftatFX](https://matthewknorr.github.io/StraftatFX/)** by **Matthew Knorr** (`matthewknorr`): rich text color formatting concepts and text gradient tooling for STRAFTAT.

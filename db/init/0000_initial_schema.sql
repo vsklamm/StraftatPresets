@@ -30,16 +30,6 @@ CREATE TABLE `game_weapons` (
 --> statement-breakpoint
 CREATE INDEX `idx_game_weapons_active_name` ON `game_weapons` (`is_active`,`name`);--> statement-breakpoint
 CREATE INDEX `idx_game_weapons_game_id` ON `game_weapons` (`game_id`);--> statement-breakpoint
-CREATE TABLE `map_playlist_maps` (
-	`map_playlist_id` text NOT NULL,
-	`position` integer NOT NULL,
-	`map_name` text NOT NULL,
-	PRIMARY KEY(`map_playlist_id`, `position`),
-	FOREIGN KEY (`map_playlist_id`) REFERENCES `map_playlists`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`map_name`) REFERENCES `game_maps`(`name`) ON UPDATE no action ON DELETE restrict
-);
---> statement-breakpoint
-CREATE INDEX `idx_map_playlist_maps_name` ON `map_playlist_maps` (`map_name`);--> statement-breakpoint
 CREATE TABLE `map_playlists` (
 	`id` text PRIMARY KEY NOT NULL,
 	`preset_version_id` text NOT NULL,
@@ -76,6 +66,7 @@ CREATE TABLE `preset_events` (
 	`network_hash` text,
 	`is_authenticated` integer DEFAULT false NOT NULL,
 	`client_event_id` text,
+	`target_key` text DEFAULT '' NOT NULL,
 	`dedupe_bucket` text NOT NULL,
 	`is_invalidated` integer DEFAULT false NOT NULL,
 	`invalidated_at` integer,
@@ -84,9 +75,8 @@ CREATE TABLE `preset_events` (
 	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_preset_events_dedupe` ON `preset_events` (`preset_id`,`kind`,`actor_hash`,`dedupe_bucket`);--> statement-breakpoint
+CREATE UNIQUE INDEX `uq_preset_events_dedupe` ON `preset_events` (`preset_id`,`kind`,`actor_hash`,`dedupe_bucket`,`target_key`);--> statement-breakpoint
 CREATE UNIQUE INDEX `uq_preset_events_client_event` ON `preset_events` (`preset_id`,`client_event_id`);--> statement-breakpoint
-CREATE INDEX `idx_preset_events_ranking` ON `preset_events` (`preset_id`,`kind`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_preset_events_network` ON `preset_events` (`preset_id`,`kind`,`network_hash`,`created_at`);--> statement-breakpoint
 CREATE TABLE `preset_revisions` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -121,6 +111,31 @@ CREATE UNIQUE INDEX `uq_preset_revisions_number` ON `preset_revisions` (`preset_
 CREATE UNIQUE INDEX `uq_preset_revisions_working` ON `preset_revisions` (`preset_id`) WHERE "preset_revisions"."status" in ('draft', 'pending', 'rejected');--> statement-breakpoint
 CREATE INDEX `idx_preset_revisions_moderation_queue` ON `preset_revisions` (`status`,`submitted_at`);--> statement-breakpoint
 CREATE INDEX `idx_preset_revisions_source` ON `preset_revisions` (`source_revision_id`);--> statement-breakpoint
+CREATE TABLE `preset_search_documents` (
+	`preset_id` text PRIMARY KEY NOT NULL,
+	`published_revision_id` text NOT NULL,
+	`schema_version` integer NOT NULL,
+	`title` text NOT NULL,
+	`author` text NOT NULL,
+	`description` text NOT NULL,
+	`secondary_text` text NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `uq_preset_search_documents_revision` ON `preset_search_documents` (`published_revision_id`);--> statement-breakpoint
+CREATE INDEX `idx_preset_search_documents_schema` ON `preset_search_documents` (`schema_version`);--> statement-breakpoint
+CREATE TABLE `preset_search_terms` (
+	`preset_id` text NOT NULL,
+	`published_revision_id` text NOT NULL,
+	`field` text NOT NULL,
+	`value` text NOT NULL,
+	PRIMARY KEY(`preset_id`, `field`, `value`),
+	FOREIGN KEY (`preset_id`) REFERENCES `preset_search_documents`(`preset_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `idx_preset_search_terms_lookup` ON `preset_search_terms` (`field`,`value`,`preset_id`);--> statement-breakpoint
+CREATE INDEX `idx_preset_search_terms_revision` ON `preset_search_terms` (`published_revision_id`);--> statement-breakpoint
 CREATE TABLE `preset_statistics` (
 	`preset_id` text PRIMARY KEY NOT NULL,
 	`views_total` integer DEFAULT 0 NOT NULL,
@@ -140,7 +155,6 @@ CREATE TABLE `preset_statistics` (
 	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `idx_preset_statistics_ranking` ON `preset_statistics` (`quality_score_milli`,`engagement_score_milli`);--> statement-breakpoint
 CREATE TABLE `preset_tags` (
 	`preset_id` text NOT NULL,
 	`tag_slug` text NOT NULL,
@@ -158,13 +172,10 @@ CREATE TABLE `preset_unique_actors` (
 	`actor_hash` text NOT NULL,
 	`is_authenticated` integer NOT NULL,
 	`first_seen_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`last_seen_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`event_count` integer DEFAULT 1 NOT NULL,
 	PRIMARY KEY(`preset_id`, `kind`, `actor_hash`),
 	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `idx_preset_unique_actors_counts` ON `preset_unique_actors` (`preset_id`,`kind`,`is_authenticated`);--> statement-breakpoint
 CREATE TABLE `preset_versions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`preset_id` text NOT NULL,
@@ -190,6 +201,9 @@ CREATE TABLE `presets` (
 	`published_revision_id` text,
 	`revision_counter` integer DEFAULT 0 NOT NULL,
 	`featured` integer DEFAULT false NOT NULL,
+	`resubmission_blocked_until` integer,
+	`retracted_at` integer,
+	`retracted_reason` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`published_at` integer,
@@ -199,17 +213,6 @@ CREATE TABLE `presets` (
 CREATE UNIQUE INDEX `uq_presets_slug` ON `presets` (`slug`);--> statement-breakpoint
 CREATE INDEX `idx_presets_author_id` ON `presets` (`author_id`);--> statement-breakpoint
 CREATE INDEX `idx_presets_status_published_at` ON `presets` (`status`,`published_at`);--> statement-breakpoint
-CREATE TABLE `randomized_weapons` (
-	`id` text PRIMARY KEY NOT NULL,
-	`weapon_configuration_id` text NOT NULL,
-	`weapon_name` text NOT NULL,
-	`weight` integer NOT NULL,
-	FOREIGN KEY (`weapon_configuration_id`) REFERENCES `weapon_configurations`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`weapon_name`) REFERENCES `game_weapons`(`name`) ON UPDATE no action ON DELETE restrict
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `uq_randomized_weapons_config_name` ON `randomized_weapons` (`weapon_configuration_id`,`weapon_name`);--> statement-breakpoint
-CREATE INDEX `idx_randomized_weapons_config_id` ON `randomized_weapons` (`weapon_configuration_id`);--> statement-breakpoint
 CREATE TABLE `tags` (
 	`slug` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
@@ -226,6 +229,7 @@ CREATE TABLE `users` (
 	`name` text NOT NULL,
 	`role` text DEFAULT 'member' NOT NULL,
 	`is_active` integer DEFAULT true NOT NULL,
+	`suspended_until` integer,
 	`last_login_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
@@ -247,118 +251,6 @@ BEFORE INSERT ON `preset_tags`
 WHEN (SELECT COUNT(*) FROM `preset_tags` WHERE `preset_id` = NEW.`preset_id`) >= 8
 BEGIN
 	SELECT RAISE(ABORT, 'a preset can have at most 8 tags');
-END;
---> statement-breakpoint
-CREATE TRIGGER `randomized_weapons_require_active_weapon_insert`
-BEFORE INSERT ON `randomized_weapons`
-WHEN NOT EXISTS (SELECT 1 FROM `game_weapons` WHERE `name` = NEW.`weapon_name` AND `is_active` = 1)
-BEGIN
-	SELECT RAISE(ABORT, 'weapon is not supported by the current STRAFTAT catalog');
-END;
---> statement-breakpoint
-CREATE TRIGGER `randomized_weapons_require_active_weapon_update`
-BEFORE UPDATE OF `weapon_name` ON `randomized_weapons`
-WHEN NOT EXISTS (SELECT 1 FROM `game_weapons` WHERE `name` = NEW.`weapon_name` AND `is_active` = 1)
-BEGIN
-	SELECT RAISE(ABORT, 'weapon is not supported by the current STRAFTAT catalog');
-END;
---> statement-breakpoint
-CREATE TRIGGER `map_playlist_maps_require_active_map_insert`
-BEFORE INSERT ON `map_playlist_maps`
-WHEN NOT EXISTS (SELECT 1 FROM `game_maps` WHERE `name` = NEW.`map_name` AND `is_active` = 1)
-BEGIN
-	SELECT RAISE(ABORT, 'map is not supported by the current STRAFTAT catalog');
-END;
---> statement-breakpoint
-CREATE TRIGGER `map_playlist_maps_require_active_map_update`
-BEFORE UPDATE OF `map_name` ON `map_playlist_maps`
-WHEN NOT EXISTS (SELECT 1 FROM `game_maps` WHERE `name` = NEW.`map_name` AND `is_active` = 1)
-BEGIN
-	SELECT RAISE(ABORT, 'map is not supported by the current STRAFTAT catalog');
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_tags_touch_ranking_insert`
-AFTER INSERT ON `preset_tags`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = NEW.`preset_id`;
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = NEW.`preset_id`;
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_tags_touch_ranking_update`
-AFTER UPDATE ON `preset_tags`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` IN (OLD.`preset_id`, NEW.`preset_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` IN (OLD.`preset_id`, NEW.`preset_id`);
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_tags_touch_ranking_delete`
-AFTER DELETE ON `preset_tags`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = OLD.`preset_id`;
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = OLD.`preset_id`;
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_versions_touch_ranking_insert`
-AFTER INSERT ON `preset_versions`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = NEW.`preset_id`;
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = NEW.`preset_id`;
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_versions_touch_ranking_update`
-AFTER UPDATE ON `preset_versions`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` IN (OLD.`preset_id`, NEW.`preset_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` IN (OLD.`preset_id`, NEW.`preset_id`);
-END;
---> statement-breakpoint
-CREATE TRIGGER `preset_versions_touch_ranking_delete`
-AFTER DELETE ON `preset_versions`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = OLD.`preset_id`;
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = OLD.`preset_id`;
-END;
---> statement-breakpoint
-CREATE TRIGGER `map_playlists_touch_ranking_insert`
-AFTER INSERT ON `map_playlists`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = NEW.`preset_version_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = NEW.`preset_version_id`);
-END;
---> statement-breakpoint
-CREATE TRIGGER `map_playlists_touch_ranking_update`
-AFTER UPDATE ON `map_playlists`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` IN (SELECT `preset_id` FROM `preset_versions` WHERE `id` IN (OLD.`preset_version_id`, NEW.`preset_version_id`));
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` IN (SELECT `preset_id` FROM `preset_versions` WHERE `id` IN (OLD.`preset_version_id`, NEW.`preset_version_id`));
-END;
---> statement-breakpoint
-CREATE TRIGGER `map_playlists_touch_ranking_delete`
-AFTER DELETE ON `map_playlists`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = OLD.`preset_version_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = OLD.`preset_version_id`);
-END;
---> statement-breakpoint
-CREATE TRIGGER `weapon_configurations_touch_ranking_insert`
-AFTER INSERT ON `weapon_configurations`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = NEW.`preset_version_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = NEW.`preset_version_id`);
-END;
---> statement-breakpoint
-CREATE TRIGGER `weapon_configurations_touch_ranking_update`
-AFTER UPDATE ON `weapon_configurations`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` IN (SELECT `preset_id` FROM `preset_versions` WHERE `id` IN (OLD.`preset_version_id`, NEW.`preset_version_id`));
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` IN (SELECT `preset_id` FROM `preset_versions` WHERE `id` IN (OLD.`preset_version_id`, NEW.`preset_version_id`));
-END;
---> statement-breakpoint
-CREATE TRIGGER `weapon_configurations_touch_ranking_delete`
-AFTER DELETE ON `weapon_configurations`
-BEGIN
-	UPDATE `presets` SET `updated_at` = unixepoch() * 1000 WHERE `id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = OLD.`preset_version_id`);
-	UPDATE `preset_statistics` SET `quality_score_milli` = 0 WHERE `preset_id` = (SELECT `preset_id` FROM `preset_versions` WHERE `id` = OLD.`preset_version_id`);
 END;
 --> statement-breakpoint
 CREATE TRIGGER `preset_revisions_require_valid_transition`
@@ -409,4 +301,34 @@ BEFORE UPDATE OF `status` ON `presets`
 WHEN NEW.`status` = 'published' AND OLD.`status` <> 'published' AND NEW.`published_revision_id` IS NULL
 BEGIN
 	SELECT RAISE(ABORT, 'published preset needs an approved revision');
+END;
+--> statement-breakpoint
+CREATE VIRTUAL TABLE `preset_search_fts` USING fts5(
+	`preset_id` UNINDEXED,
+	`title`,
+	`author`,
+	`description`,
+	`secondary_text`,
+	tokenize = 'unicode61 remove_diacritics 2'
+);
+--> statement-breakpoint
+CREATE TRIGGER `preset_search_documents_fts_insert`
+AFTER INSERT ON `preset_search_documents`
+BEGIN
+	INSERT INTO `preset_search_fts` (`preset_id`, `title`, `author`, `description`, `secondary_text`)
+	VALUES (NEW.`preset_id`, NEW.`title`, NEW.`author`, NEW.`description`, NEW.`secondary_text`);
+END;
+--> statement-breakpoint
+CREATE TRIGGER `preset_search_documents_fts_update`
+AFTER UPDATE OF `title`, `author`, `description`, `secondary_text` ON `preset_search_documents`
+BEGIN
+	DELETE FROM `preset_search_fts` WHERE `preset_id` = OLD.`preset_id`;
+	INSERT INTO `preset_search_fts` (`preset_id`, `title`, `author`, `description`, `secondary_text`)
+	VALUES (NEW.`preset_id`, NEW.`title`, NEW.`author`, NEW.`description`, NEW.`secondary_text`);
+END;
+--> statement-breakpoint
+CREATE TRIGGER `preset_search_documents_fts_delete`
+AFTER DELETE ON `preset_search_documents`
+BEGIN
+	DELETE FROM `preset_search_fts` WHERE `preset_id` = OLD.`preset_id`;
 END;

@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1787278012651,
+      "when": 1787900305627,
       "tag": "0000_initial_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1787361067947,
-      "tag": "0001_item_copy_targets",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1787364940412,
-      "tag": "0002_reduce_d1_writes",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1787365144394,
-      "tag": "0003_simplify_unique_actors",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1787712132020,
-      "tag": "0004_retraction_and_catalog_metadata",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1787861776627,
-      "tag": "0005_published_preset_search",
       "breakpoints": true
     }
   ]

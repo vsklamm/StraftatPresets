@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7c2b32b2-9b4b-4c29-94d5-b9046bafd866",
+  "id": "d568d906-3a50-4987-b1d4-c8b47b664a4a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "game_maps": {
@@ -20,6 +20,21 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "family": {
+          "name": "family",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_dlc": {
+          "name": "is_dlc",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "is_active": {
           "name": "is_active",
@@ -44,6 +59,13 @@
           "columns": [
             "is_active",
             "name"
+          ],
+          "isUnique": false
+        },
+        "idx_game_maps_family": {
+          "name": "idx_game_maps_family",
+          "columns": [
+            "family"
           ],
           "isUnique": false
         }
@@ -133,6 +155,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "image_path": {
           "name": "image_path",
           "type": "text",
@@ -165,84 +194,17 @@
             "name"
           ],
           "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "map_playlist_maps": {
-      "name": "map_playlist_maps",
-      "columns": {
-        "map_playlist_id": {
-          "name": "map_playlist_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "map_name": {
-          "name": "map_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "idx_map_playlist_maps_name": {
-          "name": "idx_map_playlist_maps_name",
+        "idx_game_weapons_game_id": {
+          "name": "idx_game_weapons_game_id",
           "columns": [
-            "map_name"
+            "game_id"
           ],
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "map_playlist_maps_map_playlist_id_map_playlists_id_fk": {
-          "name": "map_playlist_maps_map_playlist_id_map_playlists_id_fk",
-          "tableFrom": "map_playlist_maps",
-          "tableTo": "map_playlists",
-          "columnsFrom": [
-            "map_playlist_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "map_playlist_maps_map_name_game_maps_name_fk": {
-          "name": "map_playlist_maps_map_name_game_maps_name_fk",
-          "tableFrom": "map_playlist_maps",
-          "tableTo": "game_maps",
-          "columnsFrom": [
-            "map_name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "map_playlist_maps_map_playlist_id_position_pk": {
-          "columns": [
-            "map_playlist_id",
-            "position"
-          ],
-          "name": "map_playlist_maps_map_playlist_id_position_pk"
-        }
-      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -502,6 +464,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "target_key": {
+          "name": "target_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "dedupe_bucket": {
           "name": "dedupe_bucket",
           "type": "text",
@@ -547,7 +517,8 @@
             "preset_id",
             "kind",
             "actor_hash",
-            "dedupe_bucket"
+            "dedupe_bucket",
+            "target_key"
           ],
           "isUnique": true
         },
@@ -558,15 +529,6 @@
             "client_event_id"
           ],
           "isUnique": true
-        },
-        "idx_preset_events_ranking": {
-          "name": "idx_preset_events_ranking",
-          "columns": [
-            "preset_id",
-            "kind",
-            "created_at"
-          ],
-          "isUnique": false
         },
         "idx_preset_events_network": {
           "name": "idx_preset_events_network",
@@ -832,6 +794,180 @@
         }
       }
     },
+    "preset_search_documents": {
+      "name": "preset_search_documents",
+      "columns": {
+        "preset_id": {
+          "name": "preset_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "published_revision_id": {
+          "name": "published_revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "author": {
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "secondary_text": {
+          "name": "secondary_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "uq_preset_search_documents_revision": {
+          "name": "uq_preset_search_documents_revision",
+          "columns": [
+            "published_revision_id"
+          ],
+          "isUnique": true
+        },
+        "idx_preset_search_documents_schema": {
+          "name": "idx_preset_search_documents_schema",
+          "columns": [
+            "schema_version"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "preset_search_documents_preset_id_presets_id_fk": {
+          "name": "preset_search_documents_preset_id_presets_id_fk",
+          "tableFrom": "preset_search_documents",
+          "tableTo": "presets",
+          "columnsFrom": [
+            "preset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "preset_search_terms": {
+      "name": "preset_search_terms",
+      "columns": {
+        "preset_id": {
+          "name": "preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "published_revision_id": {
+          "name": "published_revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field": {
+          "name": "field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_preset_search_terms_lookup": {
+          "name": "idx_preset_search_terms_lookup",
+          "columns": [
+            "field",
+            "value",
+            "preset_id"
+          ],
+          "isUnique": false
+        },
+        "idx_preset_search_terms_revision": {
+          "name": "idx_preset_search_terms_revision",
+          "columns": [
+            "published_revision_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "preset_search_terms_preset_id_preset_search_documents_preset_id_fk": {
+          "name": "preset_search_terms_preset_id_preset_search_documents_preset_id_fk",
+          "tableFrom": "preset_search_terms",
+          "tableTo": "preset_search_documents",
+          "columnsFrom": [
+            "preset_id"
+          ],
+          "columnsTo": [
+            "preset_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "preset_search_terms_preset_id_field_value_pk": {
+          "columns": [
+            "preset_id",
+            "field",
+            "value"
+          ],
+          "name": "preset_search_terms_preset_id_field_value_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "preset_statistics": {
       "name": "preset_statistics",
       "columns": {
@@ -954,16 +1090,7 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {
-        "idx_preset_statistics_ranking": {
-          "name": "idx_preset_statistics_ranking",
-          "columns": [
-            "quality_score_milli",
-            "engagement_score_milli"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "preset_statistics_preset_id_presets_id_fk": {
           "name": "preset_statistics_preset_id_presets_id_fk",
@@ -1103,35 +1230,9 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch() * 1000)"
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch() * 1000)"
-        },
-        "event_count": {
-          "name": "event_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
         }
       },
-      "indexes": {
-        "idx_preset_unique_actors_counts": {
-          "name": "idx_preset_unique_actors_counts",
-          "columns": [
-            "preset_id",
-            "kind",
-            "is_authenticated"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "preset_unique_actors_preset_id_presets_id_fk": {
           "name": "preset_unique_actors_preset_id_presets_id_fk",
@@ -1335,6 +1436,27 @@
           "autoincrement": false,
           "default": false
         },
+        "resubmission_blocked_until": {
+          "name": "resubmission_blocked_until",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "retracted_at": {
+          "name": "retracted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "retracted_reason": {
+          "name": "retracted_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1395,87 +1517,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "randomized_weapons": {
-      "name": "randomized_weapons",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "weapon_configuration_id": {
-          "name": "weapon_configuration_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "weapon_name": {
-          "name": "weapon_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "weight": {
-          "name": "weight",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "uq_randomized_weapons_config_name": {
-          "name": "uq_randomized_weapons_config_name",
-          "columns": [
-            "weapon_configuration_id",
-            "weapon_name"
-          ],
-          "isUnique": true
-        },
-        "idx_randomized_weapons_config_id": {
-          "name": "idx_randomized_weapons_config_id",
-          "columns": [
-            "weapon_configuration_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "randomized_weapons_weapon_configuration_id_weapon_configurations_id_fk": {
-          "name": "randomized_weapons_weapon_configuration_id_weapon_configurations_id_fk",
-          "tableFrom": "randomized_weapons",
-          "tableTo": "weapon_configurations",
-          "columnsFrom": [
-            "weapon_configuration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "randomized_weapons_weapon_name_game_weapons_name_fk": {
-          "name": "randomized_weapons_weapon_name_game_weapons_name_fk",
-          "tableFrom": "randomized_weapons",
-          "tableTo": "game_weapons",
-          "columnsFrom": [
-            "weapon_name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
-          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
@@ -1588,6 +1629,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
+        },
+        "suspended_until": {
+          "name": "suspended_until",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "last_login_at": {
           "name": "last_login_at",
