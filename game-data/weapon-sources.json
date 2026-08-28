@@ -1,13 +1,13 @@
 [
   {
-    "name": "AAA-12",
+    "name": "AAA12",
     "sourcePage": "https://straftat.wiki/wiki/AAA-12",
     "sourceFile": "File:AAA12.png",
     "originalUrl": "https://straftat.wiki/images/0/05/AAA12.png",
     "originalSha1": "e113e030c95369727f6689fa6d82d0547fa87c1d",
     "width": 615,
     "height": 645,
-    "output": "/weapons/aaa-12.webp",
+    "output": "/weapons/aaa12.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",
@@ -352,14 +352,14 @@
     }
   },
   {
-    "name": "Flashlight",
+    "name": "Flash Light",
     "sourcePage": "https://straftat.wiki/wiki/Flashlight",
     "sourceFile": "File:Flashlight.png",
     "originalUrl": "https://straftat.wiki/images/4/4d/Flashlight.png",
     "originalSha1": "f1e0c6692fca98e5d7995c2fee282261529ad4f2",
     "width": 615,
     "height": 645,
-    "output": "/weapons/flashlight.webp",
+    "output": "/weapons/flash-light.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",
@@ -448,14 +448,14 @@
     }
   },
   {
-    "name": "GodSword",
+    "name": "God Sword",
     "sourcePage": "https://straftat.wiki/wiki/GodSword",
     "sourceFile": "File:df_GodSword.png",
     "originalUrl": "https://straftat.wiki/images/f/f2/Df_GodSword.png",
     "originalSha1": "13b3b3d3d92cc21af7bb88629b514a0a137ed028",
     "width": 848,
     "height": 848,
-    "output": "/weapons/godsword.webp",
+    "output": "/weapons/god-sword.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",
@@ -480,14 +480,14 @@
     }
   },
   {
-    "name": "Hand Canon",
+    "name": "Hand Cannon",
     "sourcePage": "https://straftat.wiki/wiki/Hand_Canon",
     "sourceFile": "File:HandCannon.png",
     "originalUrl": "https://straftat.wiki/images/4/47/HandCannon.png",
     "originalSha1": "0a9acf50c399e0aed557d0f03f70b879af86d357",
     "width": 615,
     "height": 645,
-    "output": "/weapons/hand-canon.webp",
+    "output": "/weapons/hand-cannon.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",
@@ -528,7 +528,7 @@
     }
   },
   {
-    "name": "Hill H15",
+    "name": "Hill_H15",
     "sourcePage": "https://straftat.wiki/wiki/Hill_H15",
     "sourceFile": "File:hill h15.png",
     "originalUrl": "https://straftat.wiki/images/c/c8/Hill_h15.png",
@@ -544,7 +544,7 @@
     }
   },
   {
-    "name": "HK Caws",
+    "name": "HK_Caws",
     "sourcePage": "https://straftat.wiki/wiki/HK_Caws",
     "sourceFile": "File:HK CAWS.png",
     "originalUrl": "https://straftat.wiki/images/2/2e/HK_CAWS.png",
@@ -560,7 +560,7 @@
     }
   },
   {
-    "name": "HK G11",
+    "name": "HK_G11",
     "sourcePage": "https://straftat.wiki/wiki/HK_G11",
     "sourceFile": "File:hk g11.png",
     "originalUrl": "https://straftat.wiki/images/7/7b/Hk_g11.png",
@@ -592,14 +592,14 @@
     }
   },
   {
-    "name": "Javal Mahmaerd",
+    "name": "Jahval Mahmaerd",
     "sourcePage": "https://straftat.wiki/wiki/Javal_Mahmaerd",
     "sourceFile": "File:Javal Mahmaerd.png",
     "originalUrl": "https://straftat.wiki/images/d/db/Javal_Mahmaerd.png",
     "originalSha1": "29af7cca4f8f1a7929e56489bcc7d53a7785fb31",
     "width": 615,
     "height": 645,
-    "output": "/weapons/javal-mahmaerd.webp",
+    "output": "/weapons/jahval-mahmaerd.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",
@@ -672,7 +672,7 @@
     }
   },
   {
-    "name": "MAC10",
+    "name": "Mac10",
     "sourcePage": "https://straftat.wiki/wiki/MAC10",
     "sourceFile": "File:mac10.png",
     "originalUrl": "https://straftat.wiki/images/c/ce/Mac10.png",
@@ -1056,14 +1056,14 @@
     }
   },
   {
-    "name": "The Katana",
+    "name": "Katana",
     "sourcePage": "https://straftat.wiki/wiki/The_Katana",
     "sourceFile": "File:the katana.png",
     "originalUrl": "https://straftat.wiki/images/d/d0/The_katana.png",
     "originalSha1": "89c01bec028813f9deb56a7dfda641f1afd8a03d",
     "width": 703,
     "height": 667,
-    "output": "/weapons/the-katana.webp",
+    "output": "/weapons/katana.webp",
     "backgroundRemoval": {
       "method": "border-connected-flat-v1",
       "keyColor": "#313131",

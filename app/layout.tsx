@@ -9,10 +9,7 @@ const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost"
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
-  title: {
-    default: "StraftatPresets — STRAFTAT Weapon Randomizer, Map Playlists & Swapper Presets",
-    template: "%s | StraftatPresets",
-  },
+  title: "StraftatPresets",
   description: "Browse, create, and share custom weapon randomizers, 369-map playlists, and swapper settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
   applicationName: "StraftatPresets",
   keywords: [

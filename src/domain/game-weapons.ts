@@ -1,4 +1,5 @@
 import rawWeapons from "@/game-data/weapons.json";
+import rawMaps from "@/game-data/maps.json";
 
 export type CatalogWeapon = {
   name: string;
@@ -9,7 +10,7 @@ export type CatalogWeapon = {
 export const catalogWeapons: readonly CatalogWeapon[] = rawWeapons.weapons;
 export const supportedGameRelease = rawWeapons.supportedRelease;
 export const supportedWeaponCount = rawWeapons.weapons.length;
-export const supportedMapCount = 369;
+export const supportedMapCount = rawMaps.length;
 
 export function weaponAssetUrl(path: string) {
   const separator = path.includes("?") ? "&" : "?";
