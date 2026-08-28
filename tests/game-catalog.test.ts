@@ -100,6 +100,11 @@ test("weapon input resolves canonical spelling case-insensitively", () => {
   assert.equal(resolveWeaponName("Barrel"), null);
 });
 
+test("Corridor_07_alt keeps its exact game-serialized casing", () => {
+  assert.equal(isSupportedMap("Corridor_07_alt"), true);
+  assert.equal(isSupportedMap("Corridor_07_Alt"), false);
+});
+
 test("shared preset validation canonicalizes weapons and rejects unknown game data", () => {
   assert.deepEqual(validatePresetGameData({ mapNames: ["Arena_00"], randomizedWeapons: [{ name: "ak", weight: 10 }] }), {
     valid: true,

@@ -24,7 +24,7 @@
 		{
 			"binding": "DB",
 			"database_name": "straftat-presets",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "9937d5ab-d95c-4023-8937-a4fbfea9fdf3",
 			"migrations_dir": "db/init"
 		}
 	],

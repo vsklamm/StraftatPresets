@@ -14,6 +14,11 @@ test("map playlist exports decode from plain and gzipped base64", async () => {
   assert.deepEqual(await decodeMapPlaylistExport(encodeJson(value, true)), { name: value.name, mapNames: value.maps });
 });
 
+test("map playlist exports accept the game-serialized Corridor_07_alt ID", async () => {
+  const value = { name: "GoM: Tier 1&2", maps: ["Corridor_07_alt"], type: "playlist" };
+  assert.deepEqual(await decodeMapPlaylistExport(encodeJson(value, true)), { name: value.name, mapNames: value.maps });
+});
+
 test("map playlist exports reject malformed and empty data", async () => {
   await assert.rejects(decodeMapPlaylistExport("not base64"), /Invalid map playlist export/);
   await assert.rejects(decodeMapPlaylistExport(encodeJson({ name: "Empty", maps: [] })), /missing its name or maps/);
