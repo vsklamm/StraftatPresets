@@ -307,7 +307,7 @@ button { color: inherit; }
   position: fixed;
   top: 69px;
   right: 36px;
-  z-index: 24;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -326,6 +326,11 @@ button { color: inherit; }
   font-size: 15px;
   font-weight: 450;
   line-height: 1.55;
+  animation: toast-slide-in 0.2s ease-out;
+}
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .action-toast .toast-barrel-icon { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
 .action-toast > div { flex: 1; min-width: 0; }
@@ -1379,7 +1384,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 /* Responsive Media Queries */
 @media (max-width: 1100px) {
   .dialog-stage.has-submission-issues { width: min(920px, 96vw); }
-  .submission-issue-rail { position: absolute; right: 10px; bottom: 10px; z-index: 12; width: 270px; max-height: 52%; margin: 0; }
+  .submission-issue-rail { position: absolute; right: 10px; bottom: 10px; z-index: 40; width: 270px; max-height: 52%; margin: 0; }
   .submission-issue-rail ul { max-height: 44vh; }
 }
 
@@ -1427,7 +1432,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .weapon-list th:first-child { width: 130px; }
   .weapon-list th:nth-child(2) { width: 64px; }
   .weapon-list th:nth-child(3) { width: auto; }
-  .submission-issue-rail { right: 8px; bottom: 8px; width: min(260px, calc(100% - 16px)); max-height: 42%; }
+  .submission-issue-rail { position: absolute; right: 8px; bottom: 8px; z-index: 40; width: min(260px, calc(100% - 16px)); max-height: 42%; }
   .submission-issue-rail ul { max-height: 38vh; }
   .action-toast { right: 14px; left: 14px; max-width: none; }
   .randomized-weapons-actions { width: 100%; }

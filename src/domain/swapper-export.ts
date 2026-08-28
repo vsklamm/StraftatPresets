@@ -19,7 +19,7 @@ import {
 
 const weaponRemapSchema = z.object({
   Precursor: z.string().trim().min(1),
-  Result: z.string().trim().min(1),
+  Result: z.string().trim().default(""),
 });
 
 const mapRuleSchema = z.object({
@@ -76,14 +76,17 @@ export async function decodeSwapperExport(encodedValue: string): Promise<Decoded
 
     const remaps: SwapperRemap[] = [];
     for (const remap of mapRule.WeaponRemaps) {
-      const precursorDisplay = getWeaponDisplayName(remap.Precursor) ?? remap.Precursor;
-      const resultDisplay = getWeaponDisplayName(remap.Result) ?? remap.Result;
+      const rawPrecursor = remap.Precursor.trim();
+      const rawResult = remap.Result.trim();
+      const precursorDisplay = getWeaponDisplayName(rawPrecursor) ?? rawPrecursor;
+      const isResultEmpty = !rawResult || rawResult.toLowerCase() === "none";
+      const resultDisplay = isResultEmpty ? "None" : (getWeaponDisplayName(rawResult) ?? rawResult);
 
-      if (!resolveWeaponName(remap.Precursor) && !resolveWeaponName(precursorDisplay)) {
-        invalidWeaponsSet.add(remap.Precursor);
+      if (!resolveWeaponName(rawPrecursor) && !resolveWeaponName(precursorDisplay)) {
+        invalidWeaponsSet.add(rawPrecursor);
       }
-      if (!resolveWeaponName(remap.Result) && !resolveWeaponName(resultDisplay)) {
-        invalidWeaponsSet.add(remap.Result);
+      if (!isResultEmpty && !resolveWeaponName(rawResult) && !resolveWeaponName(resultDisplay)) {
+        invalidWeaponsSet.add(rawResult);
       }
 
       remaps.push({ precursor: precursorDisplay, result: resultDisplay });
@@ -159,7 +162,8 @@ export function buildSwapperPresetJson(name: string, rules: SwapperInputRule[]) 
     // Filter out no-op swaps where precursor equals result
     const validSwaps = rule.swaps.filter((s) => {
       const p = resolveWeaponName(s.precursor) ?? s.precursor;
-      const r = resolveWeaponName(s.result) ?? s.result;
+      const isResultEmpty = !s.result || s.result.trim() === "" || s.result.toLowerCase() === "none";
+      const r = isResultEmpty ? "None" : (resolveWeaponName(s.result) ?? s.result);
       return p.toLowerCase() !== r.toLowerCase();
     });
 
@@ -168,7 +172,8 @@ export function buildSwapperPresetJson(name: string, rules: SwapperInputRule[]) 
     const existingSwaps = mapRuleMap.get(rawMapString) ?? [];
     for (const swap of validSwaps) {
       const precursorGameId = getWeaponGameId(swap.precursor) ?? swap.precursor;
-      const resultGameId = getWeaponGameId(swap.result) ?? swap.result;
+      const isResultEmpty = !swap.result || swap.result.trim() === "" || swap.result.toLowerCase() === "none";
+      const resultGameId = isResultEmpty ? "" : (getWeaponGameId(swap.result) ?? swap.result);
 
       // Avoid duplicate remaps for the same precursor on the same map
       const existingIdx = existingSwaps.findIndex((s) => s.Precursor.toLowerCase() === precursorGameId.toLowerCase());

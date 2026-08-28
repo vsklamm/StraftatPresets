@@ -113,3 +113,32 @@ test("decodeSwapperExport supports wildcard map patterns and flags unknown maps/
   assert.deepEqual(decoded.invalidMaps, ["NonExistentMap_999"]);
   assert.deepEqual(decoded.invalidWeapons, ["FakeGun123"]);
 });
+
+test("decodeSwapperExport accepts empty or None result remaps representing weapon removal", async () => {
+  const payload = {
+    type: "swap",
+    Preset: {
+      Name: "Spawn Removal Preset",
+      Maps: [
+        {
+          MapString: "Arena_Shadow_05_Alt",
+          WeaponRemaps: [
+            { Precursor: "Repulsar", Result: "" },
+            { Precursor: "ProximityMine", Result: "None" },
+            { Precursor: "Claymore", Result: "AR15" },
+          ],
+        },
+      ],
+    },
+  };
+
+  const encoded = await encodeCompressedJson(payload);
+  const decoded = await decodeSwapperExport(encoded);
+
+  assert.equal(decoded.name, "Spawn Removal Preset");
+  assert.equal(decoded.remapCount, 3);
+  assert.deepEqual(decoded.rules[0].remaps[0], { precursor: "Repulsar", result: "None" });
+  assert.deepEqual(decoded.rules[0].remaps[1], { precursor: "Proximity Mine", result: "None" });
+  assert.deepEqual(decoded.rules[0].remaps[2], { precursor: "Claymore", result: "AR-15" });
+  assert.deepEqual(decoded.invalidWeapons, []);
+});

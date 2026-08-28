@@ -279,6 +279,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!actionError) return;
+    const timer = window.setTimeout(() => setActionError(""), 7000);
+    return () => window.clearTimeout(timer);
+  }, [actionError]);
+
+  useEffect(() => {
     draftContentRef.current = draftContent;
   }, [draftContent]);
 
@@ -1196,7 +1202,6 @@ export default function Home() {
             </div>
             <button className="submit-preset" type="button" disabled={authStatus === "loading" || isCreating} onClick={submitPreset}>{isCreating ? "Opening draft…" : "＋ Submit preset"}</button>
           </div>
-          {actionError ? <div className="action-toast" role="status"><Image src="/barrel.png" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
 
           {visiblePresets.length ? <div className="preset-grid">{(() => {
             type GridItem = { type: "single"; preset: typeof visiblePresets[0]; index: number } | { type: "group"; presets: [typeof visiblePresets[0], typeof visiblePresets[0]]; indices: [number, number] };
@@ -1412,6 +1417,7 @@ export default function Home() {
         window.sessionStorage.setItem("justLoggedIn", "true");
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
       }} /> : null}
+      {actionError ? <div className="action-toast" role="status"><Image src="/barrel.png" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
     </main>
   );
 }
