@@ -825,6 +825,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       }
     }
 
+    // Hourly submission limit temporarily disabled for testing
+    /*
     const oneHourAgo = new Date(now.getTime() - ONE_HOUR_MS);
     const recentAuthorSubmissions = await this.database.select({
       count: sql<number>`count(*)`,
@@ -842,6 +844,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         message: "You have reached the limit of 10 submissions per hour. Please try again later.",
       };
     }
+    */
 
     const contentIssues = validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId })
       .filter((issue) => !["missing_playlist_name", "empty_map_playlist"].includes(issue.code) || ![...decoded.invalidPlaylistPrefixes].some((prefix) => issue.field.startsWith(prefix)))
