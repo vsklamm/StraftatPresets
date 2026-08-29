@@ -35,12 +35,43 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+body { position: relative; isolation: isolate; }
+body::before, body::after {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  content: "";
+  pointer-events: none;
+}
+body::before {
+  background-image: url("/architecture-relief.webp");
+  opacity: .053;
+  filter: saturate(.35) contrast(1.02) sepia(.1);
+  mix-blend-mode: screen;
+}
+body::after {
+  background-image: url("/architecture-relief-edges.webp");
+  opacity: .105;
+  filter: saturate(.4) contrast(1.28) sepia(.14);
+  mix-blend-mode: screen;
+}
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 button { color: inherit; }
 
-.app-shell { min-height: 100vh; }
+.app-shell { position: relative; z-index: 1; min-height: 100vh; }
+
+@media (max-aspect-ratio: 16 / 10) {
+  body::before, body::after { background-position: 53% 50%; }
+}
+
+@media (max-aspect-ratio: 3 / 4) {
+  body::before, body::after { background-position: 56% 50%; }
+}
 
 /* Topbar */
 .topbar {
