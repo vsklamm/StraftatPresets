@@ -1,3 +1,5 @@
+import type { UserProfile } from "@/src/domain/user-profile";
+
 export type ActiveTag = {
   slug: string;
   label: string;
@@ -17,7 +19,9 @@ export type ModerationRecord = {
 };
 
 export interface UserRepository {
-  upsertDiscordUser(id: string, name: string): Promise<{ isActive: boolean }>;
+  upsertDiscordUser(id: string, name: string): Promise<{ isActive: boolean; profile: UserProfile }>;
+  getUserProfile(id: string): Promise<UserProfile | undefined>;
+  updateUserDisplayName(id: string, displayName: string | null): Promise<UserProfile | undefined>;
   getUserRole(id: string): Promise<UserRole | undefined>;
 }
 

@@ -67,6 +67,7 @@ import {
   type PresetEngagementSignals,
 } from "@/src/domain/preset-ranking";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
+import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { MAX_PRESETS_PER_AUTHOR, PresetLimitReachedError } from "@/src/domain/preset-policy";
 import {
   thumbnailKeysToDeleteAfterDraftSave,
@@ -84,6 +85,7 @@ import {
 } from "@/src/domain/preset-workflow";
 
 const dashboardRevision = alias(presetRevisions, "dashboard_revision");
+const effectiveUserName = sql<string>`coalesce(${users.displayName}, ${users.name})`;
 
 async function decodeRevisionContentData(content: PresetRevisionContent) {
   const issues: PresetIssue[] = [];
@@ -186,7 +188,7 @@ const dashboardColumns = {
   id: presets.id,
   slug: presets.slug,
   authorId: presets.authorId,
-  authorName: users.name,
+  authorName: effectiveUserName,
   workingRevisionId: presets.workingRevisionId,
   publishedRevisionId: presets.publishedRevisionId,
   revisionId: dashboardRevision.id,
@@ -307,15 +309,79 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const user = await this.database.insert(users).values({ id, name, lastLoginAt: now, createdAt: now, updatedAt: now }).onConflictDoUpdate({
       target: users.id,
       set: { name, lastLoginAt: now, updatedAt: now },
-    }).returning({ isActive: users.isActive }).get();
+    }).returning({
+      isActive: users.isActive,
+      providerName: users.name,
+      customDisplayName: users.displayName,
+      displayNameConfiguredAt: users.displayNameConfiguredAt,
+    }).get();
+    if (!user) throw new Error("Signed-in user could not be read back.");
+    const profile = {
+      displayName: user.customDisplayName ?? user.providerName ?? name,
+      hasCustomDisplayName: user.customDisplayName !== null && user.customDisplayName !== undefined,
+      hasConfiguredDisplayName: user.displayNameConfiguredAt !== null && user.displayNameConfiguredAt !== undefined,
+    };
     const publishedPresetIds = this.database.select({ id: presets.id })
       .from(presets)
       .where(and(eq(presets.authorId, id), eq(presets.status, "published")));
-    await this.database.update(presetSearchDocuments).set({ author: name, updatedAt: now }).where(and(
-      ne(presetSearchDocuments.author, name),
+    const searchableDisplayName = stripColorAndFormattingTags(profile.displayName);
+    await this.database.update(presetSearchDocuments).set({ author: searchableDisplayName, updatedAt: now }).where(and(
+      ne(presetSearchDocuments.author, searchableDisplayName),
       inArray(presetSearchDocuments.presetId, publishedPresetIds),
     )).run();
-    return user;
+    return { isActive: user.isActive, profile };
+  }
+
+  async getUserProfile(id: string) {
+    const user = await this.database.select({
+      providerName: users.name,
+      customDisplayName: users.displayName,
+      displayNameConfiguredAt: users.displayNameConfiguredAt,
+    })
+      .from(users)
+      .where(and(eq(users.id, id), eq(users.isActive, true)))
+      .get();
+    if (!user) return undefined;
+    return {
+      displayName: user.customDisplayName ?? user.providerName,
+      hasCustomDisplayName: user.customDisplayName !== null,
+      hasConfiguredDisplayName: user.displayNameConfiguredAt !== null,
+    };
+  }
+
+  async updateUserDisplayName(id: string, displayName: string | null) {
+    const now = new Date();
+    const existingUser = await this.database.select({ providerName: users.name })
+      .from(users)
+      .where(and(eq(users.id, id), eq(users.isActive, true)))
+      .get();
+    if (!existingUser) return undefined;
+    const effectiveDisplayName = displayName ?? existingUser.providerName;
+    const searchableDisplayName = stripColorAndFormattingTags(effectiveDisplayName);
+    const publishedPresetIds = this.database.select({ id: presets.id })
+      .from(presets)
+      .where(and(eq(presets.authorId, id), eq(presets.status, "published")));
+    const [updatedUsers] = await this.database.batch([
+      this.database.update(users).set({ displayName, displayNameConfiguredAt: now, updatedAt: now })
+        .where(and(eq(users.id, id), eq(users.isActive, true)))
+        .returning({
+          providerName: users.name,
+          customDisplayName: users.displayName,
+          displayNameConfiguredAt: users.displayNameConfiguredAt,
+        }),
+      this.database.update(presetSearchDocuments).set({ author: searchableDisplayName, updatedAt: now }).where(and(
+        ne(presetSearchDocuments.author, searchableDisplayName),
+        inArray(presetSearchDocuments.presetId, publishedPresetIds),
+      )),
+    ]);
+    const user = updatedUsers[0];
+    if (!user) return undefined;
+    const profile = {
+      displayName: user.customDisplayName ?? user.providerName,
+      hasCustomDisplayName: user.customDisplayName !== null,
+      hasConfiguredDisplayName: user.displayNameConfiguredAt !== null,
+    };
+    return profile;
   }
 
   async getUserRole(id: string): Promise<UserRole | undefined> {
@@ -748,7 +814,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const now = input.now ?? new Date();
     const revision = await this.database.select({
       authorId: presets.authorId,
-      authorName: users.name,
+      authorName: effectiveUserName,
       userSuspendedUntil: users.suspendedUntil,
       resubmissionBlockedUntil: presets.resubmissionBlockedUntil,
       workingRevisionId: presets.workingRevisionId,
@@ -936,7 +1002,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const now = input.now ?? new Date();
     const revision = await this.database.select({
       authorId: presets.authorId,
-      authorName: users.name,
+      authorName: effectiveUserName,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
       publishedAt: presets.publishedAt,
@@ -1122,7 +1188,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       status: presets.status,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
-      authorName: users.name,
+      authorName: effectiveUserName,
     }).from(presets)
       .innerJoin(users, eq(users.id, presets.authorId))
       .where(or(eq(presets.id, cleanId), eq(presets.slug, cleanId)))

@@ -6,6 +6,8 @@ const now = sql`(unixepoch() * 1000)`;
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  displayName: text("display_name"),
+  displayNameConfiguredAt: integer("display_name_configured_at", { mode: "timestamp_ms" }),
   role: text("role", { enum: ["member", "moderator", "admin"] }).notNull().default("member"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   suspendedUntil: integer("suspended_until", { mode: "timestamp_ms" }),

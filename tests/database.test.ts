@@ -41,6 +41,8 @@ test("the initializer creates the application tables in D1", () => {
     assert.equal(userColumns.results.some((column) => column.name === "is_active"), true);
     assert.equal(userColumns.results.some((column) => column.name === "last_login_at"), true);
     assert.equal(userColumns.results.some((column) => column.name === "role"), true);
+    assert.equal(userColumns.results.some((column) => column.name === "display_name"), true);
+    assert.equal(userColumns.results.some((column) => column.name === "display_name_configured_at"), true);
     const revisionColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_revisions)");
     for (const column of ["telegram_chat_id", "telegram_message_id", "telegram_message_kind", "telegram_message_html", "telegram_decision", "telegram_resolved_at"]) {
       assert.equal(revisionColumns.results.some((entry) => entry.name === column), true);
@@ -54,6 +56,13 @@ test("the initializer creates the application tables in D1", () => {
     const statisticsColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_statistics)");
     assert.equal(statisticsColumns.results.some((column) => column.name === "likes_count"), false);
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('user-1', 'Tester'); INSERT INTO presets (id, slug, author_id, title) VALUES ('preset-1', 'preset-1', 'user-1', 'Preset')"]);
+    assert.deepEqual(queryD1<{ visible_name: string }>(stateDirectory, "SELECT coalesce(display_name, name) AS visible_name FROM users WHERE id = 'user-1'").results, [{ visible_name: "Tester" }]);
+    runD1(stateDirectory, ["execute", "DB", "--command", "UPDATE users SET display_name = 'GoM Host' WHERE id = 'user-1'"]);
+    assert.deepEqual(queryD1<{ visible_name: string }>(stateDirectory, "SELECT coalesce(display_name, name) AS visible_name FROM users WHERE id = 'user-1'").results, [{ visible_name: "GoM Host" }]);
+    assert.throws(
+      () => runD1(stateDirectory, ["execute", "DB", "--command", `UPDATE users SET display_name = '${"A".repeat(401)}' WHERE id = 'user-1'`]),
+      /invalid display name storage length/,
+    );
     runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-1', 'preset-1', 'copy', 'actor', 'event-1', 'target-a', '2026-08-22'); INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-2', 'preset-1', 'copy', 'actor', 'event-2', 'target-b', '2026-08-22')"]);
     assert.throws(
       () => runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO preset_events (id, preset_id, kind, actor_hash, client_event_id, target_key, dedupe_bucket) VALUES ('copy-3', 'preset-1', 'copy', 'actor', 'event-3', 'target-a', '2026-08-22')"]),

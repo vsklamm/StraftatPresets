@@ -37,6 +37,7 @@ import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { presetUrlIdentifier, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import type { UserProfile } from "@/src/domain/user-profile";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
@@ -187,7 +188,9 @@ function configLabels(version: PresetVersion) {
 }
 
 export default function Home() {
-  const { status: authStatus } = useSession();
+  const { data: authSession, status: authStatus } = useSession();
+  const [accountProfile, setAccountProfile] = useState<{ userId: string; profile: UserProfile } | null>(null);
+  const [isProfileEditorRequested, setIsProfileEditorRequested] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedSearchTags, setSelectedSearchTags] = useState<Array<{ slug: string; label: string }>>([]);
   const [selectedSearchWeapons, setSelectedSearchWeapons] = useState<Array<{ gameId: string; name: string }>>([]);
@@ -270,6 +273,15 @@ export default function Home() {
   const linkedInteractionRef = useRef("");
   const openPresetIdRef = useRef("");
   const dialogSectionRef = useRef<HTMLElement>(null);
+
+  const handleProfileChange = useCallback((profile: UserProfile) => {
+    const userId = authSession?.user.id;
+    if (!userId) return;
+    setAccountProfile({ userId, profile });
+    updateDashboardItems((current) => current.map((item) => item.authorId === userId ? { ...item, authorName: profile.displayName } : item));
+    setSearchItems((current) => current?.map((item) => item.authorId === userId ? { ...item, authorName: profile.displayName } : item));
+    setSelected((current) => current?.canEdit ? { ...current, author: profile.displayName } : current);
+  }, [authSession?.user.id, updateDashboardItems]);
 
   useEffect(() => {
     void Promise.allSettled(catalogWeapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
@@ -810,8 +822,8 @@ export default function Home() {
                 const fallbackItem: PresetDashboardItem = {
                   id: identifier,
                   slug: identifier,
-                  authorId: "local",
-                  authorName: "Local Draft",
+                  authorId: authSession?.user.id ?? "local",
+                  authorName: accountProfile?.profile.displayName ?? authSession?.user.name ?? "Local Draft",
                   workingStatus: "draft",
                   hasPublishedRevision: false,
                   canEdit: true,
@@ -846,7 +858,7 @@ export default function Home() {
       isCancelled = true;
       window.removeEventListener("popstate", openLinkedPreset);
     };
-  }, [dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
+  }, [accountProfile, authSession?.user.id, authSession?.user.name, dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
 
   // Ensure local draft is always updated in localStorage synchronously on change
   useEffect(() => {
@@ -934,6 +946,10 @@ export default function Home() {
       if (authStatus !== "loading") setAuthPrompt({ action: "submit" });
       return;
     }
+    if (accountProfile?.userId !== authSession?.user.id || !accountProfile.profile.hasConfiguredDisplayName) {
+      setIsProfileEditorRequested(true);
+      return;
+    }
     if (itemsByView.mine && itemsByView.mine.length >= MAX_PRESETS_PER_AUTHOR) {
       setActionError(getPresetLimitMessage());
       if (activeDashboardView !== "mine") {
@@ -984,14 +1000,14 @@ export default function Home() {
     }
   };
   useEffect(() => {
-    if (authStatus !== "authenticated" || isCreating) return;
+    if (authStatus !== "authenticated" || isCreating || accountProfile?.userId !== authSession?.user.id || !accountProfile.profile.hasConfiguredDisplayName) return;
     const url = new URL(window.location.href);
     if (url.searchParams.get("create") !== "1") return;
     url.searchParams.delete("create");
     window.history.replaceState(null, "", url);
     window.queueMicrotask(() => void createPreset());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, isCreating]);
+  }, [authStatus, authSession?.user.id, isCreating, accountProfile]);
 
   const submitSelectedPreset = async () => {
     if (!selected?.revisionId || selected.editVersion === undefined || isSubmitting) return;
@@ -1159,7 +1175,7 @@ export default function Home() {
             <span className="tab-author">by Matthew Knorr</span>
           </a>
         </nav>
-        <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl /></div>
+        <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
       </header>
 
       <div className="workspace">
@@ -1234,7 +1250,7 @@ export default function Home() {
                     <p>{formatCardDescriptionPreview(preset.description)}</p>
                     <div className="content-labels">{labels.map((label) => <span key={label}>{label}</span>)}</div>
                     <div className="tag-row">{preset.tags.slice(0, compact ? 3 : MAX_VISIBLE_PRESET_TAGS).map((tag) => <span key={tag}>{tag}</span>)}</div>
-                    <div className="preset-author"><span>by {preset.author}</span></div>
+                    <div className="preset-author"><span>by <StraftatText text={preset.author} /></span></div>
                   </div>
                 </button>
                 {!preset.state || preset.state === "published" ? <CopyCount count={copyCount(preset)} /> : null}
@@ -1345,7 +1361,7 @@ export default function Home() {
           })()}
           <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
             {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by {selected.author}{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p>by <StraftatText text={selected.author} />{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
@@ -1625,7 +1641,7 @@ function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: 
       <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
         <h2 id="auth-title">Quick sign-in</h2>
-        <p>We only store your Discord user ID and display name. No email, server list, or messages.</p>
+        <p>Discord keeps accounts unique. We only keep your ID and username; choose any public display name after signing in.</p>
         <button className="discord-signin" type="button" onClick={onContinue}>
           <Image src="/discord-symbol.svg" alt="" width={20} height={15} />
           Continue with Discord
