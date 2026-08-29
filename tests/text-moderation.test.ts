@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   stripColorAndFormattingTags,
   hasColorOrFormattingTags,
+  parseStraftatMarkup,
+  STRAFTAT_TEXT_CONTRAST_BACKGROUNDS,
 } from "../src/domain/straftat-markup";
 import {
   extractModeratableFields,
@@ -90,9 +93,7 @@ test("color tag stripping removes TMPro colors and formatting tags", () => {
   assert.equal(hasColorOrFormattingTags("Plain Name"), false);
 });
 
-test("parseStraftatMarkup parses rich text formatting tags accurately", async () => {
-  const { parseStraftatMarkup } = await import("../src/domain/straftat-markup");
-
+test("parseStraftatMarkup parses rich text formatting tags accurately", () => {
   // Fast path plain text
   assert.deepEqual(parseStraftatMarkup("Simple Title"), [{ text: "Simple Title" }]);
 
@@ -126,6 +127,22 @@ test("parseStraftatMarkup parses rich text formatting tags accurately", async ()
   // Noparse mode
   const noparse = parseStraftatMarkup("<noparse><b>Not Bold</b></noparse>");
   assert.equal(noparse.find(s => s.text.includes("Not Bold"))?.bold, false);
+});
+
+test("TMPro text colors fall back when they are unreadable on current surfaces", () => {
+  const spans = parseStraftatMarkup("<#EBA917>A<#100F0C>B<#181611>C<#5A513F>D<#FFFFFF10>E<#E4963A>F");
+  assert.equal(spans.find((span) => span.text === "A")?.color, "#EBA917");
+  for (const text of ["B", "C", "D", "E"]) {
+    assert.equal(spans.find((span) => span.text === text)?.color, undefined);
+  }
+  assert.equal(spans.find((span) => span.text === "F")?.color, "#E4963A");
+});
+
+test("TMPro text contrast backgrounds stay synchronized with the CSS theme", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const readVariable = (name: string) => css.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`))?.[1].toLowerCase();
+  assert.equal(readVariable("--bg"), STRAFTAT_TEXT_CONTRAST_BACKGROUNDS.page);
+  assert.equal(readVariable("--surface"), STRAFTAT_TEXT_CONTRAST_BACKGROUNDS.surface);
 });
 
 test("extractModeratableFields extracts all relevant text fields including colored text", () => {

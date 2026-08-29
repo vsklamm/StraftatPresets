@@ -34,7 +34,17 @@ const NAMED_COLORS: Readonly<Record<string, string>> = {
   yellow: "FFFF00",
 };
 
-function isValidColor(hex: string): boolean {
+export const STRAFTAT_TEXT_CONTRAST_BACKGROUNDS = {
+  page: "#100f0c",
+  surface: "#181611",
+} as const;
+
+const MIN_STRAFTAT_TEXT_CONTRAST_RATIO = 3;
+
+type RgbaColor = { r: number; g: number; b: number; a: number };
+
+function parseHexColor(hex: string): RgbaColor | undefined {
+  if (!/^(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(hex)) return undefined;
   let r = 255, g = 255, b = 255, a = 255;
   if (hex.length === 3 || hex.length === 4) {
     r = parseInt(hex[0] + hex[0], 16);
@@ -50,22 +60,47 @@ function isValidColor(hex: string): boolean {
     if (hex.length === 8) {
       a = parseInt(hex.slice(6, 8), 16);
     }
-  } else {
-    return false;
   }
+  return { r, g, b, a };
+}
 
-  if (isNaN(r) || isNaN(g) || isNaN(b) || isNaN(a)) {
-    return false;
-  }
+function relativeLuminance({ r, g, b }: Omit<RgbaColor, "a">): number {
+  const linear = (channel: number) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
 
-  // Too transparent
-  if (a < 50) return false;
+function compositeOver(color: RgbaColor, background: RgbaColor): Omit<RgbaColor, "a"> {
+  const alpha = color.a / 255;
+  return {
+    r: color.r * alpha + background.r * (1 - alpha),
+    g: color.g * alpha + background.g * (1 - alpha),
+    b: color.b * alpha + background.b * (1 - alpha),
+  };
+}
 
-  // Too dark (matches our dark theme background)
-  const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-  if (brightness < 40) return false;
+function contrastRatio(first: Omit<RgbaColor, "a">, second: Omit<RgbaColor, "a">): number {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (Math.max(firstLuminance, secondLuminance) + 0.05) / (Math.min(firstLuminance, secondLuminance) + 0.05);
+}
 
-  return true;
+function resolveReadableTextColor(hex: string): string | undefined {
+  const color = parseHexColor(hex);
+  if (!color) return undefined;
+  const isReadable = Object.values(STRAFTAT_TEXT_CONTRAST_BACKGROUNDS).every((backgroundHex) => {
+    const background = parseHexColor(backgroundHex.slice(1));
+    return background && contrastRatio(compositeOver(color, background), background) >= MIN_STRAFTAT_TEXT_CONTRAST_RATIO;
+  });
+  return isReadable ? `#${hex}` : undefined;
+}
+
+function isValidHighlightColor(hex: string): boolean {
+  const color = parseHexColor(hex);
+  if (!color || color.a < 50) return false;
+  return 0.299 * color.r + 0.587 * color.g + 0.114 * color.b >= 40;
 }
 
 export interface StraftatMarkupSpan {
@@ -110,7 +145,7 @@ export function parseStraftatMarkup(rawText: string): StraftatMarkupSpan[] {
   const parts = rawText.split(TMPRO_TAG_SPLIT_REGEX);
   const spans: StraftatMarkupSpan[] = [];
 
-  const colorStack: string[] = [];
+  const colorStack: Array<string | undefined> = [];
   const markStack: string[] = [];
   let bold = 0;
   let italic = 0;
@@ -153,9 +188,7 @@ export function parseStraftatMarkup(rawText: string): StraftatMarkupSpan[] {
     // Shorthand hex color: <#RRGGBB>
     if (part.startsWith("<#") && part.endsWith(">")) {
       const hex = part.slice(2, -1);
-      if (isValidColor(hex)) {
-        colorStack.push("#" + hex);
-      }
+      colorStack.push(resolveReadableTextColor(hex));
       continue;
     }
 
@@ -263,16 +296,14 @@ export function parseStraftatMarkup(rawText: string): StraftatMarkupSpan[] {
     if (lowerTag.startsWith("<color=")) {
       const rawVal = part.slice(7, -1).replace(/["']/g, "").trim();
       const hex = rawVal.startsWith("#") ? rawVal.slice(1) : (NAMED_COLORS[rawVal.toLowerCase()] ?? rawVal);
-      if (isValidColor(hex)) {
-        colorStack.push("#" + hex);
-      }
+      colorStack.push(resolveReadableTextColor(hex));
       continue;
     }
     if (lowerTag.startsWith("<mark") && lowerTag.endsWith(">")) {
       if (lowerTag.startsWith("<mark=")) {
         const rawVal = part.slice(6, -1).replace(/["']/g, "").trim();
         const hex = rawVal.startsWith("#") ? rawVal.slice(1) : (NAMED_COLORS[rawVal.toLowerCase()] ?? rawVal);
-        if (isValidColor(hex)) {
+        if (isValidHighlightColor(hex)) {
           markStack.push("#" + hex);
         } else {
           markStack.push("rgba(255, 255, 255, 0.15)");
