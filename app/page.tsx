@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { AuthControl } from "@/app/auth-control";
+import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
 import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
@@ -1436,6 +1437,7 @@ export default function Home() {
         window.sessionStorage.setItem("justLoggedIn", "true");
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
       }} /> : null}
+      <ProjectInfo />
       {actionError ? <div className="action-toast" role="status"><Image src="/barrel.png" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
     </main>
   );
