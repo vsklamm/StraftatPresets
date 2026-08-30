@@ -43,6 +43,7 @@ test("the initializer creates the application tables in D1", () => {
     assert.equal(userColumns.results.some((column) => column.name === "role"), true);
     assert.equal(userColumns.results.some((column) => column.name === "display_name"), true);
     assert.equal(userColumns.results.some((column) => column.name === "display_name_configured_at"), true);
+    assert.equal(userColumns.results.some((column) => column.name === "preset_limit"), true);
     const revisionColumns = queryD1<{ name: string }>(stateDirectory, "PRAGMA table_info(preset_revisions)");
     for (const column of ["telegram_chat_id", "telegram_message_id", "telegram_message_kind", "telegram_message_html", "telegram_decision", "telegram_resolved_at"]) {
       assert.equal(revisionColumns.results.some((entry) => entry.name === column), true);
@@ -203,6 +204,42 @@ test("author preset limit allows up to four presets and rejects the fifth", () =
     runD1(stateDirectory, ["execute", "DB", "--command", "DELETE FROM presets WHERE id = 'p-4'"]);
     const countAfterDelete = queryD1<{ count: number }>(stateDirectory, "SELECT COUNT(*) AS count FROM presets WHERE author_id = 'author-1'").results[0].count;
     assert.equal(countAfterDelete, 3);
+  } finally {
+    rmSync(stateDirectory, { recursive: true, force: true });
+  }
+});
+
+test("preset limit migration backfills existing authors and only raises the limit", () => {
+  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-limit-upgrade-"));
+  try {
+    for (const migration of ["0000_initial_schema.sql", "0001_amazing_kid_colt.sql", "0002_brown_cable.sql"]) {
+      runD1(stateDirectory, ["execute", "DB", "--file", path.resolve("db/init", migration)]);
+    }
+    runD1(stateDirectory, ["execute", "DB", "--command", [
+      "INSERT INTO users (id, name) VALUES ('qualified', 'Qualified'), ('regular', 'Regular');",
+      "INSERT INTO presets (id, slug, author_id, title, status, thumbnail_key) VALUES",
+      "('q-1', 'q-1', 'qualified', 'Q1', 'published', 'q1.webp'),",
+      "('q-2', 'q-2', 'qualified', 'Q2', 'published', 'q2.webp'),",
+      "('q-3', 'q-3', 'qualified', 'Q3', 'published', 'q3.webp'),",
+      "('r-1', 'r-1', 'regular', 'R1', 'published', 'r1.webp'),",
+      "('r-2', 'r-2', 'regular', 'R2', 'published', 'r2.webp'),",
+      "('r-3', 'r-3', 'regular', 'R3', 'published', NULL)",
+    ].join(" ")]);
+
+    runD1(stateDirectory, ["execute", "DB", "--file", path.resolve("db/init/0003_raise_preset_limit.sql")]);
+    assert.deepEqual(
+      queryD1<{ id: string; preset_limit: number }>(stateDirectory, "SELECT id, preset_limit FROM users ORDER BY id").results,
+      [{ id: "qualified", preset_limit: 15 }, { id: "regular", preset_limit: 4 }],
+    );
+
+    runD1(stateDirectory, ["execute", "DB", "--command", "UPDATE presets SET thumbnail_key = 'r3.webp' WHERE id = 'r-3'"]);
+    assert.equal(queryD1<{ preset_limit: number }>(stateDirectory, "SELECT preset_limit FROM users WHERE id = 'regular'").results[0].preset_limit, 15);
+
+    runD1(stateDirectory, ["execute", "DB", "--command", "UPDATE presets SET thumbnail_key = NULL WHERE author_id IN ('qualified', 'regular')"]);
+    assert.deepEqual(
+      queryD1<{ id: string; preset_limit: number }>(stateDirectory, "SELECT id, preset_limit FROM users ORDER BY id").results,
+      [{ id: "qualified", preset_limit: 15 }, { id: "regular", preset_limit: 15 }],
+    );
   } finally {
     rmSync(stateDirectory, { recursive: true, force: true });
   }

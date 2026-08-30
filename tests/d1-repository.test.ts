@@ -14,16 +14,16 @@ function recordingD1() {
         bind(...params: unknown[]) {
           queries.push({ sql, params });
           const rows = sql.startsWith('insert into "users"')
-            ? [{ is_active: 1, name: "Discord name", display_name: null, display_name_configured_at: null }]
+            ? [{ is_active: 1, name: "Discord name", display_name: null, display_name_configured_at: null, preset_limit: 4 }]
             : sql.startsWith('update "users"')
-              ? [{ name: "Discord name", display_name: params[0], display_name_configured_at: params[1] }]
+              ? [{ name: "Discord name", display_name: params[0], display_name_configured_at: params[1], preset_limit: 4 }]
               : [];
           return {
             all: async () => ({ success: true, meta: { changes: 0 }, results: [] }),
             raw: async () => {
-              if (sql.startsWith('insert into "users"')) return [[1, "Discord name", null, null]];
+              if (sql.startsWith('insert into "users"')) return [[1, "Discord name", null, null, 4]];
               if (sql.startsWith('select "name" from "users"')) return [["Discord name"]];
-              if (sql.startsWith('update "users"')) return [["Discord name", params[0], params[1]]];
+              if (sql.startsWith('update "users"')) return [["Discord name", params[0], params[1], 4]];
               return [[1]];
             },
             run: async () => ({ success: true, meta: { changes: 0 }, results: [] }),
@@ -59,7 +59,7 @@ test("a custom display name refreshes published search documents", async () => {
 
   const profile = await repository.updateUserDisplayName("discord-user", coloredName);
 
-  assert.deepEqual(profile, { displayName: coloredName, hasCustomDisplayName: true, hasConfiguredDisplayName: true });
+  assert.deepEqual(profile, { displayName: coloredName, hasCustomDisplayName: true, hasConfiguredDisplayName: true, presetLimit: 4 });
   const refresh = queries.find((query) => query.sql.includes('update "preset_search_documents"'));
   assert.ok(refresh);
   assert.equal(refresh.params.includes("Public name"), true);
@@ -73,7 +73,7 @@ test("clearing a custom display name restores the Discord name without reopening
 
   const profile = await repository.updateUserDisplayName("discord-user", null);
 
-  assert.deepEqual(profile, { displayName: "Discord name", hasCustomDisplayName: false, hasConfiguredDisplayName: true });
+  assert.deepEqual(profile, { displayName: "Discord name", hasCustomDisplayName: false, hasConfiguredDisplayName: true, presetLimit: 4 });
 });
 
 test("preset search executes all criteria as one D1 statement", async () => {

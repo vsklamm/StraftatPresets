@@ -68,7 +68,10 @@ import {
 } from "@/src/domain/preset-ranking";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { MAX_PRESETS_PER_AUTHOR, PresetLimitReachedError } from "@/src/domain/preset-policy";
+import {
+  DEFAULT_PRESET_LIMIT,
+  PresetLimitReachedError,
+} from "@/src/domain/preset-policy";
 import {
   thumbnailKeysToDeleteAfterDraftSave,
   thumbnailKeysToDeleteAfterPublish,
@@ -319,12 +322,14 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       providerName: users.name,
       customDisplayName: users.displayName,
       displayNameConfiguredAt: users.displayNameConfiguredAt,
+      presetLimit: users.presetLimit,
     }).get();
     if (!user) throw new Error("Signed-in user could not be read back.");
     const profile = {
       displayName: user.customDisplayName ?? user.providerName ?? name,
       hasCustomDisplayName: user.customDisplayName !== null && user.customDisplayName !== undefined,
       hasConfiguredDisplayName: user.displayNameConfiguredAt !== null && user.displayNameConfiguredAt !== undefined,
+      presetLimit: user.presetLimit,
     };
     const publishedPresetIds = this.database.select({ id: presets.id })
       .from(presets)
@@ -342,6 +347,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       providerName: users.name,
       customDisplayName: users.displayName,
       displayNameConfiguredAt: users.displayNameConfiguredAt,
+      presetLimit: users.presetLimit,
     })
       .from(users)
       .where(and(eq(users.id, id), eq(users.isActive, true)))
@@ -351,6 +357,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       displayName: user.customDisplayName ?? user.providerName,
       hasCustomDisplayName: user.customDisplayName !== null,
       hasConfiguredDisplayName: user.displayNameConfiguredAt !== null,
+      presetLimit: user.presetLimit,
     };
   }
 
@@ -373,6 +380,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
           providerName: users.name,
           customDisplayName: users.displayName,
           displayNameConfiguredAt: users.displayNameConfiguredAt,
+          presetLimit: users.presetLimit,
         }),
       this.database.update(presetSearchDocuments).set({ author: searchableDisplayName, updatedAt: now }).where(and(
         ne(presetSearchDocuments.author, searchableDisplayName),
@@ -385,6 +393,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       displayName: user.customDisplayName ?? user.providerName,
       hasCustomDisplayName: user.customDisplayName !== null,
       hasConfiguredDisplayName: user.displayNameConfiguredAt !== null,
+      presetLimit: user.presetLimit,
     };
     return profile;
   }
@@ -439,14 +448,16 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       updatedAt: now,
     }).onConflictDoNothing().run();
 
+    const author = await this.database.select({ presetLimit: users.presetLimit }).from(users).where(eq(users.id, userId)).get();
+    const authorLimit = author?.presetLimit ?? DEFAULT_PRESET_LIMIT;
     const existingCount = await this.database
       .select({ value: count() })
       .from(presets)
       .where(eq(presets.authorId, userId))
       .get();
 
-    if ((existingCount?.value ?? 0) >= MAX_PRESETS_PER_AUTHOR) {
-      throw new PresetLimitReachedError(MAX_PRESETS_PER_AUTHOR);
+    if ((existingCount?.value ?? 0) >= authorLimit) {
+      throw new PresetLimitReachedError(authorLimit);
     }
 
     const content = createStarterPresetContent(title.trim());

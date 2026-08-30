@@ -9,6 +9,7 @@ export type UserProfile = {
   displayName: string;
   hasCustomDisplayName: boolean;
   hasConfiguredDisplayName: boolean;
+  presetLimit: number;
 };
 
 export type UserDisplayNameValidation =

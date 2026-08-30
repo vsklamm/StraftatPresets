@@ -11,7 +11,12 @@ import { WeaponMix } from "@/app/weapon-mix";
 import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
-import { getPresetLimitMessage, MAX_PRESETS_PER_AUTHOR } from "@/src/domain/preset-policy";
+import {
+  DEFAULT_PRESET_LIMIT,
+  ELEVATED_PRESET_LIMIT,
+  getPresetLimitMessage,
+  PRESET_LIMIT_UPGRADE_THRESHOLD,
+} from "@/src/domain/preset-policy";
 import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
@@ -911,6 +916,12 @@ export default function Home() {
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
   const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
   const copyCount = (preset: Preset) => copyCounts[preset.id] ?? preset.copies;
+  const effectivePresetLimit = Math.max(
+    accountProfile?.profile.presetLimit ?? DEFAULT_PRESET_LIMIT,
+    (itemsByView.mine ?? []).filter((preset) => preset.state === "published" && preset.content.thumbnailKey).length >= PRESET_LIMIT_UPGRADE_THRESHOLD
+      ? ELEVATED_PRESET_LIMIT
+      : DEFAULT_PRESET_LIMIT,
+  );
   const recordSelectedCopy = (preset: Preset, targetKey: string) => {
     if (!preset.copyPublicationId) return;
     let accepted = false;
@@ -951,8 +962,8 @@ export default function Home() {
       setIsProfileEditorRequested(true);
       return;
     }
-    if (itemsByView.mine && itemsByView.mine.length >= MAX_PRESETS_PER_AUTHOR) {
-      setActionError(getPresetLimitMessage());
+    if (itemsByView.mine && itemsByView.mine.length >= effectivePresetLimit) {
+      setActionError(getPresetLimitMessage(effectivePresetLimit));
       if (activeDashboardView !== "mine") {
         chooseDashboardView("mine");
       }
@@ -1258,7 +1269,7 @@ export default function Home() {
               </article>;
             };
 
-            const showCreateSlot = activeDashboardView === "mine" && authStatus === "authenticated" && !query && storedPresets.length < MAX_PRESETS_PER_AUTHOR;
+            const showCreateSlot = activeDashboardView === "mine" && authStatus === "authenticated" && !query && storedPresets.length < effectivePresetLimit;
 
             return (
               <>

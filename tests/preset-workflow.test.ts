@@ -11,7 +11,12 @@ import {
   validatePresetRevision,
   type PresetRevisionContent,
 } from "../src/domain/preset-workflow";
-import { MAX_PRESETS_PER_AUTHOR, PresetLimitReachedError } from "../src/domain/preset-policy";
+import {
+  DEFAULT_PRESET_LIMIT,
+  ELEVATED_PRESET_LIMIT,
+  PRESET_LIMIT_UPGRADE_THRESHOLD,
+  PresetLimitReachedError,
+} from "../src/domain/preset-policy";
 import {
   createStarterPresetContent,
   formatCardDescriptionPreview,
@@ -264,8 +269,10 @@ test("formatCardDescriptionPreview displays first paragraph when >= 40 chars or 
   assert.equal(formatCardDescriptionPreview("Short single line."), "Short single line.");
 });
 
-test("author preset policy limits each author to four presets", () => {
-  assert.equal(MAX_PRESETS_PER_AUTHOR, 4);
+test("author preset policy permanently raises the limit after three published presets with thumbnails", () => {
+  assert.equal(DEFAULT_PRESET_LIMIT, 4);
+  assert.equal(ELEVATED_PRESET_LIMIT, 15);
+  assert.equal(PRESET_LIMIT_UPGRADE_THRESHOLD, 3);
   const error = new PresetLimitReachedError();
   assert.equal(error.limit, 4);
   assert.equal(error.code, "preset_limit_reached");
