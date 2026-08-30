@@ -1471,7 +1471,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 }
 .project-info-widget.is-open {
   width: min(248px, calc(100vw - 28px));
-  height: 156px;
+  height: 178px;
   border-color: var(--frame-warm-strong) var(--frame-warm-deep) var(--frame-warm-deep) var(--frame-warm-soft);
   border-radius: 16px 7px 21px 10px / 10px 18px 8px 15px;
   box-shadow: 0 18px 46px rgba(0, 0, 0, .58);
