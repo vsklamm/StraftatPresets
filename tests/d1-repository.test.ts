@@ -7,6 +7,7 @@ type RecordedQuery = { sql: string; params: unknown[] };
 
 function recordingD1() {
   const queries: RecordedQuery[] = [];
+  let batchCalls = 0;
   const binding = {
     prepare(sql: string) {
       return {
@@ -18,6 +19,7 @@ function recordingD1() {
               ? [{ name: "Discord name", display_name: params[0], display_name_configured_at: params[1] }]
               : [];
           return {
+            all: async () => ({ success: true, meta: { changes: 0 }, results: [] }),
             raw: async () => {
               if (sql.startsWith('insert into "users"')) return [[1, "Discord name", null, null]];
               if (sql.startsWith('select "name" from "users"')) return [["Discord name"]];
@@ -31,10 +33,11 @@ function recordingD1() {
       };
     },
     async batch(statements: Array<{ rows: Record<string, unknown>[] }>) {
+      batchCalls += 1;
       return statements.map((statement) => ({ success: true, meta: { changes: statement.rows.length }, results: statement.rows }));
     },
   } as unknown as D1Database;
-  return { database: createDatabase(binding), queries };
+  return { database: createDatabase(binding), queries, getBatchCalls: () => batchCalls };
 }
 
 test("Discord user refresh binds search document timestamps as D1 integers", async () => {
@@ -71,4 +74,48 @@ test("clearing a custom display name restores the Discord name without reopening
   const profile = await repository.updateUserDisplayName("discord-user", null);
 
   assert.deepEqual(profile, { displayName: "Discord name", hasCustomDisplayName: false, hasConfiguredDisplayName: true });
+});
+
+test("preset search executes all criteria as one D1 statement", async () => {
+  const { database, queries, getBatchCalls } = recordingD1();
+  const repository = new D1Repository(database);
+
+  const result = await repository.searchPublishedPresets({
+    query: "mines",
+    tagSlugs: ["explosives"],
+    weaponGameIds: ["Claymore"],
+    order: "popular",
+    limit: 48,
+    offset: 0,
+  });
+
+  assert.deepEqual(result, { items: [], total: 0 });
+  assert.equal(getBatchCalls(), 0);
+  assert.equal(queries.length, 1);
+  assert.equal((queries[0].sql.match(/inner join \(/gi) ?? []).length, 2);
+  assert.match(queries[0].sql, /"criterion_0"\.score \+ "criterion_1"\.score \+ "criterion_2"\.score/i);
+});
+
+test("weapon text search stays within D1 compound-select limits", async () => {
+  const { database, queries } = recordingD1();
+  const repository = new D1Repository(database);
+
+  await repository.searchPublishedPresets({
+    query: "Claymore",
+    tagSlugs: [],
+    weaponGameIds: [],
+    order: "popular",
+    limit: 48,
+    offset: 0,
+  });
+
+  assert.equal(queries.length, 1);
+  let depth = 0;
+  const unionsByDepth = new Map<number, number>();
+  for (const token of queries[0].sql.matchAll(/\(|\)|union all/gi)) {
+    if (token[0] === "(") depth += 1;
+    else if (token[0] === ")") depth -= 1;
+    else unionsByDepth.set(depth, (unionsByDepth.get(depth) ?? 0) + 1);
+  }
+  assert.ok(Math.max(0, ...unionsByDepth.values()) <= 4, "a compound SELECT may contain at most five terms in D1");
 });

@@ -220,16 +220,16 @@ function searchCandidateQuery(segment: string) {
   });
 
   const normalized = normalizeSearchValue(segment);
-  matches.push(sql`
+  const structuredMatches = [sql`
     select ${presetTags.presetId} as presetId, 90 as score
     from ${presetTags}
     inner join ${tags} on ${tags.slug} = ${presetTags.tagSlug}
     where lower(${tags.label}) = ${normalized}
-  `);
+  `];
 
   const entities = resolveSearchEntities(segment);
   if (entities.weaponGameIds.length) {
-    matches.push(sql`
+    structuredMatches.push(sql`
       select ${presetSearchTerms.presetId} as presetId, 70 as score
       from ${presetSearchTerms}
       where ${presetSearchTerms.field} in ('randomized_weapon', 'swapper_result')
@@ -237,13 +237,18 @@ function searchCandidateQuery(segment: string) {
     `);
   }
   if (entities.mapNames.length) {
-    matches.push(sql`
+    structuredMatches.push(sql`
       select ${presetSearchTerms.presetId} as presetId, 70 as score
       from ${presetSearchTerms}
       where ${presetSearchTerms.field} = 'map'
         and ${presetSearchTerms.value} in (${sql.join(entities.mapNames.map((value) => sql`${value}`), sql`, `)})
     `);
   }
+  matches.push(sql`
+    select presetId, max(score) as score
+    from (${sql.join(structuredMatches, sql` union all `)})
+    group by presetId
+  `);
 
   return sql<SearchCandidateRow>`
     select presetId, max(score) as score
@@ -528,17 +533,20 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     ];
     if (!candidateQueries.length) return { items: [], total: 0 };
 
-    const prepared = candidateQueries.map((query) => this.database.all<SearchCandidateRow>(query)) as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
-    const resultSets = await this.database.batch(prepared) as SearchCandidateRow[][];
-    const scores = new Map(resultSets[0].map((candidate) => [candidate.presetId, Number(candidate.score)]));
-    for (const resultSet of resultSets.slice(1)) {
-      const current = new Map(resultSet.map((candidate) => [candidate.presetId, Number(candidate.score)]));
-      for (const [presetId, score] of scores) {
-        const additional = current.get(presetId);
-        if (additional === undefined) scores.delete(presetId);
-        else scores.set(presetId, score + additional);
-      }
-    }
+    const candidateAliases = candidateQueries.map((_, index) => sql.identifier(`criterion_${index}`));
+    const candidateQuery = sql<SearchCandidateRow>`
+      select ${candidateAliases[0]}.presetId as presetId,
+        ${sql.join(candidateAliases.map((candidateAlias) => sql`${candidateAlias}.score`), sql` + `)} as score
+      from (${candidateQueries[0]}) as ${candidateAliases[0]}
+      ${sql.join(candidateQueries.slice(1).map((query, index) => sql`
+        inner join (${query}) as ${candidateAliases[index + 1]}
+          on ${candidateAliases[index + 1]}.presetId = ${candidateAliases[0]}.presetId
+      `), sql` `)}
+      order by score desc, presetId asc
+      limit ${MAX_SEARCH_CANDIDATES}
+    `;
+    const candidates = await this.database.all<SearchCandidateRow>(candidateQuery);
+    const scores = new Map(candidates.map((candidate) => [candidate.presetId, Number(candidate.score)]));
     if (!scores.size) return { items: [], total: 0 };
 
     const candidateIds = [...scores.keys()];
