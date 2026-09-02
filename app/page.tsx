@@ -1257,7 +1257,7 @@ export default function Home() {
               const hasValidImage = Boolean(preset.image && !failedThumbnailIds.has(preset.id));
               return <article className={`preset-card ${compact ? "compact" : ""} ${isOwner ? "is-owner" : ""}`} key={preset.id}>
                 <button className="card-open" type="button" onClick={() => openPreset(preset)} aria-label={`Open ${preset.title} ${version.label}`}>
-                  {!compact ? (hasValidImage ? <div className="preset-image"><Image src={preset.image!} alt="" fill priority={presetIndex < 4} sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw" onError={() => handleThumbnailError(preset.id)} /></div> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" /></div>) : null}
+                  {!compact ? (hasValidImage ? <CardThumbnail title={preset.title} src={preset.image!} priority={presetIndex < 4} onError={() => handleThumbnailError(preset.id)} /> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" /></div>) : null}
                   <div className="preset-card-body">
                     <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{showStateBadge && preset.state ? <PresetStateBadge state={preset.state} /> : null}{preset.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(version.label)}</span> : null}</div></div>
                     <p>{formatCardDescriptionPreview(preset.description)}</p>
@@ -1643,6 +1643,45 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
     <strong style={style}>
       <StraftatText text={title} />
     </strong>
+  );
+}
+
+function CardThumbnail({ title, src, priority, onError }: { title: string; src: string; priority: boolean; onError: () => void }) {
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const loaded = loadedSrc === src;
+
+  return (
+    <div className={`preset-image has-thumbnail ${loaded ? "is-loaded" : "is-loading"}`}>
+      <div className="thumbnail-tunnel-loader" aria-hidden="true">
+        <svg className="thumbnail-tunnel" viewBox="0 0 160 90" preserveAspectRatio="none">
+          <g className="thumbnail-tunnel-track">
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6-4C25 1 39 40 80 45" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166-4C135 1 121 40 80 45" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166 94C135 89 121 50 80 45" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6 94C25 89 39 50 80 45" />
+            {[0, 1, 2, 3].map((frame) => (
+              <path
+                className={`thumbnail-tunnel-frame frame-${frame + 1}`}
+                key={frame}
+                vectorEffect="non-scaling-stroke"
+                d="M70.8 39.8Q80 38.6 89.2 39.8Q90.5 45 89.2 50.2Q80 51.4 70.8 50.2Q69.5 45 70.8 39.8Z"
+              />
+            ))}
+          </g>
+        </svg>
+        <div className="thumbnail-loading-title"><ThumbnailPlaceholder title={title} mode="card" /></div>
+      </div>
+      <Image
+        className="preset-thumbnail-image"
+        src={src}
+        alt=""
+        fill
+        priority={priority}
+        sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw"
+        onLoad={() => setLoadedSrc(src)}
+        onError={onError}
+      />
+    </div>
   );
 }
 

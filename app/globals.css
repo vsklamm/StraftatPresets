@@ -443,6 +443,37 @@ button { color: inherit; }
 .card-open:focus-visible { outline: 2px solid var(--frame-warm-strong); outline-offset: -2px; }
 .preset-image { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-bottom: 1px solid var(--frame-warm-soft); background: transparent; }
 .preset-image img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.75); transition: transform .2s ease; }
+.preset-image.has-thumbnail { background: color-mix(in srgb, var(--bg) 92%, var(--frame-warm-deep)); }
+.preset-thumbnail-image { z-index: 2; opacity: 0; clip-path: polygon(47% 47%, 53% 47%, 53% 53%, 47% 53%); transform: scale(1.035); }
+.preset-image.is-loaded .preset-thumbnail-image { animation: thumbnail-tunnel-arrival .52s cubic-bezier(.18,.72,.18,1) both; }
+.thumbnail-tunnel-loader { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; overflow: hidden; opacity: 1; background: color-mix(in srgb, var(--bg) 94%, var(--frame-warm-deep)); transition: opacity .34s ease .14s, visibility 0s linear .5s; }
+.preset-image.is-loaded .thumbnail-tunnel-loader { visibility: hidden; opacity: 0; }
+.thumbnail-tunnel { position: absolute; inset: -3%; width: 106%; height: 106%; overflow: visible; color: color-mix(in srgb, var(--frame-warm) 76%, var(--ui-text-muted)); }
+.thumbnail-tunnel-track { transform-origin: center; animation: thumbnail-tunnel-drift 2.35s ease-in-out infinite; }
+.thumbnail-tunnel-rail { fill: none; stroke: currentColor; stroke-width: 1.05; stroke-linecap: round; opacity: .54; vector-effect: non-scaling-stroke; }
+.thumbnail-tunnel-frame { fill: none; stroke: currentColor; stroke-width: 1.05; opacity: 0; transform-origin: 80px 45px; transform-box: view-box; animation: thumbnail-tunnel-flight 1.65s cubic-bezier(.2,.08,.72,.54) infinite; }
+.thumbnail-tunnel-frame.frame-2 { animation-delay: -.4125s; }
+.thumbnail-tunnel-frame.frame-3 { animation-delay: -.825s; }
+.thumbnail-tunnel-frame.frame-4 { animation-delay: -1.2375s; }
+.thumbnail-loading-title { position: relative; z-index: 2; display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; padding: 10px 12px; color: var(--card-text-muted); text-align: center; text-shadow: 0 1px 5px var(--bg), 0 0 14px var(--bg); }
+.thumbnail-loading-title > strong { font-family: var(--font-jost), sans-serif; position: relative; display: -webkit-box; max-width: 92%; max-height: 85%; padding: 0 4px; overflow: hidden; color: inherit; font-style: normal; font-weight: 600; letter-spacing: -.01em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: break-word; word-break: break-word; }
+@keyframes thumbnail-tunnel-drift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  27% { transform: translate(-2.4px, 1.8px) rotate(-.18deg); }
+  62% { transform: translate(2.7px, -1.6px) rotate(.2deg); }
+  82% { transform: translate(1px, .5px) rotate(.06deg); }
+}
+@keyframes thumbnail-tunnel-flight {
+  0% { opacity: 0; transform: scale(.14); }
+  12% { opacity: .14; }
+  57% { opacity: .62; }
+  100% { opacity: 0; transform: scale(10.6); }
+}
+@keyframes thumbnail-tunnel-arrival {
+  0% { opacity: 0; clip-path: polygon(47% 47%, 53% 47%, 53% 53%, 47% 53%); transform: scale(1.035); }
+  42% { opacity: .72; }
+  100% { opacity: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: scale(1); }
+}
 .no-image { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 12px; overflow: hidden; background: transparent; border-bottom: 1px solid var(--frame-warm-soft); color: var(--card-text-muted); text-align: center; }
 .no-image > strong { font-family: var(--font-jost), sans-serif; position: relative; z-index: 1; display: -webkit-box; max-width: 92%; max-height: 85%; padding: 0 4px; overflow: hidden; color: var(--card-text-muted); font-style: normal; font-weight: 600; letter-spacing: -.01em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: break-word; word-break: break-word; }
 .preset-card-body { padding: 11px 12px 9px; display: flex; flex-direction: column; flex: 1; }
@@ -1630,4 +1661,6 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .weapon-atmosphere-item { animation: none !important; }
   .weapon-atmosphere.is-collecting .weapon-atmosphere-item { animation-duration: .01ms; }
   .project-info-widget.is-open .project-info-trigger { animation: none !important; }
+  .thumbnail-tunnel-track, .thumbnail-tunnel-frame { animation: none !important; }
+  .preset-image.is-loaded .preset-thumbnail-image { animation: none !important; opacity: 1; clip-path: none; transform: none; }
 }
