@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { recordPresetCopy } from "../src/lib/preset-interactions-client";
+import { recordPresetCopy, recordPresetInteraction } from "../src/lib/preset-interactions-client";
 
 function installBrowserMocks(fetchImplementation: typeof fetch) {
   const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -45,6 +45,27 @@ function installBrowserMocks(fetchImplementation: typeof fetch) {
 const publicationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const targetA = "a".repeat(64);
 const targetB = "b".repeat(64);
+
+test("a passive preset interaction is sent at most once per local day", async () => {
+  let requests = 0;
+  const browser = installBrowserMocks(async () => {
+    requests += 1;
+    return Response.json({ counted: true, reason: "counted", statistics: { opens: { total: 8 }, copies: { total: 2 } } });
+  });
+
+  try {
+    let optimisticIncrements = 0;
+    const first = await recordPresetInteraction("preset-view", "view", () => { optimisticIncrements += 1; });
+    const repeated = await recordPresetInteraction("preset-view", "view", () => { optimisticIncrements += 1; });
+
+    assert.equal(requests, 1);
+    assert.equal(optimisticIncrements, 1);
+    assert.equal(first?.statistics?.opens?.total, 8);
+    assert.equal(repeated, undefined);
+  } finally {
+    browser.restore();
+  }
+});
 
 test("each copy target is sent immediately at most once per local day", async () => {
   const requests: Array<{ url: string; body: Record<string, unknown>; keepalive: boolean | undefined }> = [];

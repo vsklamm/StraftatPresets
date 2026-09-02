@@ -10,6 +10,7 @@ function preset(overrides: Partial<Preset> = {}): Preset {
     author: "Author",
     description: "Description",
     tags: [],
+    views: 0,
     copies: 0,
     versioningEnabled: false,
     versions: [],

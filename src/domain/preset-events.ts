@@ -2,13 +2,13 @@ export const PRESET_EVENT_KINDS = ["view", "link_open", "copy"] as const;
 export type PresetEventKind = (typeof PRESET_EVENT_KINDS)[number];
 
 export const PRESET_EVENT_POLICY: Record<PresetEventKind, { dedupeMinutes: number; anonymousNetworkDailyLimit: number }> = {
-  view: { dedupeMinutes: 30, anonymousNetworkDailyLimit: 30 },
-  link_open: { dedupeMinutes: 30, anonymousNetworkDailyLimit: 20 },
+  view: { dedupeMinutes: 24 * 60, anonymousNetworkDailyLimit: 30 },
+  link_open: { dedupeMinutes: 24 * 60, anonymousNetworkDailyLimit: 20 },
   copy: { dedupeMinutes: 24 * 60, anonymousNetworkDailyLimit: 64 },
 };
 
 export function eventDedupeBucket(kind: PresetEventKind, at: Date | number = Date.now()) {
-  if (kind === "copy") return eventDayBucket(at);
+  if (PRESET_EVENT_POLICY[kind].dedupeMinutes === 24 * 60) return eventDayBucket(at);
   const time = at instanceof Date ? at.getTime() : at;
   const duration = PRESET_EVENT_POLICY[kind].dedupeMinutes * 60 * 1_000;
   return Math.floor(time / duration).toString(36);

@@ -54,6 +54,7 @@ export type PresetDashboardItem = {
   content: PresetRevisionContent;
   copyManifest: PresetCopyManifest | null;
   issues: PresetIssue[];
+  views: number;
   copies: number;
   updatedAt: Date;
   publishedAt: Date | null;

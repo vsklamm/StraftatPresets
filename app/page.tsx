@@ -168,6 +168,7 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
     image: content.thumbnailKey ? mediaUrl(content.thumbnailKey) : undefined,
     description: content.description,
     tags: content.tags.map((tag) => labelFromSlug(tag, tagLabels)),
+    views: item.views,
     copies: item.copies,
     versioningEnabled: content.versioningEnabled,
     versions: versions.length ? versions : [{ label: "-", released: "Draft" }],
@@ -261,6 +262,7 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
   const [weaponSort, setWeaponSort] = useState<WeaponSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -486,6 +488,23 @@ export default function Home() {
     }
   }, [tagLabels, updateDashboardItems]);
 
+  const trackPresetView = useCallback((preset: Preset, kind: "view" | "link_open") => {
+    let optimistic = false;
+    void recordPresetInteraction(preset.id, kind, () => {
+      optimistic = true;
+      setViewCounts((current) => ({ ...current, [preset.id]: (current[preset.id] ?? preset.views) + 1 }));
+    }).then((result) => {
+      const total = result?.statistics?.opens?.total;
+      if (total !== undefined) {
+        setViewCounts((current) => ({ ...current, [preset.id]: total }));
+      } else if (result && !result.counted && optimistic) {
+        setViewCounts((current) => ({ ...current, [preset.id]: Math.max(0, (current[preset.id] ?? preset.views) - 1) }));
+      }
+    }).catch(() => {
+      if (optimistic) setViewCounts((current) => ({ ...current, [preset.id]: Math.max(0, (current[preset.id] ?? preset.views) - 1) }));
+    });
+  }, []);
+
   const selectPreset = (preset: Preset, edit = false) => {
     rememberPresetRevision(presetRevisionTokensRef.current, preset);
     openPresetIdRef.current = preset.id;
@@ -510,7 +529,7 @@ export default function Home() {
     selectPreset(preset);
     window.history.pushState(null, "", presetUrlPath(preset));
     if (preset.persisted) {
-      void recordPresetInteraction(preset.id, "view").catch(() => undefined);
+      trackPresetView(preset, "view");
       void revalidatePreset(preset.id);
     }
   };
@@ -787,7 +806,7 @@ export default function Home() {
         setWeaponCopyBurst(0);
         if (linked.persisted && linkedInteractionRef.current !== linked.id) {
           linkedInteractionRef.current = linked.id;
-          void recordPresetInteraction(linked.id, "link_open").catch(() => undefined);
+          trackPresetView(linked, "link_open");
         }
         void revalidatePreset(linked.id);
       } else {
@@ -820,7 +839,7 @@ export default function Home() {
               setWeaponCopyBurst(0);
               if (linked.persisted && linkedInteractionRef.current !== linked.id) {
                 linkedInteractionRef.current = linked.id;
-                void recordPresetInteraction(linked.id, "link_open").catch(() => undefined);
+                trackPresetView(linked, "link_open");
               }
             }
           } else if (response.status === 404 && !isCancelled) {
@@ -853,6 +872,7 @@ export default function Home() {
                   content: localContent,
                   copyManifest: null,
                   issues: [],
+                  views: 0,
                   copies: 0,
                   updatedAt: new Date(snapshot.updatedAt || Date.now()),
                   publishedAt: null,
@@ -878,7 +898,7 @@ export default function Home() {
       isCancelled = true;
       window.removeEventListener("popstate", openLinkedPreset);
     };
-  }, [accountProfile, authSession?.user.id, authSession?.user.name, closePresetFromHistory, dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
+  }, [accountProfile, authSession?.user.id, authSession?.user.name, closePresetFromHistory, dashboardPresets, tagLabels, revalidatePreset, trackPresetView, updateDashboardItems]);
 
   // Ensure local draft is always updated in localStorage synchronously on change
   useEffect(() => {
@@ -929,6 +949,7 @@ export default function Home() {
   const changeWeaponSort = (key: WeaponSortKey) => { if (weaponSort === key) setSortDirection((current) => current === "asc" ? "desc" : "asc"); else { setWeaponSort(key); setSortDirection("asc"); } };
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
   const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
+  const viewCount = (preset: Preset) => viewCounts[preset.id] ?? preset.views;
   const copyCount = (preset: Preset) => copyCounts[preset.id] ?? preset.copies;
   const effectivePresetLimit = Math.max(
     accountProfile?.profile.presetLimit ?? DEFAULT_PRESET_LIMIT,
@@ -1276,7 +1297,7 @@ export default function Home() {
                     <div className="preset-author"><span>by <StraftatText text={preset.author} /></span></div>
                   </div>
                 </button>
-                {!preset.state || preset.state === "published" ? <CopyCount count={copyCount(preset)} /> : null}
+                {presetHasPublishedLink(preset) ? <PresetCounts views={viewCount(preset)} copies={copyCount(preset)} /> : null}
               </article>;
             };
 
@@ -1390,7 +1411,7 @@ export default function Home() {
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
                 {!isEditing && presetHasPublishedLink(selected) ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(presetUrlPath(selected), window.location.origin); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
-                {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
+                {presetHasPublishedLink(selected) ? <PresetCounts views={viewCount(selected)} copies={copyCount(selected)} dialog /> : null}
               </div>
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
@@ -1525,8 +1546,11 @@ function RandomizedWeaponsGuide() {
     </aside>, document.body) : null}
   </div>;
 }
-function CopyCount({ count, dialog = false }: { count: number; dialog?: boolean }) {
-  return <span className={`copy-count ${dialog ? "dialog-copy-count" : ""}`} aria-label={`${count.toLocaleString()} ${count === 1 ? "copy" : "copies"}`}><CopyCountIcon /><b>{count.toLocaleString()}</b></span>;
+function PresetCounts({ views, copies, dialog = false }: { views: number; copies: number; dialog?: boolean }) {
+  return <span className={`preset-counts ${dialog ? "dialog-preset-counts" : ""}`}>
+    <span className="preset-count" aria-label={`${views.toLocaleString()} ${views === 1 ? "view" : "views"}`}><ViewIcon /><b>{views.toLocaleString()}</b></span>
+    <span className="preset-count" aria-label={`${copies.toLocaleString()} ${copies === 1 ? "copy" : "copies"}`}><CopyCountIcon /><b>{copies.toLocaleString()}</b></span>
+  </span>;
 }
 function ExpandableName({ text }: { text: string }) {
   const textRef = useRef<HTMLSpanElement>(null);

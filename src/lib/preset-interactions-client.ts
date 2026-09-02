@@ -1,6 +1,6 @@
 "use client";
 
-import { eventDayBucket, PRESET_EVENT_POLICY, type PresetEventKind } from "@/src/domain/preset-events";
+import { eventDayBucket, eventDedupeBucket, type PresetEventKind } from "@/src/domain/preset-events";
 
 const LOCAL_THROTTLE_PREFIX = "straftat-preset-event:";
 const LOCAL_COPY_PREFIX = "straftat-preset-copy:v1:";
@@ -10,7 +10,7 @@ type PassiveEventKind = Exclude<PresetEventKind, "copy">;
 type InteractionResponse = {
   counted: boolean;
   reason: string;
-  statistics?: { copies: { total: number } };
+  statistics?: { opens?: { total: number }; copies: { total: number } };
 };
 
 type LocalCopyClaim = {
@@ -25,11 +25,10 @@ type LocalCopyClaim = {
 function claimThrottle(presetId: string, kind: PassiveEventKind) {
   if (typeof window === "undefined") return undefined;
   const key = `${LOCAL_THROTTLE_PREFIX}${presetId}:${kind}`;
-  const now = Date.now();
+  const bucket = eventDedupeBucket(kind);
   try {
-    const previous = Number(window.localStorage.getItem(key) ?? 0);
-    if (now - previous < PRESET_EVENT_POLICY[kind].dedupeMinutes * 60 * 1_000) return undefined;
-    window.localStorage.setItem(key, String(now));
+    if (window.localStorage.getItem(key) === bucket) return undefined;
+    window.localStorage.setItem(key, bucket);
   } catch {
     return "";
   }

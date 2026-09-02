@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { AppDatabase } from "@/db";
@@ -169,6 +169,7 @@ type DashboardRow = {
   validationIssuesJson: string;
   reviewIssuesJson: string;
   editVersion: number;
+  views: number | null;
   copies: number | null;
   qualityScoreMilli: number | null;
   engagementScoreMilli: number | null;
@@ -200,6 +201,7 @@ const dashboardColumns = {
   validationIssuesJson: dashboardRevision.validationIssuesJson,
   reviewIssuesJson: dashboardRevision.reviewIssuesJson,
   editVersion: dashboardRevision.editVersion,
+  views: presetStatistics.viewsTotal,
   copies: presetStatistics.copiesTotal,
   qualityScoreMilli: presetStatistics.qualityScoreMilli,
   engagementScoreMilli: presetStatistics.engagementScoreMilli,
@@ -1457,7 +1459,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     }).from(presets).where(eq(presets.id, presetId)).get();
     if (!preset) return undefined;
 
-    const [versionTotal, playlistTotal, playlistWithDescTotal, tagTotal, weaponTotal, eventTotals, uniqueTotals, abuseTotal, latestEvent] = await Promise.all([
+    const dailyViewActor = sql<string>`${presetEvents.actorHash} || ':' || date(${presetEvents.createdAt} / 1000, 'unixepoch')`;
+    const openKinds: PresetEventKind[] = ["view", "link_open"];
+    const [versionTotal, playlistTotal, playlistWithDescTotal, tagTotal, weaponTotal, eventTotals, uniqueTotals, dailyOpenTotal, uniqueOpenTotals, abuseTotal, latestEvent] = await Promise.all([
       this.database.select({ value: count() }).from(presetVersions).where(eq(presetVersions.presetId, presetId)).get(),
       this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
       this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(and(eq(presetVersions.presetId, presetId), ne(mapPlaylists.description, ""))).get(),
@@ -1465,6 +1469,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       this.database.select({ value: count() }).from(weaponConfigurations).innerJoin(presetVersions, eq(weaponConfigurations.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
       this.database.select({ kind: presetEvents.kind, value: count() }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), eq(presetEvents.isInvalidated, false))).groupBy(presetEvents.kind).all(),
       this.database.select({ kind: presetUniqueActors.kind, isAuthenticated: presetUniqueActors.isAuthenticated, value: count() }).from(presetUniqueActors).where(eq(presetUniqueActors.presetId, presetId)).groupBy(presetUniqueActors.kind, presetUniqueActors.isAuthenticated).all(),
+      this.database.select({ value: countDistinct(dailyViewActor) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), inArray(presetEvents.kind, openKinds), eq(presetEvents.isInvalidated, false))).get(),
+      this.database.select({ isAuthenticated: presetEvents.isAuthenticated, value: countDistinct(presetEvents.actorHash) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), inArray(presetEvents.kind, openKinds), eq(presetEvents.isInvalidated, false))).groupBy(presetEvents.isAuthenticated).all(),
       this.database.select({ value: sql<number>`coalesce(sum(${presetAbuseSignals.attemptCount}), 0)`.mapWith(Number) }).from(presetAbuseSignals).where(eq(presetAbuseSignals.presetId, presetId)).get(),
       this.database.select({ value: sql<number | null>`max(${presetEvents.createdAt})`.mapWith(Number) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), eq(presetEvents.isInvalidated, false))).get(),
     ]);
@@ -1478,6 +1484,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     for (const row of uniqueTotals) {
       const key = row.isAuthenticated ? "uniqueAuthenticated" : "uniqueAnonymous";
       interactions[row.kind][key] = Number(row.value);
+    }
+    interactions.view = zeroInteractions();
+    interactions.view.total = Number(dailyOpenTotal?.value ?? 0);
+    for (const row of uniqueOpenTotals) {
+      const key = row.isAuthenticated ? "uniqueAuthenticated" : "uniqueAnonymous";
+      interactions.view[key] = Number(row.value);
     }
 
     const content: PresetContentSignals = {
@@ -1570,6 +1582,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       revisionId: row.revisionId,
       revisionNumber: row.revisionNumber,
       editVersion: row.editVersion,
+      views: Number(row.views ?? 0),
       content,
       copyManifest: row.publishedRevisionId === row.revisionId
         ? await createPresetCopyManifest(row.revisionId, content)

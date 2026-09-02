@@ -169,8 +169,8 @@ export function calculateEffectiveInteractions(signals: InteractionSignals) {
  * Calculates engagement score (0–55 points).
  * Rebalanced for a small-community browsing dynamic:
  * - Copies: 28 pts (primary intent action, saturating around 25 copies)
- * - Card Opens / Views: 20 pts (browsing interest, saturating around 35 unique viewers)
- * - Direct Link Referrals: 7 pts (external shares from Discord/forums, saturating around 10 visitors)
+ * - Views: 20 pts (daily unique opens from cards or links, saturating around 35 viewers)
+ * - Direct Link Referrals: 7 pts additional credit (external shares from Discord/forums, saturating around 10 visitors)
  */
 export function calculateEngagementScore(signals: PresetEngagementSignals) {
   const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 28);

@@ -22,6 +22,7 @@ export type Preset = {
   image?: string;
   description: string;
   tags: string[];
+  views: number;
   copies: number;
   versioningEnabled: boolean;
   versions: PresetVersion[];
