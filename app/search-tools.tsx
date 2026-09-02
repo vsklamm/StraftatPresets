@@ -253,10 +253,12 @@ export function SearchTagPicker({
   tags,
   onSelect,
   onClose,
+  triggerRef,
 }: {
   tags: readonly TagCatalogEntry[];
   onSelect: (tag: TagCatalogEntry) => void;
   onClose: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -267,7 +269,8 @@ export function SearchTagPicker({
       }
     }
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target) && !triggerRef.current?.contains(target)) {
         onClose();
       }
     }
@@ -277,7 +280,7 @@ export function SearchTagPicker({
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, triggerRef]);
 
   return (
     <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">

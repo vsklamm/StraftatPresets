@@ -1443,8 +1443,9 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   right: max(18px, env(safe-area-inset-right));
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 24;
-  width: 52px;
-  height: 48px;
+  width: 49px;
+  height: 46px;
+  opacity: .72;
   overflow: hidden;
   isolation: isolate;
   border-style: solid;
@@ -1458,7 +1459,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
     height .2s cubic-bezier(.55, 0, .8, .45),
     border-radius .2s ease,
     border-color .16s ease,
-    box-shadow .2s ease;
+    box-shadow .2s ease,
+    opacity .16s ease;
 }
 .project-info-widget::before {
   content: "";
@@ -1472,6 +1474,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .project-info-widget.is-open {
   width: min(248px, calc(100vw - 28px));
   height: 178px;
+  opacity: 1;
   border-color: var(--frame-warm-strong) var(--frame-warm-deep) var(--frame-warm-deep) var(--frame-warm-soft);
   border-radius: 16px 7px 21px 10px / 10px 18px 8px 15px;
   box-shadow: 0 18px 46px rgba(0, 0, 0, .58);
@@ -1484,8 +1487,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   bottom: 0;
   z-index: 2;
   display: grid;
-  width: 50px;
-  height: 46px;
+  width: 47px;
+  height: 44px;
   place-items: center;
   padding: 0;
   border: 0;

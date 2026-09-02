@@ -202,6 +202,7 @@ export default function Home() {
   const [selectedSearchWeapons, setSelectedSearchWeapons] = useState<Array<{ gameId: string; name: string }>>([]);
   const [searchTagPickerOpen, setSearchTagPickerOpen] = useState(false);
   const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
+  const tagPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const weaponPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const [dashboardView, setDashboardView] = useState<PresetDashboardView>("popular");
   const [isMounted, setIsMounted] = useState(false);
@@ -1207,14 +1208,14 @@ export default function Home() {
                 }} />
                 <div className="search-tools-right">
                   {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
-                  <button className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
+                  <button ref={tagPickerTriggerRef} className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                   </button>
                   <button ref={weaponPickerTriggerRef} className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="15" width="15" xmlns="http://www.w3.org/2000/svg"><path d="M11 5.07089C7.93431 5.5094 5.5094 7.93431 5.07089 11H7V13H5.07089C5.5094 16.0657 7.93431 18.4906 11 18.9291V17H13V18.9291C16.0657 18.4906 18.4906 16.0657 18.9291 13H17V11H18.9291C18.4906 7.93431 16.0657 5.5094 13 5.07089V7H11V5.07089ZM3.05493 11C3.51608 6.82838 6.82838 3.51608 11 3.05493V1H13V3.05493C17.1716 3.51608 20.4839 6.82838 20.9451 11H23V13H20.9451C20.4839 17.1716 17.1716 20.4839 13 20.9451V23H11V20.9451C6.82838 20.4839 3.51608 17.1716 3.05493 13H1V11H3.05493ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" /></svg>
                   </button>
                 </div>
-                {searchTagPickerOpen ? <SearchTagPicker tags={tagCatalogEntries} onSelect={(tag) => {
+                {searchTagPickerOpen ? <SearchTagPicker triggerRef={tagPickerTriggerRef} tags={tagCatalogEntries} onSelect={(tag) => {
                   setQuery(tag.label);
                   setSelectedSearchTags([{ slug: tag.slug, label: tag.label }]);
                   setSelectedSearchWeapons([]);
