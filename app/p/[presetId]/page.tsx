@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import Home from "@/app/page";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { getApplicationServices } from "@/src/infrastructure/runtime";
+import { getPublishedPresetPreview } from "@/src/infrastructure/d1-published-preset-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,8 @@ type PresetPageProps = {
 };
 
 const getPublishedPreview = cache(async (identifier: string) => {
-  const { repository } = await getApplicationServices();
-  return repository.getPublishedPresetPreview(identifier);
+  const { env } = await getCloudflareContext({ async: true });
+  return getPublishedPresetPreview(env.DB, identifier);
 });
 
 function thumbnailUrl(key: string): string {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDatabase } from "../db";
 import { D1Repository } from "../src/infrastructure/d1-repository";
-import { createStarterPresetContent } from "../src/domain/preset-content";
+import { getPublishedPresetPreview } from "../src/infrastructure/d1-published-preset-preview";
 
 type RecordedQuery = { sql: string; params: unknown[] };
 
@@ -122,26 +122,30 @@ test("weapon text search stays within D1 compound-select limits", async () => {
 });
 
 test("published preset previews read only the trusted published revision", async () => {
-  const content = {
-    ...createStarterPresetContent("Published title"),
-    thumbnailKey: "presets/preset-id/thumbnail.webp",
-  };
   let recordedSql = "";
+  let recordedParams: unknown[] = [];
   const binding = {
     prepare(sql: string) {
       recordedSql = sql;
       return {
-        bind() {
+        bind(...params: unknown[]) {
+          recordedParams = params;
           return {
-            raw: async () => [["preset-id", "published-title-preset", "Author", JSON.stringify(content)]],
+            first: async () => ({
+              id: "preset-id",
+              slug: "published-title-preset",
+              author_name: "Author",
+              title: "Published title",
+              description: "",
+              thumbnail_key: "presets/preset-id/thumbnail.webp",
+            }),
           };
         },
       };
     },
   } as unknown as D1Database;
-  const repository = new D1Repository(createDatabase(binding));
 
-  assert.deepEqual(await repository.getPublishedPresetPreview("published-title-preset"), {
+  assert.deepEqual(await getPublishedPresetPreview(binding, "published-title-preset"), {
     id: "preset-id",
     slug: "published-title-preset",
     title: "Published title",
@@ -149,8 +153,8 @@ test("published preset previews read only the trusted published revision", async
     authorName: "Author",
     thumbnailKey: "presets/preset-id/thumbnail.webp",
   });
-  assert.equal((await repository.getPublishedPresetPreview("preset-id"))?.slug, "published-title-preset");
-  assert.match(recordedSql, /inner join "preset_revisions"/i);
-  assert.match(recordedSql, /"presets"\."status" = \?/i);
-  assert.match(recordedSql, /"presets"\."published_revision_id" is not null/i);
+  assert.deepEqual(recordedParams, ["published-title-preset"]);
+  assert.match(recordedSql, /inner join preset_revisions/i);
+  assert.match(recordedSql, /p\.status = 'published'/i);
+  assert.match(recordedSql, /p\.published_revision_id is not null/i);
 });

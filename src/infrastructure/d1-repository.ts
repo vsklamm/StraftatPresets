@@ -26,7 +26,6 @@ import type {
   PresetDashboardView,
   PresetInteractionRepository,
   PresetMutationResult,
-  PublishedPresetPreview,
   PresetRetractResult,
   PresetReviewResult,
   PresetSearchInput,
@@ -613,33 +612,6 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id))
       .where(eq(presets.id, envelope.id)).get();
     return row ? this.toDashboardItem(row as DashboardRow, userId) : undefined;
-  }
-
-  async getPublishedPresetPreview(identifier: string): Promise<PublishedPresetPreview | undefined> {
-    const row = await this.database.select({
-      id: presets.id,
-      slug: presets.slug,
-      authorName: effectiveUserName,
-      contentJson: presetRevisions.contentJson,
-    }).from(presets)
-      .innerJoin(users, eq(users.id, presets.authorId))
-      .innerJoin(presetRevisions, eq(presetRevisions.id, presets.publishedRevisionId))
-      .where(and(
-        eq(presets.status, "published"),
-        isNotNull(presets.publishedRevisionId),
-        or(eq(presets.id, identifier), eq(presets.slug, identifier)),
-      ))
-      .get();
-    if (!row) return undefined;
-    const content = parsePresetRevisionContent(JSON.parse(row.contentJson));
-    return {
-      id: row.id,
-      slug: row.slug,
-      title: content.title,
-      description: content.description,
-      authorName: row.authorName,
-      thumbnailKey: content.thumbnailKey,
-    };
   }
 
   async getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined> {
