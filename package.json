@@ -9,7 +9,7 @@
     "npm": ">=12.0.2 <13"
   },
   "scripts": {
-    "dev": "npm run setup && next dev",
+    "dev": "npm run setup && next dev --webpack",
     "build": "next build --webpack",
     "preview": "npm run setup && opennextjs-cloudflare build && wrangler dev --local",
     "deploy": "node scripts/check-env.mjs .env.production && npm run worker:build && wrangler deploy --secrets-file .env.production",
@@ -45,7 +45,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260821.1",
+    "@cloudflare/workers-types": "5.20260903.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
@@ -54,7 +54,7 @@
     "eslint-config-next": "16.3.1",
     "tsx": "4.23.12",
     "typescript": "6.0.3",
-    "wrangler": "4.125.0"
+    "wrangler": "4.128.0"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
@@ -68,6 +68,6 @@
     "esbuild@0.28.1": true,
     "fsevents@2.3.3": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260820.1": true
+    "workerd@1.20260831.1": true
   }
 }
