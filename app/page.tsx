@@ -58,6 +58,9 @@ import {
 type AuthPrompt = { action: "submit" };
 type PresetRevisionToken = { revisionId: string; editVersion: number };
 type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardItem | undefined> };
+type ThumbnailLoadState = { src: string; phase: "loading" | "arriving" | "ready" };
+
+const loadedThumbnailSources = new Set<string>();
 
 function rememberPresetRevision(
   tokens: Map<string, PresetRevisionToken>,
@@ -1681,11 +1684,26 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
 }
 
 function CardThumbnail({ title, src, priority, onError }: { title: string; src: string; priority: boolean; onError: () => void }) {
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const loaded = loadedSrc === src;
+  const [loadState, setLoadState] = useState<ThumbnailLoadState>(() => ({
+    src,
+    phase: loadedThumbnailSources.has(src) ? "ready" : "loading",
+  }));
+  const phase = loadState.src === src
+    ? loadState.phase
+    : loadedThumbnailSources.has(src) ? "ready" : "loading";
+  const captureCachedImage = useCallback((image: HTMLImageElement | null) => {
+    if (!image?.complete || image.naturalWidth === 0) return;
+    loadedThumbnailSources.add(src);
+    setLoadState({ src, phase: "ready" });
+  }, [src]);
+  const finishLoading = useCallback(() => {
+    const wasAlreadyLoaded = loadedThumbnailSources.has(src);
+    loadedThumbnailSources.add(src);
+    setLoadState({ src, phase: wasAlreadyLoaded ? "ready" : "arriving" });
+  }, [src]);
 
   return (
-    <div className={`preset-image has-thumbnail ${loaded ? "is-loaded" : "is-loading"}`}>
+    <div className={`preset-image has-thumbnail is-${phase}`}>
       <div className="thumbnail-tunnel-loader" aria-hidden="true">
         <svg className="thumbnail-tunnel" viewBox="0 0 160 90" preserveAspectRatio="none">
           <g className="thumbnail-tunnel-track">
@@ -1712,7 +1730,8 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
         fill
         priority={priority}
         sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw"
-        onLoad={() => setLoadedSrc(src)}
+        ref={captureCachedImage}
+        onLoad={finishLoading}
         onError={onError}
       />
     </div>
