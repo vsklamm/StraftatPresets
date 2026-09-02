@@ -42,7 +42,7 @@ import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization"
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { presetUrlIdentifier, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -508,10 +508,7 @@ export default function Home() {
   };
   const openPreset = (preset: Preset) => {
     selectPreset(preset);
-    const url = new URL(window.location.href);
-    const identifier = presetUrlIdentifier(preset);
-    url.searchParams.set("p", identifier);
-    window.history.pushState(null, "", url);
+    window.history.pushState(null, "", presetUrlPath(preset));
     if (preset.persisted) {
       void recordPresetInteraction(preset.id, "view").catch(() => undefined);
       void revalidatePreset(preset.id);
@@ -553,10 +550,9 @@ export default function Home() {
       serverContentByPresetRef.current.set(savedPreset.id, savedSignature);
       if (openPresetIdRef.current === savedPreset.id) {
         const url = new URL(window.location.href);
-        const identifier = presetUrlIdentifier(updated);
-        if (url.searchParams.get("p") !== identifier) {
-          url.searchParams.set("p", identifier);
-          window.history.replaceState(null, "", url);
+        const path = presetUrlPath(updated);
+        if (presetIdentifierFromUrl(url) !== presetIdentifierFromUrl(new URL(path, url.origin))) {
+          window.history.replaceState(null, "", path);
         }
       }
       updateDashboardItems((current) => {
@@ -645,8 +641,7 @@ export default function Home() {
     setDraftContent(null);
     setShowSubmissionIssues(false);
     const url = new URL(window.location.href);
-    url.searchParams.delete("p");
-    window.history.replaceState({}, "", url.toString());
+    window.history.replaceState({}, "", urlWithoutPreset(url));
   }, []);
 
   const discardUnmodifiedDraft = useCallback(async (preset: Preset) => {
@@ -754,7 +749,7 @@ export default function Home() {
     let isCancelled = false;
     const openLinkedPreset = async () => {
       const url = new URL(window.location.href);
-      const identifier = url.searchParams.get("p");
+      const identifier = presetIdentifierFromUrl(url);
       if (!identifier) return;
 
       let linked = dashboardPresets.find((preset) => (preset.slug && preset.slug === identifier) || preset.id === identifier);
@@ -812,8 +807,7 @@ export default function Home() {
           } else if (response.status === 404 && !isCancelled) {
             openPresetIdRef.current = "";
             const cleanUrl = new URL(window.location.href);
-            cleanUrl.searchParams.delete("p");
-            window.history.replaceState(null, "", cleanUrl);
+            window.history.replaceState(null, "", urlWithoutPreset(cleanUrl));
             setActionError("This preset does not exist or has been removed.");
           } else {
             openPresetIdRef.current = "";
@@ -1002,10 +996,7 @@ export default function Home() {
       setDashboardView("mine");
       selectPreset(created, true);
       setDraftContent(starterPresetContent(result.preset.content));
-      const url = new URL(window.location.href);
-      const identifier = presetUrlIdentifier(created);
-      url.searchParams.set("p", identifier);
-      window.history.pushState(null, "", url);
+      window.history.pushState(null, "", presetUrlPath(created));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The preset could not be created.");
     } finally {
@@ -1378,7 +1369,7 @@ export default function Home() {
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(window.location.href); const identifier = presetUrlIdentifier(selected); url.searchParams.set("p", identifier); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(presetUrlPath(selected), window.location.origin); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
                 {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
               </div>

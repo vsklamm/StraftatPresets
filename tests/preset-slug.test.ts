@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { slugifyPresetTitle } from "@/src/domain/preset-content";
+import { resolvePresetSlug, slugifyPresetTitle } from "@/src/domain/preset-content";
 
 test("slugifyPresetTitle creates slug with sanitized title and 7-character suffix", () => {
   const id = "a1b2c3d4-5678-90ab-cdef-1234567890ab";
@@ -28,4 +28,14 @@ test("slugifyPresetTitle limits title base length to 50 characters", () => {
   assert.equal(slug.endsWith("-abcdef0"), true);
   const base = slug.slice(0, -8);
   assert.equal(base.length <= 50, true);
+});
+
+test("resolvePresetSlug follows draft titles until the first publication", () => {
+  const id = "a1b2c3d4-5678-90ab-cdef-1234567890ab";
+  assert.equal(resolvePresetSlug("old-a1b2c3d", "Approved title", id, false), "approved-title-a1b2c3d");
+});
+
+test("resolvePresetSlug preserves a link after publication or retraction", () => {
+  const id = "a1b2c3d4-5678-90ab-cdef-1234567890ab";
+  assert.equal(resolvePresetSlug("trusted-link-a1b2c3d", "Changed title", id, true), "trusted-link-a1b2c3d");
 });

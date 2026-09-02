@@ -217,3 +217,12 @@ export function slugifyPresetTitle(title: string, id: string): string {
   const shortId = id.replace(/-/g, "").slice(0, 7);
   return `${base}-${shortId}`;
 }
+
+export function resolvePresetSlug(
+  currentSlug: string,
+  title: string,
+  id: string,
+  wasPublished: boolean,
+): string {
+  return wasPublished ? currentSlug : slugifyPresetTitle(title, id);
+}

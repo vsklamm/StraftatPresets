@@ -26,6 +26,7 @@ import type {
   PresetDashboardView,
   PresetInteractionRepository,
   PresetMutationResult,
+  PublishedPresetPreview,
   PresetRetractResult,
   PresetReviewResult,
   PresetSearchInput,
@@ -43,7 +44,7 @@ import type {
   UserRepository,
   UserRole,
 } from "@/src/application/ports";
-import { createStarterPresetContent, parsePresetRevisionContent, type PresetRevisionContent } from "@/src/domain/preset-content";
+import { createStarterPresetContent, parsePresetRevisionContent, resolvePresetSlug, slugifyPresetTitle, type PresetRevisionContent } from "@/src/domain/preset-content";
 import {
   buildFtsMatch,
   buildPresetSearchProjection,
@@ -181,8 +182,6 @@ function parseIssues(value: string): PresetIssue[] {
 }
 
 import { sha256Hex } from "@/src/lib/crypto-utils";
-import { slugifyPresetTitle } from "@/src/domain/preset-content";
-
 async function hashRevisionContent(contentJson: string) {
   return sha256Hex(contentJson);
 }
@@ -614,6 +613,32 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     return row ? this.toDashboardItem(row as DashboardRow, userId) : undefined;
   }
 
+  async getPublishedPresetPreview(identifier: string): Promise<PublishedPresetPreview | undefined> {
+    const row = await this.database.select({
+      id: presets.id,
+      slug: presets.slug,
+      authorName: effectiveUserName,
+      contentJson: presetRevisions.contentJson,
+    }).from(presets)
+      .innerJoin(users, eq(users.id, presets.authorId))
+      .innerJoin(presetRevisions, eq(presetRevisions.id, presets.publishedRevisionId))
+      .where(and(
+        eq(presets.status, "published"),
+        isNotNull(presets.publishedRevisionId),
+        or(eq(presets.id, identifier), eq(presets.slug, identifier)),
+      ))
+      .get();
+    if (!row) return undefined;
+    const content = parsePresetRevisionContent(JSON.parse(row.contentJson));
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: content.title,
+      authorName: row.authorName,
+      thumbnailKey: content.thumbnailKey,
+    };
+  }
+
   async getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined> {
     const row = await this.database.select({
       presetId: presetRevisions.presetId,
@@ -726,9 +751,11 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const now = input.now ?? new Date();
     const envelope = await this.database.select({
       authorId: presets.authorId,
+      slug: presets.slug,
       thumbnailKey: presets.thumbnailKey,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
+      retractedAt: presets.retractedAt,
     }).from(presets).where(eq(presets.id, input.presetId)).get();
     if (!envelope) return { result: "not_found" };
     if (envelope.authorId !== input.userId) return { result: "forbidden" };
@@ -759,6 +786,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       thumbnailModerationData: null,
       thumbnailModeratedAt: null,
     } : { thumbnailKey: content.thumbnailKey };
+    const slug = resolvePresetSlug(
+      envelope.slug,
+      content.title,
+      input.presetId,
+      Boolean(envelope.publishedRevisionId || envelope.retractedAt),
+    );
 
     if (plan === "update_draft") {
       const update = await this.database.update(presetRevisions).set({
@@ -778,7 +811,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       if (!envelope.publishedRevisionId || content.thumbnailKey !== envelope.thumbnailKey) {
         await this.database.update(presets).set({
           ...thumbnailUpdate,
-          ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description, slug: slugifyPresetTitle(content.title, input.presetId) }),
+          ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description, slug }),
           updatedAt: now,
         }).where(eq(presets.id, input.presetId)).run();
       }
@@ -804,7 +837,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         this.database.update(presets).set({
           ...thumbnailUpdate,
           workingRevisionId: revisionId,
-          ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description }),
+          ...(envelope.publishedRevisionId ? {} : { title: content.title, description: content.description, slug }),
           updatedAt: now,
         }).where(and(
           eq(presets.id, input.presetId),
@@ -1025,6 +1058,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
       publishedAt: presets.publishedAt,
+      slug: presets.slug,
+      retractedAt: presets.retractedAt,
       status: presetRevisions.status,
       contentJson: presetRevisions.contentJson,
     }).from(presets)
@@ -1068,6 +1103,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const validationIssues = [...validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId }), ...await this.validateActiveTags(content.tags)];
     if (validationIssues.length) return { result: "invalid", issues: validationIssues };
     const searchProjection = await buildPresetSearchProjection(content, revision.authorName);
+    const slug = resolvePresetSlug(
+      revision.slug,
+      content.title,
+      input.presetId,
+      Boolean(revision.publishedRevisionId || revision.retractedAt),
+    );
 
     const statements: BatchItem<"sqlite">[] = [
       this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, input.presetId)),
@@ -1150,6 +1191,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       this.database.update(presets).set({
         title: content.title,
         description: content.description,
+        slug,
         thumbnailKey: content.thumbnailKey,
         thumbnailModerationStatus: content.thumbnailKey === null ? "not_submitted" as const : "approved" as const,
         thumbnailModerationData: content.thumbnailKey === null ? null : JSON.stringify({ provider: "manual_telegram_review", decision: "approved" }),

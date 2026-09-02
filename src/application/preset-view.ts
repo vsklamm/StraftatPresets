@@ -37,6 +37,35 @@ export type Preset = {
   copyPublicationId?: string;
 };
 
-export function presetUrlIdentifier(preset: Pick<Preset, "id" | "slug" | "state" | "canEdit">) {
-  return preset.canEdit && preset.state === "draft" ? preset.id : preset.slug || preset.id;
+type LinkablePreset = Pick<Preset, "id" | "slug" | "state" | "canEdit" | "hasPublishedRevision">;
+
+export function presetHasPublishedLink(preset: LinkablePreset): boolean {
+  return !preset.canEdit || preset.state === "published" || Boolean(preset.hasPublishedRevision);
+}
+
+export function presetUrlIdentifier(preset: LinkablePreset): string {
+  return presetHasPublishedLink(preset) ? preset.slug || preset.id : preset.id;
+}
+
+export function presetUrlPath(preset: LinkablePreset): string {
+  const identifier = encodeURIComponent(presetUrlIdentifier(preset));
+  return presetHasPublishedLink(preset) ? `/p/${identifier}` : `/?p=${identifier}`;
+}
+
+export function presetIdentifierFromUrl(url: Pick<URL, "pathname" | "searchParams">): string | null {
+  const match = /^\/p\/([^/]+)\/?$/.exec(url.pathname);
+  if (match) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return null;
+    }
+  }
+  return url.searchParams.get("p");
+}
+
+export function urlWithoutPreset(url: URL): string {
+  if (/^\/p\/[^/]+\/?$/.test(url.pathname)) url.pathname = "/";
+  url.searchParams.delete("p");
+  return `${url.pathname}${url.search}${url.hash}`;
 }

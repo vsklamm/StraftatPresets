@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const result = await services.repository.listDashboardPresets("popular", undefined, 100, 0);
     for (const preset of result.items) {
       entries.push({
-        url: `${baseUrl}/?p=${encodeURIComponent(preset.slug || preset.id)}`,
+        url: `${baseUrl}/p/${encodeURIComponent(preset.slug || preset.id)}`,
         lastModified: preset.updatedAt ? new Date(preset.updatedAt) : now,
         changeFrequency: "weekly",
         priority: 0.8,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDatabase } from "../db";
 import { D1Repository } from "../src/infrastructure/d1-repository";
+import { createStarterPresetContent } from "../src/domain/preset-content";
 
 type RecordedQuery = { sql: string; params: unknown[] };
 
@@ -118,4 +119,36 @@ test("weapon text search stays within D1 compound-select limits", async () => {
     else unionsByDepth.set(depth, (unionsByDepth.get(depth) ?? 0) + 1);
   }
   assert.ok(Math.max(0, ...unionsByDepth.values()) <= 4, "a compound SELECT may contain at most five terms in D1");
+});
+
+test("published preset previews read only the trusted published revision", async () => {
+  const content = {
+    ...createStarterPresetContent("Published title"),
+    thumbnailKey: "presets/preset-id/thumbnail.webp",
+  };
+  let recordedSql = "";
+  const binding = {
+    prepare(sql: string) {
+      recordedSql = sql;
+      return {
+        bind() {
+          return {
+            raw: async () => [["preset-id", "published-title-preset", "Author", JSON.stringify(content)]],
+          };
+        },
+      };
+    },
+  } as unknown as D1Database;
+  const repository = new D1Repository(createDatabase(binding));
+
+  assert.deepEqual(await repository.getPublishedPresetPreview("published-title-preset"), {
+    id: "preset-id",
+    slug: "published-title-preset",
+    title: "Published title",
+    authorName: "Author",
+    thumbnailKey: "presets/preset-id/thumbnail.webp",
+  });
+  assert.match(recordedSql, /inner join "preset_revisions"/i);
+  assert.match(recordedSql, /"presets"\."status" = \?/i);
+  assert.match(recordedSql, /"presets"\."published_revision_id" is not null/i);
 });

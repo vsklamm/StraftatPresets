@@ -59,6 +59,14 @@ export type PresetDashboardItem = {
   publishedAt: Date | null;
 };
 
+export type PublishedPresetPreview = {
+  id: string;
+  slug: string;
+  title: string;
+  authorName: string;
+  thumbnailKey: string | null;
+};
+
 export type PresetSaveDraftResult =
   | { result: "updated"; preset: PresetDashboardItem; thumbnailKeysToDelete?: string[] }
   | { result: "invalid"; issues: PresetIssue[] }
@@ -109,6 +117,7 @@ export interface PresetWorkflowRepository {
   listDashboardPresets(view: PresetDashboardView, userId: string | undefined, limit: number, offset: number): Promise<{ items: PresetDashboardItem[]; total: number }>;
   searchPublishedPresets(input: PresetSearchInput, userId?: string): Promise<{ items: PresetDashboardItem[]; total: number }>;
   getPresetForViewer(presetId: string, userId?: string): Promise<PresetDashboardItem | undefined>;
+  getPublishedPresetPreview(identifier: string): Promise<PublishedPresetPreview | undefined>;
   getRevisionModerationContext(revisionId: string): Promise<RevisionModerationContext | undefined>;
   clearTelegramModerationMessage(revisionId: string, messageId: number): Promise<boolean>;
   findPresetIdByTelegramMessageId(messageId: number): Promise<string | undefined>;
