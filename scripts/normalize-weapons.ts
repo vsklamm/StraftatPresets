@@ -7,13 +7,13 @@ const targetDir = path.join(process.cwd(), "public", "weapons");
 const sourceDir = fs.existsSync(rawDir) ? rawDir : targetDir;
 const files = fs.readdirSync(sourceDir).filter((file) => file.endsWith(".webp"));
 
-const ALIAS_MAP: Record<string, string[]> = {
-  "the-katana.webp": ["katana.webp"],
-  "godsword.webp": ["god-sword.webp"],
-  "aaa-12.webp": ["aaa12.webp"],
-  "flashlight.webp": ["flash-light.webp"],
-  "hand-canon.webp": ["hand-cannon.webp"],
-  "javal-mahmaerd.webp": ["jahval-mahmaerd.webp"],
+const CANONICAL_FILENAME_MAP: Record<string, string> = {
+  "the-katana.webp": "katana.webp",
+  "godsword.webp": "god-sword.webp",
+  "aaa-12.webp": "aaa12.webp",
+  "flashlight.webp": "flash-light.webp",
+  "hand-canon.webp": "hand-cannon.webp",
+  "javal-mahmaerd.webp": "jahval-mahmaerd.webp",
 };
 
 interface WeaponAnalysis {
@@ -35,7 +35,7 @@ interface WeaponAnalysis {
 
 async function analyzeWeapon(filename: string): Promise<WeaponAnalysis> {
   const sourceFilePath = path.join(sourceDir, filename);
-  const targetFilePath = path.join(targetDir, filename);
+  const targetFilePath = path.join(targetDir, CANONICAL_FILENAME_MAP[filename] ?? filename);
   const { data, info } = await sharp(sourceFilePath).raw().toBuffer({ resolveWithObject: true });
   const { width, height, channels } = info;
 
@@ -173,19 +173,12 @@ async function main() {
 
     await sharp(finalImageBuffer).toFile(w.targetFilePath);
 
-    // Also write canonical aliases if present
-    if (ALIAS_MAP[w.filename]) {
-      for (const alias of ALIAS_MAP[w.filename]) {
-        await sharp(finalImageBuffer).toFile(path.join(targetDir, alias));
-      }
-    }
-
     console.log(
-      `✓ ${w.filename}${ALIAS_MAP[w.filename] ? ` (+ ${ALIAS_MAP[w.filename].join(", ")})` : ""}: ${w.bboxW}x${w.bboxH} (aspect ${w.aspect.toFixed(2)}${isVerticalWeapon ? ", 45° rot" : ""}) -> ${targetW}x${targetH} centered on ${CANVAS_SIZE}x${CANVAS_SIZE}`,
+      `✓ ${w.filename}${path.basename(w.targetFilePath) !== w.filename ? ` -> ${path.basename(w.targetFilePath)}` : ""}: ${w.bboxW}x${w.bboxH} (aspect ${w.aspect.toFixed(2)}${isVerticalWeapon ? ", 45° rot" : ""}) -> ${targetW}x${targetH} centered on ${CANVAS_SIZE}x${CANVAS_SIZE}`,
     );
   }
 
-  console.log("All 72 weapon images and aliases normalized and centered successfully!");
+  console.log("All 72 canonical weapon images normalized and centered successfully!");
 }
 
 main().catch((error) => {

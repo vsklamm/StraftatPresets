@@ -1484,7 +1484,7 @@ export default function Home() {
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
       }} /> : null}
       <ProjectInfo />
-      {actionError ? <div className="action-toast" role="status"><Image src="/barrel.png" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
+      {actionError ? <div className="action-toast" role="status"><Image src="/barrel.webp" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
     </main>
   );
 }
@@ -1739,7 +1739,7 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
 }
 
 function SubmissionIssueRail({ issues, content }: { issues: PresetIssue[]; content?: PresetRevisionContent }) {
-  return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.png" alt="" width={40} height={40} /><span>{content ? formatPresetIssueMessage(issue, content) : issue.message}</span></li>)}</ul></aside>;
+  return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.webp" alt="" width={40} height={40} /><span>{content ? formatPresetIssueMessage(issue, content) : issue.message}</span></li>)}</ul></aside>;
 }
 function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) {
   return (

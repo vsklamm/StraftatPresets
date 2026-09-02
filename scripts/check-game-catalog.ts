@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import rawCatalog from "../game-data/catalog.json";
@@ -11,6 +11,8 @@ import {
   resolveWeaponName,
   getWeaponGameId,
   getWeaponDisplayName,
+  getWeaponImage,
+  weaponAssetUrl,
   expandMapPattern,
   supportedGameRelease,
   supportedMapCount,
@@ -36,6 +38,7 @@ for (const weapon of gameCatalog.weapons) {
   assert.ok(weapon.gameId, `Missing gameId for ${weapon.name}`);
   assert.equal(getWeaponDisplayName(weapon.gameId), weapon.name, `Bidirectional lookup failed for ${weapon.gameId}`);
   assert.equal(getWeaponGameId(weapon.name), weapon.gameId, `Game ID lookup failed for ${weapon.name}`);
+  assert.equal(getWeaponImage(weapon.gameId), weaponAssetUrl(weapon.image), `Image lookup failed for ${weapon.gameId}`);
 
   const nameKey = weapon.name.toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "");
   const gameIdKey = weapon.gameId.toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "");
@@ -61,6 +64,14 @@ for (const weapon of gameCatalog.weapons) {
   assert.equal(Buffer.from(bytes.subarray(0, 4)).toString("ascii"), "RIFF", `${weapon.name} is not WebP`);
   assert.equal(Buffer.from(bytes.subarray(8, 12)).toString("ascii"), "WEBP", `${weapon.name} is not WebP`);
 }
+
+const catalogImageFiles = [...seenImagePaths]
+  .map((imagePath) => path.basename(imagePath))
+  .sort();
+const publicWeaponFiles = readdirSync(path.join("public", "weapons"))
+  .filter((filename) => filename.endsWith(".webp"))
+  .sort();
+assert.deepEqual(publicWeaponFiles, catalogImageFiles, "public/weapons must contain exactly one canonical image per weapon");
 
 const weaponsByName = new Map(gameCatalog.weapons.map((weapon) => [weapon.name, weapon]));
 const sourceTargets = new Set<string>();

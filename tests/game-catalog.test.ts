@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import rawCatalog from "../game-data/catalog.json";
@@ -55,6 +55,7 @@ test("weapon and map identities are unique, canonical, and internally resolvable
     assert.equal(resolveWeaponName(weapon.name), weapon.name);
     assert.equal(getWeaponGameId(weapon.name), weapon.gameId);
     assert.equal(getWeaponDisplayName(weapon.gameId), weapon.name);
+    assert.equal(getWeaponImage(weapon.gameId), weaponAssetUrl(weapon.image));
   }
 
   const mapNames = new Set<string>();
@@ -87,6 +88,14 @@ test("weapon provenance covers every canonical weapon exactly once", () => {
     assert.equal(existsSync(canonicalImage), true, `Missing canonical image for ${weapon.name}`);
   }
   assert.equal(targets.size, gameCatalog.weapons.length);
+
+  const catalogImageFiles = gameCatalog.weapons
+    .map((weapon) => path.basename(weapon.image))
+    .sort();
+  const publicWeaponFiles = readdirSync(path.join("public", "weapons"))
+    .filter((filename) => filename.endsWith(".webp"))
+    .sort();
+  assert.deepEqual(publicWeaponFiles, catalogImageFiles);
 });
 
 test("excluded environmental and novelty items are absent", () => {
