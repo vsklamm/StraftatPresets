@@ -42,7 +42,7 @@ import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization"
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -627,7 +627,7 @@ export default function Home() {
     }
   }, [selected, draftContent]);
 
-  const dismissPreset = useCallback(() => {
+  const dismissPreset = useCallback((clearUrl = true) => {
     if (revalidateTimerRef.current !== null) {
       window.clearTimeout(revalidateTimerRef.current);
       revalidateTimerRef.current = null;
@@ -640,8 +640,10 @@ export default function Home() {
     setIsEditing(false);
     setDraftContent(null);
     setShowSubmissionIssues(false);
-    const url = new URL(window.location.href);
-    window.history.replaceState({}, "", urlWithoutPreset(url));
+    if (clearUrl) {
+      const url = new URL(window.location.href);
+      window.history.replaceState({}, "", urlWithoutPreset(url));
+    }
   }, []);
 
   const discardUnmodifiedDraft = useCallback(async (preset: Preset) => {
@@ -686,6 +688,20 @@ export default function Home() {
     }
     dismissPreset();
   }, [isEditing, isSubmitting, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
+
+  const closePresetFromHistory = useCallback(async () => {
+    if (!openPresetIdRef.current) return;
+    openPresetIdRef.current = "";
+    const content = draftContentRef.current ?? draftContent;
+    if (isEditing && selected?.persisted && selected.canEdit && content) {
+      if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
+        await discardUnmodifiedDraft(selected);
+      } else if (!await flushSelectedDraft()) {
+        setActionError("Changes are safe on this device, but could not be synced. Try again.");
+      }
+    }
+    if (!presetIdentifierFromUrl(new URL(window.location.href))) dismissPreset(false);
+  }, [isEditing, selected, draftContent, discardUnmodifiedDraft, flushSelectedDraft, dismissPreset]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -750,7 +766,10 @@ export default function Home() {
     const openLinkedPreset = async () => {
       const url = new URL(window.location.href);
       const identifier = presetIdentifierFromUrl(url);
-      if (!identifier) return;
+      if (!identifier) {
+        if (openPresetIdRef.current) void closePresetFromHistory();
+        return;
+      }
 
       let linked = dashboardPresets.find((preset) => (preset.slug && preset.slug === identifier) || preset.id === identifier);
 
@@ -859,7 +878,7 @@ export default function Home() {
       isCancelled = true;
       window.removeEventListener("popstate", openLinkedPreset);
     };
-  }, [accountProfile, authSession?.user.id, authSession?.user.name, dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
+  }, [accountProfile, authSession?.user.id, authSession?.user.name, closePresetFromHistory, dashboardPresets, tagLabels, revalidatePreset, updateDashboardItems]);
 
   // Ensure local draft is always updated in localStorage synchronously on change
   useEffect(() => {
@@ -1369,7 +1388,7 @@ export default function Home() {
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(presetUrlPath(selected), window.location.origin); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
+                {!isEditing && presetHasPublishedLink(selected) ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(presetUrlPath(selected), window.location.origin); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
                 {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
                 {!selected.state || selected.state === "published" ? <CopyCount count={copyCount(selected)} dialog /> : null}
               </div>

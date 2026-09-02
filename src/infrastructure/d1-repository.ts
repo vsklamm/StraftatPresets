@@ -634,6 +634,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       id: row.id,
       slug: row.slug,
       title: content.title,
+      description: content.description,
       authorName: row.authorName,
       thumbnailKey: content.thumbnailKey,
     };

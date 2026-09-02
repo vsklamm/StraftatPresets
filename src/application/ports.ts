@@ -63,6 +63,7 @@ export type PublishedPresetPreview = {
   id: string;
   slug: string;
   title: string;
+  description: string;
   authorName: string;
   thumbnailKey: string | null;
 };

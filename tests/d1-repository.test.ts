@@ -145,9 +145,11 @@ test("published preset previews read only the trusted published revision", async
     id: "preset-id",
     slug: "published-title-preset",
     title: "Published title",
+    description: "",
     authorName: "Author",
     thumbnailKey: "presets/preset-id/thumbnail.webp",
   });
+  assert.equal((await repository.getPublishedPresetPreview("preset-id"))?.slug, "published-title-preset");
   assert.match(recordedSql, /inner join "preset_revisions"/i);
   assert.match(recordedSql, /"presets"\."status" = \?/i);
   assert.match(recordedSql, /"presets"\."published_revision_id" is not null/i);

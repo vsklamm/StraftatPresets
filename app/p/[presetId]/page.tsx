@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import Home from "@/app/page";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
@@ -18,6 +18,10 @@ const getPublishedPreview = cache(async (identifier: string) => {
 
 function thumbnailUrl(key: string): string {
   return `/api/media/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function siteUrl(): URL {
+  return new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com");
 }
 
 export async function generateMetadata({ params }: PresetPageProps): Promise<Metadata> {
@@ -59,6 +63,35 @@ export async function generateMetadata({ params }: PresetPageProps): Promise<Met
 
 export default async function PresetPage({ params }: PresetPageProps) {
   const { presetId } = await params;
-  if (!await getPublishedPreview(presetId)) notFound();
-  return <Home />;
+  const preset = await getPublishedPreview(presetId);
+  if (!preset) notFound();
+  if (presetId !== preset.slug) permanentRedirect(`/p/${encodeURIComponent(preset.slug)}`);
+
+  const baseUrl = siteUrl();
+  const presetName = stripColorAndFormattingTags(preset.title);
+  const authorName = stripColorAndFormattingTags(preset.authorName);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: presetName,
+    description: stripColorAndFormattingTags(preset.description),
+    url: new URL(`/p/${encodeURIComponent(preset.slug)}`, baseUrl).toString(),
+    author: { "@type": "Person", name: authorName },
+    image: preset.thumbnailKey ? new URL(thumbnailUrl(preset.thumbnailKey), baseUrl).toString() : undefined,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StraftatPresets",
+      url: baseUrl.toString(),
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
+      <Home />
+    </>
+  );
 }
