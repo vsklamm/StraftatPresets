@@ -41,6 +41,7 @@ import { MAX_THUMBNAIL_UPLOAD_BYTES } from "@/src/domain/thumbnail-policy";
 import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization";
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
+import { LOCAL_STRAFTOOLS_URL, straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
@@ -61,6 +62,7 @@ type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardIte
 type ThumbnailLoadState = { src: string; phase: "loading" | "arriving" | "ready" };
 
 const loadedThumbnailSources = new Set<string>();
+const straftoolsImportBaseUrl = process.env.NODE_ENV === "development" ? LOCAL_STRAFTOOLS_URL : undefined;
 
 function rememberPresetRevision(
   tokens: Map<string, PresetRevisionToken>,
@@ -1599,7 +1601,7 @@ function ExportRow({ title, description, code, copied, onCopy }: { title: string
         {description ? <p>{description}</p> : null}
         <code>{code}</code>
       </div>
-      <button type="button" onClick={onCopy}>{copied ? <><CheckIcon /> Copied</> : "▣ Copy"}</button>
+      <ExportActions kind="swapper" code={code} copied={copied} onCopy={onCopy} />
     </div>
   );
 }
@@ -1614,7 +1616,28 @@ function PlaylistRow({ playlist, copied, onCopy }: { playlist: MapPlaylist; copi
         <p>{playlist.description}</p>
         <code>{playlist.code}</code>
       </div>
-      <button type="button" onClick={onCopy}>{copied ? <><CheckIcon /> Copied</> : "▣ Copy"}</button>
+      <ExportActions kind="playlist" code={playlist.code} copied={copied} onCopy={onCopy} />
+    </div>
+  );
+}
+function ExportActions({ kind, code, copied, onCopy }: { kind: "playlist" | "swapper"; code: string; copied: boolean; onCopy: () => void }) {
+  const builderName = kind === "playlist" ? "Playlist Builder" : "Swapper Builder";
+  return (
+    <div className="export-actions">
+      <a
+        className="export-action"
+        href={straftoolsImportUrl(kind, code, straftoolsImportBaseUrl)}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`View in ${builderName}`}
+        title={`View in ${builderName}`}
+      >
+        <ViewIcon />
+        View
+      </a>
+      <button className="export-action export-action-copy" type="button" onClick={onCopy}>
+        {copied ? <><CheckIcon /> Copied</> : <><CopyCountIcon /> Copy</>}
+      </button>
     </div>
   );
 }
