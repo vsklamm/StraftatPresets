@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { getWeaponImage } from "@/src/domain/game-weapons";
+import { MAX_SWAPPER_RESULT_WEAPONS } from "@/src/domain/swapper-result-weapons";
 import { calculateWeaponChances, type WeightedWeapon } from "@/src/domain/weapon-weights";
 
 const MAX_VISIBLE_WEAPONS = 18;
@@ -94,28 +95,31 @@ export function WeaponMix({
   weapons,
   copyButtonRef,
   copyBurst,
+  variant = "randomized",
 }: {
   weapons: WeightedWeapon[];
-  copyButtonRef: RefObject<HTMLButtonElement | null>;
-  copyBurst: number;
+  copyButtonRef?: RefObject<HTMLButtonElement | null>;
+  copyBurst?: number;
+  variant?: "randomized" | "swapper";
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const previousBurst = useRef(copyBurst);
+  const previousBurst = useRef(copyBurst ?? 0);
   const [isCollecting, setIsCollecting] = useState(false);
   const [layoutSeed, setLayoutSeed] = useState(() => Math.floor(Math.random() * 1000));
   const [patternSeed] = useState(() => Math.floor(Math.random() * FLOAT_PATTERN_COUNT));
 
+  const visibleLimit = variant === "swapper" ? MAX_SWAPPER_RESULT_WEAPONS : MAX_VISIBLE_WEAPONS;
   const weighted = calculateWeaponChances(weapons)
     .filter((weapon) => getWeaponImage(weapon.name))
     .sort((left, right) => right.weight - left.weight)
-    .slice(0, MAX_VISIBLE_WEAPONS);
+    .slice(0, visibleLimit);
   const maxWeight = Math.max(...weighted.map((weapon) => weapon.weight), 1);
 
   useEffect(() => {
-    if (copyBurst === previousBurst.current) return;
+    if (copyBurst === undefined || copyBurst === previousBurst.current) return;
     previousBurst.current = copyBurst;
 
-    const button = copyButtonRef.current;
+    const button = copyButtonRef?.current;
     const root = rootRef.current;
     if (!button || !root) return;
     const target = button.getBoundingClientRect();
@@ -169,9 +173,16 @@ export function WeaponMix({
       y = Math.max(45, Math.min(225, y));
 
       // Logarithmic sizing preserves a visible difference across the weight range.
-      const logRatio = Math.log1p(weapon.weight) / Math.log1p(maxWeight);
-      const amplified = logRatio ** 1.8;
-      const size = 68 + amplified * 220;
+      const size = variant === "swapper"
+        ? (() => {
+            const frequencyScale = Math.log1p(weapon.weight) / Math.log1p(Math.max(maxWeight, 8));
+            const densityScale = 1 - Math.min(.18, Math.max(0, weighted.length - 1) * (.18 / 14));
+            return (210 + frequencyScale * 50) * densityScale;
+          })()
+        : (() => {
+            const logRatio = Math.log1p(weapon.weight) / Math.log1p(maxWeight);
+            return 68 + (logRatio ** 1.8) * 220;
+          })();
       const rotation = (hash % 31) - 15;
       const opacity = .45;
 

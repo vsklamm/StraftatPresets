@@ -234,6 +234,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
             </div>)}
         {versioningEnabled && versions.length > 1 ? <ConfirmDeleteButton className="editor-remove-version" label={`Remove ${version.label}`} onConfirm={removeVersion} /> : null}
       </div>
+      <p className="editor-version-hint">Versions keep a clear history of changes and make the preset easier to maintain over time. Add, edit, or remove them anytime. Multiple versions show care and boost ranking.</p>
 
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />
     {version.weaponConfigurations.some(c => c.kind === "randomized") ? <RandomizedWeaponsEditor version={version} onChange={updateVersion} /> : null}

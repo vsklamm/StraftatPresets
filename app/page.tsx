@@ -8,6 +8,7 @@ import { signIn, useSession } from "next-auth/react";
 import { AuthControl } from "@/app/auth-control";
 import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
+import { SwapperWeaponMix } from "@/app/swapper-weapon-mix";
 import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
@@ -61,6 +62,8 @@ type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardIte
 type ThumbnailLoadState = { src: string; phase: "loading" | "arriving" | "ready" };
 
 const loadedThumbnailSources = new Set<string>();
+const HEADER_COLLAPSE_SCROLL_Y = 48;
+const HEADER_EXPAND_SCROLL_Y = 12;
 
 function rememberPresetRevision(
   tokens: Map<string, PresetRevisionToken>,
@@ -210,6 +213,30 @@ export default function Home() {
   const weaponPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const [dashboardView, setDashboardView] = useState<PresetDashboardView>("popular");
   const [isMounted, setIsMounted] = useState(false);
+  const [isHeaderCompact, setIsHeaderCompact] = useState(false);
+  const isHeaderCompactRef = useRef(false);
+
+  useEffect(() => {
+    let animationFrame = 0;
+    const measureHeaderState = () => {
+      animationFrame = 0;
+      const scrollOffset = Math.max(0, window.scrollY || document.documentElement.scrollTop);
+      const nextCompact = scrollOffset > (isHeaderCompactRef.current ? HEADER_EXPAND_SCROLL_Y : HEADER_COLLAPSE_SCROLL_Y);
+      if (nextCompact === isHeaderCompactRef.current) return;
+      isHeaderCompactRef.current = nextCompact;
+      setIsHeaderCompact(nextCompact);
+    };
+    const scheduleMeasurement = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(measureHeaderState);
+    };
+
+    animationFrame = window.requestAnimationFrame(measureHeaderState);
+    window.addEventListener("scroll", scheduleMeasurement, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", scheduleMeasurement);
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -409,6 +436,7 @@ export default function Home() {
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
   const weightedWeapons = useMemo(() => calculateWeaponChances(selectedVersion?.randomizedWeapons ?? []), [selectedVersion]);
+  const selectedSwapperCodes = useMemo(() => selectedVersion?.swapper?.map((swapper) => swapper.code) ?? [], [selectedVersion]);
   const sortedWeapons = useMemo(() => {
     const direction = sortDirection === "asc" ? 1 : -1;
     return [...weightedWeapons].sort((a, b) => {
@@ -1209,24 +1237,22 @@ export default function Home() {
           Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 map playlist codes, and swapper remap settings.
         </p>
       </section>
-      <header className="topbar">
-        <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
-        <nav className="tool-tabs" aria-label="StraftatPresets sections">
-          <button className="active" type="button">Community Presets</button>
-          <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
-            <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
-            <span className="tab-author">by clodcan</span>
-          </a>
-          <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
-            <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
-            <span className="tab-author">by Matthew Knorr</span>
-          </a>
-        </nav>
-        <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
-      </header>
-
-      <div className="workspace">
-        <section className="preset-browser" aria-label="Community presets">
+      <div className={`site-header ${isHeaderCompact ? "is-compact" : ""}`}>
+        <header className="topbar">
+          <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
+          <nav className="tool-tabs" aria-label="StraftatPresets sections">
+            <button className="active" type="button">Community Presets</button>
+            <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
+              <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tab-author">by clodcan</span>
+            </a>
+            <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
+              <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tab-author">by Matthew Knorr</span>
+            </a>
+          </nav>
+          <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
+        </header>
           <div className="dashboard-toolbar">
             <div className="dashboard-views" role="group" aria-label="Preset order">
               <button className={activeDashboardView === "popular" ? "active" : ""} type="button" onClick={() => chooseDashboardView("popular")}>Popular</button>
@@ -1235,7 +1261,7 @@ export default function Home() {
             </div>
             <div className="search-row">
               <div className="search-input-wrap">
-                <input aria-label="Search community presets" placeholder="Search..." value={query} onChange={(event) => {
+                <input aria-label="Search community presets" placeholder={isViewLoaded ? `Search ${visiblePresets.length} preset${visiblePresets.length === 1 ? "" : "s"}…` : "Search presets…"} value={query} onChange={(event) => {
                   setSelectedSearchTags([]);
                   setSelectedSearchWeapons([]);
                   setQuery(event.target.value);
@@ -1268,6 +1294,10 @@ export default function Home() {
             </div>
             <button className="submit-preset" type="button" disabled={authStatus === "loading" || isCreating} onClick={submitPreset}>{isCreating ? "Opening draft…" : "＋ Submit preset"}</button>
           </div>
+      </div>
+
+      <div className="workspace">
+        <section className="preset-browser" aria-label="Community presets">
 
           {visiblePresets.length ? <div className="preset-grid">{(() => {
             type GridItem = { type: "single"; preset: typeof visiblePresets[0]; index: number } | { type: "group"; presets: [typeof visiblePresets[0], typeof visiblePresets[0]]; indices: [number, number] };
@@ -1406,8 +1436,12 @@ export default function Home() {
               </div>
             );
           })()}
-          <div className={`dialog-content ${!isEditing && selectedVersion.randomizedWeapons ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
-            {!isEditing && selectedVersion.randomizedWeapons ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} /> : null}
+          <div className={`dialog-content ${!isEditing && (selectedVersion.randomizedWeapons || selectedVersion.swapper?.length) ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
+            {!isEditing && selectedVersion.randomizedWeapons
+              ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} />
+              : !isEditing && selectedVersion.swapper?.length
+                ? <SwapperWeaponMix key={`${selected.id}-${selectedVersion.label}`} encodedValues={selectedSwapperCodes} />
+                : null}
             <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
