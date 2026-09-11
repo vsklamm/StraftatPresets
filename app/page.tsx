@@ -1742,16 +1742,17 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
       <div className="thumbnail-tunnel-loader" aria-hidden="true">
         <svg className="thumbnail-tunnel" viewBox="0 0 160 90" preserveAspectRatio="none">
           <g className="thumbnail-tunnel-track">
-            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6-4C25 1 39 40 80 45" />
-            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166-4C135 1 121 40 80 45" />
-            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166 94C135 89 121 50 80 45" />
-            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6 94C25 89 39 50 80 45" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6-4C23-1 31 32 61.5 35.4375" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166-4C137-1 127 32 95.5 35.4375" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M166 94C137 91 128 59 98.5 54.5625" />
+            <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6 94C23 91 33 59 64.5 54.5625" />
+            <path className="thumbnail-tunnel-portal" d="M61.5 35.4375L95.5 35.4375L98.5 54.5625L64.5 54.5625Z" />
             {[0, 1, 2, 3].map((frame) => (
               <path
                 className={`thumbnail-tunnel-frame frame-${frame + 1}`}
                 key={frame}
                 vectorEffect="non-scaling-stroke"
-                d="M70.8 39.8Q80 38.6 89.2 39.8Q90.5 45 89.2 50.2Q80 51.4 70.8 50.2Q69.5 45 70.8 39.8Z"
+                d="M61.5 35.4375L95.5 35.4375L98.5 54.5625L64.5 54.5625Z"
               />
             ))}
           </g>
