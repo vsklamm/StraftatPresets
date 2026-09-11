@@ -21,7 +21,7 @@ import {
 import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
-import { calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
+import { calculateRelativeWeaponBarWidth, calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
 import { recordPresetCopy, recordPresetInteraction, retryPendingPresetCopies } from "@/src/lib/preset-interactions-client";
 import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
 import type { ActiveTag } from "@/src/application/ports";
@@ -436,6 +436,7 @@ export default function Home() {
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
   const weightedWeapons = useMemo(() => calculateWeaponChances(selectedVersion?.randomizedWeapons ?? []), [selectedVersion]);
+  const maximumWeaponWeight = useMemo(() => Math.max(...weightedWeapons.map((weapon) => weapon.weight), 0), [weightedWeapons]);
   const selectedSwapperCodes = useMemo(() => selectedVersion?.swapper?.map((swapper) => swapper.code) ?? [], [selectedVersion]);
   const sortedWeapons = useMemo(() => {
     const direction = sortDirection === "asc" ? 1 : -1;
@@ -1460,7 +1461,7 @@ export default function Home() {
                   className="dialog-description-input"
                   aria-label="Preset description"
                   maxLength={MAX_PRESET_DESCRIPTION_CHARACTERS}
-                  placeholder="What makes your preset unique compared to similar ones? Which weapons, maps, or rules define the gameplay, and how is it tuned to be played?"
+                  placeholder={"Which weapons, maps, or rules define the gameplay, and how is it tuned to be played?\nWhat makes your preset unique compared to similar ones?\nExplain why your choices work together, not just what's included."}
                   value={draftContent.description}
                   onChange={(event) => updateDraftContent((content) => ({ ...content, description: event.target.value }))}
                 />
@@ -1494,7 +1495,7 @@ export default function Home() {
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
-                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <Image src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
+                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <Image src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
               })}</tbody></table></div>
             </PresetSection> : null}
 

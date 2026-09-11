@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calculateWeaponChances,
+  calculateRelativeWeaponBarWidth,
+  clampWeaponWeight,
   formatWeaponPercent,
   roundChancePercent,
   MIN_WEAPON_WEIGHT,
@@ -10,9 +12,17 @@ import {
 import { parsePresetRevisionContent } from "../src/domain/preset-content";
 import { validatePresetRevision, type PresetRevisionContent } from "../src/domain/preset-workflow";
 
-test("weapon weight constants enforce min 0 and max 100", () => {
-  assert.equal(MIN_WEAPON_WEIGHT, 0);
+test("weapon weight constants enforce min 1 and max 100", () => {
+  assert.equal(MIN_WEAPON_WEIGHT, 1);
   assert.equal(MAX_WEAPON_WEIGHT, 100);
+});
+
+test("weapon weight input clamps values to the integer range 1 through 100", () => {
+  assert.equal(clampWeaponWeight(Number("")), MIN_WEAPON_WEIGHT);
+  assert.equal(clampWeaponWeight(0), MIN_WEAPON_WEIGHT);
+  assert.equal(clampWeaponWeight(-5), MIN_WEAPON_WEIGHT);
+  assert.equal(clampWeaponWeight(42.8), 42);
+  assert.equal(clampWeaponWeight(101), MAX_WEAPON_WEIGHT);
 });
 
 test("weapon chances are derived from weights", () => {
@@ -32,6 +42,13 @@ test("negative and empty weights do not produce invalid chances", () => {
   ]);
 
   assert.deepEqual(weapons.map((weapon) => weapon.percent), [0, 0]);
+});
+
+test("chance bars preserve weapon ratios relative to the strongest weapon", () => {
+  assert.equal(calculateRelativeWeaponBarWidth(100, 100), 100);
+  assert.equal(calculateRelativeWeaponBarWidth(25, 100), 25);
+  assert.equal(calculateRelativeWeaponBarWidth(5, 5), 100);
+  assert.equal(calculateRelativeWeaponBarWidth(0, 100), 0);
 });
 
 test("calculates and independently rounds weapon percentages matching Straftat's exact output", () => {
@@ -103,9 +120,9 @@ test("validatePresetRevision rejects duplicate weapons and out-of-range weights"
         weapons: [
           { name: "Claymore", weight: 50 },
           { name: "Claymore", weight: 80 }, // Duplicate!
-          { name: "Taser", weight: -5 }, // Below MIN_WEAPON_WEIGHT (0)
+          { name: "Taser", weight: -5 }, // Below MIN_WEAPON_WEIGHT (1)
           { name: "AK", weight: 150 }, // Above MAX_WEAPON_WEIGHT (100)
-          { name: "M16", weight: 0 }, // Exactly 0 (Valid MIN)
+          { name: "M16", weight: 0 }, // Zero is not a valid randomized weight
           { name: "Revolver", weight: 100 }, // Exactly 100 (Valid MAX)
         ],
       }],
@@ -119,13 +136,14 @@ test("validatePresetRevision rejects duplicate weapons and out-of-range weights"
   assert.equal(duplicateIssues.length, 1);
   assert.equal(duplicateIssues[0].field, "versions.0.weaponConfigurations.0.weapons.1.name");
 
-  assert.equal(weightIssues.length, 2);
+  assert.equal(weightIssues.length, 3);
   assert.equal(weightIssues[0].field, "versions.0.weaponConfigurations.0.weapons.2.weight");
   assert.equal(weightIssues[1].field, "versions.0.weaponConfigurations.0.weapons.3.weight");
+  assert.equal(weightIssues[2].field, "versions.0.weaponConfigurations.0.weapons.4.weight");
 });
 
-test("stored preset parsing rejects invalid weapon weights", () => {
-  const rawHackedContent = {
+test("backend parsing accepts only integer weapon weights from 1 through 100", () => {
+  const contentWithWeight = (weight: number) => ({
     title: "Hacked Content",
     description: "Testing parsing defense",
     thumbnailKey: null,
@@ -141,14 +159,14 @@ test("stored preset parsing rejects invalid weapon weights", () => {
       weaponConfigurations: [{
         kind: "randomized",
         name: "Hacked Pool",
-        weapons: [
-          { name: "Claymore", weight: 999 },
-          { name: "Taser", weight: -50 },
-          { name: "AK", weight: 42.8 },
-        ],
+        weapons: [{ name: "Claymore", weight }],
       }],
     }],
-  };
+  });
 
-  assert.throws(() => parsePresetRevisionContent(rawHackedContent));
+  assert.doesNotThrow(() => parsePresetRevisionContent(contentWithWeight(1)));
+  assert.doesNotThrow(() => parsePresetRevisionContent(contentWithWeight(100)));
+  for (const invalidWeight of [-1, 0, 1.5, 101]) {
+    assert.throws(() => parsePresetRevisionContent(contentWithWeight(invalidWeight)));
+  }
 });

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
 import { catalogWeapons, getWeaponImage, weaponAssetUrl } from "@/src/domain/game-weapons";
-import { calculateWeaponChances, formatWeaponPercent, MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
+import { calculateRelativeWeaponBarWidth, calculateWeaponChances, clampWeaponWeight, formatWeaponPercent, MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
 import { createEmptyMapPlaylist, createPresetVersionFromPrevious, findPreviousPresetVersion, MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS, MAX_MAP_PLAYLISTS, MAX_PRESET_VERSIONS, MAX_RANDOMIZED_WEAPONS, MAX_SWAPPER_CONFIGURATIONS, type PresetMapPlaylistContent, type PresetRevisionContent, type PresetVersionContent, type PresetWeaponConfigurationContent } from "@/src/domain/preset-content";
 import { formatPresetVersionLabel, isPresetVersionInRange, isPresetVersionInputCandidate, nextPresetVersionLabel, sortPresetVersionsNewestFirst } from "@/src/domain/preset-version";
 import { StraftatText } from "./straftat-text";
@@ -234,7 +234,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
             </div>)}
         {versioningEnabled && versions.length > 1 ? <ConfirmDeleteButton className="editor-remove-version" label={`Remove ${version.label}`} onConfirm={removeVersion} /> : null}
       </div>
-      <p className="editor-version-hint">Versions keep a clear history of changes and make the preset easier to maintain over time. Add, edit, or remove them anytime. Multiple versions show care and boost ranking.</p>
+      <div className="editor-version-hint"><strong>Tip:</strong> Versions keep a clear history of changes and make the preset easier to maintain over time. Add, edit, or remove them anytime. Multiple versions show care and boost ranking.</div>
 
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />
     {version.weaponConfigurations.some(c => c.kind === "randomized") ? <RandomizedWeaponsEditor version={version} onChange={updateVersion} /> : null}
@@ -331,6 +331,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
   if (!configuration) return null;
 
   const weaponsWithChance = calculateWeaponChances(configuration.weapons).sort((left, right) => left.name.localeCompare(right.name));
+  const maximumWeaponWeight = Math.max(...weaponsWithChance.map((weapon) => weapon.weight), 0);
   return <section className="editor-block randomized-editor">
     <header>
       <h3>Randomized weapons <span>{configuration.weapons.length}</span></h3>
@@ -358,8 +359,8 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
       <div className="randomized-entry-head" role="row"><span role="columnheader">Weapon</span><span role="columnheader">Weight</span><span role="columnheader">Chance</span><span aria-hidden="true" /></div>
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
         <span className="weapon-entry-name" role="cell"><Image src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
-        <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const raw = event.target.value; const num = raw === "" ? 0 : Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(Number(raw) || 0))); updateConfiguration((current) => ({ ...current, weapons: current.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) })); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
-        <span role="cell"><span className="chance"><i style={{ width: `${weapon.percent}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
+        <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const num = clampWeaponWeight(Number(event.target.value)); updateConfiguration((current) => ({ ...current, weapons: current.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) })); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
+        <span role="cell"><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
         <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration((current) => ({ ...current, weapons: current.weapons.filter((item) => item.name !== weapon.name) }))} />
       </div>)}
     </div> : null}

@@ -1,4 +1,4 @@
-export const MIN_WEAPON_WEIGHT = 0;
+export const MIN_WEAPON_WEIGHT = 1;
 export const MAX_WEAPON_WEIGHT = 100;
 
 export type WeightedWeapon = { name: string; weight: number };
@@ -10,6 +10,16 @@ export function roundChancePercent(value: number): number {
 
 export function formatWeaponPercent(percent: number): string {
   return `${percent.toFixed(1)}%`;
+}
+
+export function clampWeaponWeight(value: number): number {
+  if (!Number.isFinite(value)) return MIN_WEAPON_WEIGHT;
+  return Math.max(MIN_WEAPON_WEIGHT, Math.min(MAX_WEAPON_WEIGHT, Math.floor(value)));
+}
+
+export function calculateRelativeWeaponBarWidth(weight: number, maximumWeight: number): number {
+  if (!Number.isFinite(weight) || !Number.isFinite(maximumWeight) || weight <= 0 || maximumWeight <= 0) return 0;
+  return Math.min(100, (weight / maximumWeight) * 100);
 }
 
 export function calculateWeaponChances(weapons: WeightedWeapon[]): WeaponWithChance[] {
