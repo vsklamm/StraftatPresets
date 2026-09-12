@@ -285,7 +285,9 @@ test("restoring a day's leader restores comparisons and hidden leaders retain th
 
 test("deployment builds, migrates, recalculates and only then uploads, and SQL binding is escaped", () => {
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-  assert.equal(pkg.version, "1.2.2");
+  const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+  assert.equal(pkg.version, lock.version);
+  assert.equal(pkg.version, lock.packages[""].version);
   assert.match(pkg.scripts.deploy, /worker:build && wrangler d1 migrations apply DB --remote && tsx scripts\/preset-stats.ts remote refresh-ranking && wrangler deploy/);
   assert.equal(bindRankingSql("SELECT ?, ?, ?", ["a'?", 2, null]), "SELECT 'a''?', 2, NULL");
   assert.throws(() => bindRankingSql("SELECT ?", []), /Missing/);
