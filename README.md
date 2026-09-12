@@ -125,8 +125,11 @@ No event history, published content, thumbnails, or public counters are reset.
 ### Transport and browser security
 
 At the next authorized rollout, enable Cloudflare **SSL/TLS → Edge Certificates →
-Always Use HTTPS** for `straftatpresets.com`. Application redirects alone cannot
-cover Cloudflare-served static assets or Next.js internal asset routes.
+Always Use HTTPS** for `straftatpresets.com`. HTTPS redirects belong at the edge,
+covering static assets as well as application routes. The previous conditional
+Next.js redirect produced a redirect loop on HTTPS in the deployed adapter despite
+passing Next.js routing tests. Keep this redirect at the edge and verify real HTTP
+and HTTPS responses after deployment.
 After deployment, verify HTTP redirects for both `/` and a real `/_next/static/`
 script URL, and check HTTPS pages for `Strict-Transport-Security` and
 `Content-Security-Policy`. The deploy script does not change zone settings.

@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const productionHost = "straftatpresets\\.com";
 
-export function securityConfig(isDevelopment: boolean): Pick<NextConfig, "headers" | "redirects"> {
+export function securityConfig(isDevelopment: boolean): Pick<NextConfig, "headers"> {
   // Keep static rendering and Next's inline hydration scripts. This is a
   // containment policy, not a strict nonce-based defense against inline XSS.
   const policy = [
@@ -42,20 +42,6 @@ export function securityConfig(isDevelopment: boolean): Pick<NextConfig, "header
         },
         { source: "/weapons/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=7776000, immutable" }] },
       ];
-    },
-    async redirects() {
-      // Defense in depth for application routes. Cloudflare Always Use HTTPS
-      // is still required: static assets can bypass this Next.js configuration.
-      return [{
-        source: "/:path*",
-        has: [
-          { type: "host", value: productionHost },
-          // Cloudflare overwrites this with the visitor's actual protocol.
-          { type: "header", key: "x-forwarded-proto", value: "http" },
-        ],
-        destination: "https://straftatpresets.com/:path*",
-        permanent: true,
-      }];
     },
   };
 }

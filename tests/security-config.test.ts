@@ -11,11 +11,13 @@ function response(url: string, protocol: string, development = false) {
   });
 }
 
-test("production HTTP redirects preserve paths and queries with method-preserving 308", async () => {
+test("transport redirects belong to Cloudflare, not forwarded protocol headers", async () => {
   for (const path of ["/", "/p/example?tab=versions", "/api/presets"]) {
     const result = await response(`http://straftatpresets.com${path}`, "http");
-    assert.equal(result.status, 308);
-    assert.equal(result.headers.get("location"), `https://straftatpresets.com${path}`);
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get("location"), null);
+    const https = await response(`https://straftatpresets.com${path}`, "http");
+    assert.equal(https.headers.get("location"), null);
   }
 });
 
