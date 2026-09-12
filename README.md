@@ -122,6 +122,23 @@ secret, and only then uploads the Worker. A failed migration or recalculation st
 the deployment. Do not bypass these steps with a direct `wrangler deploy`.
 No event history, published content, thumbnails, or public counters are reset.
 
+### Transport and browser security
+
+At the next authorized rollout, enable Cloudflare **SSL/TLS → Edge Certificates →
+Always Use HTTPS** for `straftatpresets.com`. Application redirects alone cannot
+cover Cloudflare-served static assets or Next.js internal asset routes.
+After deployment, verify HTTP redirects for both `/` and a real `/_next/static/`
+script URL, and check HTTPS pages for `Strict-Transport-Security` and
+`Content-Security-Policy`. The deploy script does not change zone settings.
+See [Cloudflare's HTTPS setup](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/).
+
+The application adds host-only, one-year HSTS (no subdomain or preload opt-in)
+and a CSP that restricts resource origins, framing, form targets, and inline event
+handlers. Inline scripts and styles remain allowed for Next.js static hydration
+and the existing UI, so this is **not a strict inline-XSS defense**. A nonce-based
+policy would require revisiting rendering and caching. Local HTTP previews remain
+usable, and development-only eval/WebSocket allowances are absent from builds.
+
 ## Project layout
 
 ```text
