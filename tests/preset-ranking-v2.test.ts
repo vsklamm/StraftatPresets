@@ -60,7 +60,7 @@ function fixture(upgrade = false) {
 }
 
 test("tag gains diminish after four, extra configurations and playlists give no extra credit", () => {
-  const base = rankingContentSignals(content, tags);
+  const base = rankingContentSignals({ ...content, description: "x".repeat(40) }, tags);
   const points = Array.from({ length: 7 }, (_, i) => calculateQualityScore({ ...base, tagCount: i + 2 }));
   assert.deepEqual(points.map((p) => Math.round((p - points[0]) * 1000) / 1000), [0, 1, 2, 2.5, 2.75, 2.875, 2.938]);
   assert.equal(calculateQualityScore({ ...base, mapPlaylistCount: 1, mapPlaylistWithDescriptionCount: 1, weaponConfigurationCount: 1 }),
@@ -102,14 +102,14 @@ test("surge handles sparse days, relative leaders, midnight continuity and a one
   assert.equal(projection([...events, ...events.map((e) => ({ ...e, createdAt: e.createdAt - DAY }))]).surge, projection(events).surge);
 });
 
-test("scores may exceed 100, never 138, and future timestamps do not amplify freshness", () => {
+test("scores may exceed 100, never 135, and future timestamps do not amplify freshness", () => {
   const full = { ...preset(), firstPublishedAt: now, contentJson: JSON.stringify({ ...content, thumbnailKey: "image", description: "x".repeat(300), tags: [...tags] }) };
   const events = Array.from({ length: 100 }, (_, i) => [event(String(i)), event(String(i), "link_open")]).flat();
   const ranked = buildRankingProjection([full], events, tags, { first: "p", second: "p" }, now)[0];
-  assert.ok(ranked.total > 100 && ranked.total <= 138);
+  assert.ok(ranked.total > 100 && ranked.total <= 135);
   assert.equal(ranked.lucky, 24);
   assert.equal(scoreToMilli(ranked.total), Math.round(ranked.total * 1000));
-  assert.equal(calculateFreshnessScore(now + DAY, now), 24);
+  assert.equal(calculateFreshnessScore(now + DAY, now), 18);
   assert.equal(calculateFreshnessScore(null, now), 0);
 });
 
@@ -170,8 +170,8 @@ test("store excludes invalid and owner events, caches globally, invalidates imme
     assert.equal(f.statements.length, reads + 1);
     f.db.exec("UPDATE preset_events SET is_invalidated = 1 WHERE actor_hash = 'reader'");
     assert.equal((await f.store.get(now + 2000)).items[0].engagement, 0);
-    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 1");
-    assert.equal((await f.store.get(now + 3000)).version, 2);
+    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 2");
+    assert.equal((await f.store.get(now + 3000)).version, 3);
     f.db.exec("UPDATE presets SET status = 'hidden' WHERE id = 'p'");
     assert.equal((await f.store.get(now + 4000)).items.length, 0);
     assert.equal(f.db.prepare("SELECT count(*) AS n FROM preset_events").get()?.n, 4);
@@ -285,7 +285,7 @@ test("restoring a day's leader restores comparisons and hidden leaders retain th
 
 test("deployment builds, migrates, recalculates and only then uploads, and SQL binding is escaped", () => {
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-  assert.equal(pkg.version, "1.2.0");
+  assert.equal(pkg.version, "1.2.1");
   assert.match(pkg.scripts.deploy, /worker:build && wrangler d1 migrations apply DB --remote && tsx scripts\/preset-stats.ts remote refresh-ranking && wrangler deploy/);
   assert.equal(bindRankingSql("SELECT ?, ?, ?", ["a'?", 2, null]), "SELECT 'a''?', 2, NULL");
   assert.throws(() => bindRankingSql("SELECT ?", []), /Missing/);

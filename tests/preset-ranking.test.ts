@@ -45,7 +45,7 @@ test("publication requires a useful description, one version, one map playlist, 
   ]);
 });
 
-test("quality is below 34 points and rewards polish over quantity", () => {
+test("quality is below 37 points and rewards polish over quantity", () => {
   const fullPreset: PresetContentSignals = {
     title: "Ultimate Melee Chaos",
     description: "A comprehensive melee preset designed for competitive duels across curated arena maps. Includes tuned weapon weights and customized playlists.".repeat(2),
@@ -58,10 +58,18 @@ test("quality is below 34 points and rewards polish over quantity", () => {
   };
   const fullQuality = calculateQualityScore(fullPreset);
   const minQuality = calculateQualityScore(minimumPreset);
-  assert.equal(fullQuality, 33.938);
+  assert.equal(fullQuality, 36.938);
   assert.ok(fullQuality <= PRESET_RANKING_LIMITS.quality);
   assert.ok(minQuality <= 15);
   assert.ok(fullQuality >= minQuality + 20);
+});
+
+test("v1.2.1 adds completeness credit to descriptions, not quantity", () => {
+  const baseline = { ...minimumPreset, description: "x".repeat(40) };
+  const base = calculateQualityScore(baseline);
+  assert.equal(calculateQualityScore({ ...baseline, description: "x".repeat(250) }) - base, 9);
+  assert.equal(calculateQualityScore({ ...baseline, mapPlaylistWithDescriptionCount: 1 }) - base, 3);
+  assert.equal(calculateQualityScore({ ...baseline, mapPlaylistCount: 7, mapPlaylistWithDescriptionCount: 7 }) - base, 3);
 });
 
 test("one browser cannot turn repeated clicks into fake unique engagement", () => {
@@ -75,9 +83,9 @@ test("one browser cannot turn repeated clicks into fake unique engagement", () =
 
 test("the new-preset boost has a five-day half-life", () => {
   const now = Date.UTC(2026, 7, 14);
-  assert.equal(calculateFreshnessScore(now, now), 24);
-  assert.equal(calculateFreshnessScore(now - 5 * 86_400_000, now), 12);
-  assert.equal(calculateFreshnessScore(now - 10 * 86_400_000, now), 6);
+  assert.equal(calculateFreshnessScore(now, now), 18);
+  assert.equal(calculateFreshnessScore(now - 5 * 86_400_000, now), 9);
+  assert.equal(calculateFreshnessScore(now - 10 * 86_400_000, now), 4.5);
   assert.equal(calculateFreshnessScore(now - 90 * 86_400_000, now), 0);
 });
 

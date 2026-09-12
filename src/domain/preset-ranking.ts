@@ -16,16 +16,16 @@ import {
 import { MAX_PRESET_TAGS } from "./tag-policy";
 import { stripColorAndFormattingTags } from "./straftat-markup";
 
-export const PRESET_RANKING_VERSION = 2;
+export const PRESET_RANKING_VERSION = 3;
 export const RANKING_DAY_MS = 86_400_000;
 
 export const PRESET_RANKING_LIMITS = {
-  quality: 34,
+  quality: 37,
   engagement: 40,
-  freshness: 24,
+  freshness: 18,
   surge: 16,
   lucky: 24,
-  total: 138,
+  total: 135,
   freshnessDays: 5,
 } as const;
 
@@ -111,7 +111,7 @@ export function validatePresetPublication(content: PresetContentSignals): Public
 }
 
 /**
- * Calculates preset content completeness and polish score (below 34 points).
+ * Calculates preset content completeness and polish score (below 37 points).
  * Focuses on meaningful quality signals (thumbnail, tags, clear descriptions, map pool descriptions)
  * without penalizing compact, laser-focused presets.
  */
@@ -134,18 +134,18 @@ export function calculateQualityScore(content: PresetContentSignals) {
     : tagCount === 3 ? 4
     : 6 - 2 ** (-(tagCount - 4));
 
-  // 4. Description depth (7 pts max) - 40-80 chars (2 pts), 80-160 chars (5 pts), 160-250+ chars (7 pts)
-  const descScore = descLen < 40 ? 0
+  // Preserve the description curve, scaling its maximum from 7 to 9 points.
+  const descScore = (descLen < 40 ? 0
     : descLen <= 80 ? 2 * ((descLen - 40) / 40)
     : descLen <= 160 ? 2 + 3 * ((descLen - 80) / 80)
     : descLen <= 250 ? 5 + 2 * ((descLen - 160) / 90)
-    : 7;
+    : 7) * (9 / 7);
 
   // Presence and explanation matter, not the quantity of playlists.
   const playlistCount = boundedCount(content.mapPlaylistCount);
   const playlistWithDesc = boundedCount(content.mapPlaylistWithDescriptionCount);
   const playlistBase = playlistCount >= 1 ? 2 : 0;
-  const playlistDescBonus = playlistCount >= 1 && playlistWithDesc >= 1 ? 2 : 0;
+  const playlistDescBonus = playlistCount >= 1 && playlistWithDesc >= 1 ? 3 : 0;
   const playlistScore = playlistBase + playlistDescBonus;
 
   const weaponScore = boundedCount(content.weaponConfigurationCount) >= 1 ? 3 : 0;
