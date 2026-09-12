@@ -34,7 +34,7 @@ export function extractModeratableFields(content: PresetRevisionContent): Modera
 
     version.weaponConfigurations?.forEach((config, configIndex) => {
       const configPrefix = `${versionPrefix}.weaponConfigurations.${configIndex}`;
-      addField(`${configPrefix}.name`, `${config.kind === "swapper" ? "Swapper" : "Randomized Weapon"} Name`, config.name);
+      addField(`${configPrefix}.name`, `${config.kind === "swapper" ? "Swapper" : "Randomizer Settings"} Name`, config.name);
       if ("description" in config && typeof config.description === "string" && config.description) {
         addField(`${configPrefix}.description`, "Swapper Description", config.description);
       }

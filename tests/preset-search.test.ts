@@ -28,14 +28,14 @@ test("search projection indexes content from the latest version only and only sw
         label: "v1.0.0",
         mapPlaylists: [{ name: "Old maps", description: "The first set", encodedValue: "", mapNames: ["Adobe_00"] }],
         weaponConfigurations: [
-          { kind: "randomized", name: "Randomized weapons", weapons: [{ name: "Taser", weight: 1 }] },
+          { kind: "randomized", name: "Randomizer Settings", weapons: [{ name: "Taser", weight: 1 }] },
           { kind: "swapper", name: "Close range replacements", description: "Pistol becomes AK", encodedValue: swapper },
         ],
       },
       {
         label: "v2.0.0",
         mapPlaylists: [{ name: "Current maps", description: "The current set", encodedValue: "", mapNames: ["Adobe_01"] }],
-        weaponConfigurations: [{ kind: "randomized", name: "Randomized weapons", weapons: [{ name: "AP Mine", weight: 100 }] }],
+        weaponConfigurations: [{ kind: "randomized", name: "Randomizer Settings", weapons: [{ name: "AP Mine", weight: 100 }] }],
       },
     ],
   };

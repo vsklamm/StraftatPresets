@@ -127,7 +127,7 @@ export function createPresetVersionFromPrevious(
     return {
       label,
       mapPlaylists: [createEmptyMapPlaylist()],
-      weaponConfigurations: [{ kind: "randomized", name: "Randomized weapons", weapons: [] }],
+      weaponConfigurations: [{ kind: "randomized", name: "Randomizer Settings", weapons: [] }],
     };
   }
 
@@ -142,7 +142,7 @@ export function createPresetVersionFromPrevious(
     weaponConfigurations = [
       {
         kind: "randomized",
-        name: prevRandomized.name || "Randomized weapons",
+        name: prevRandomized.name === "Randomized weapons" ? "Randomizer Settings" : (prevRandomized.name || "Randomizer Settings"),
         weapons: prevRandomized.weapons.map((w) => ({ name: w.name, weight: w.weight })),
       },
     ];
@@ -153,7 +153,7 @@ export function createPresetVersionFromPrevious(
       encodedValue: "",
     }));
   } else if (prevRandomized) {
-    weaponConfigurations = [{ kind: "randomized", name: "Randomized weapons", weapons: [] }];
+    weaponConfigurations = [{ kind: "randomized", name: "Randomizer Settings", weapons: [] }];
   } else {
     weaponConfigurations = [];
   }

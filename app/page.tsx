@@ -195,8 +195,8 @@ function latestVersion(preset: Preset) { return sortPresetVersionsNewestFirst(pr
 function configLabels(version: PresetVersion) {
   return [
     version.maps?.length ? `${version.maps.length} Map playlist${version.maps.length === 1 ? "" : "s"}` : null,
-    version.randomizedWeapons ? "Randomized weapons" : null,
-    version.swapper?.length ? `${version.swapper.length} Swapper setting${version.swapper.length === 1 ? "" : "s"}` : null,
+    version.randomizedWeapons ? "Randomizer Settings" : null,
+    version.swapper?.length ? `${version.swapper.length} Swapper Setting${version.swapper.length === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[];
 }
 
@@ -1235,7 +1235,7 @@ export default function Home() {
         <h1>StraftatPresets — Community Presets, Weapon Randomizer & Map Playlists for STRAFTAT</h1>
         <p>
           Discover, generate, and share custom game configurations for the arena duel shooter STRAFTAT.
-          Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 map playlist codes, and swapper remap settings.
+          Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 map playlist codes, and Swapper Settings.
         </p>
       </section>
       <div className={`site-header ${isHeaderCompact ? "is-compact" : ""}`}>
@@ -1488,10 +1488,10 @@ export default function Home() {
 
             {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} onPendingChange={trackPendingEditorChange} /> : null}
 
-            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomized weapons" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
+            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomizer Settings" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
               <span className="manual-entry-note">Enter manually in-game</span>
               <RandomizedWeaponsGuide />
-              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomized weapons as plain text" : "Copy randomized weapons as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!, selectedVersion.randomizedWeaponsCopyKey)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
+              <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomizer settings as plain text" : "Copy randomizer settings as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!, selectedVersion.randomizedWeaponsCopyKey)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
@@ -1499,7 +1499,7 @@ export default function Home() {
               })}</tbody></table></div>
             </PresetSection> : null}
 
-            {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper settings" count={selectedVersion.swapper.length}>
+            {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper Settings" count={selectedVersion.swapper.length}>
               <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
 
@@ -1533,7 +1533,7 @@ function RandomizedWeaponsGuide() {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ left: 16, top: 16, width: 410 });
   const steps = [
-    "Open randomized weapon settings",
+    "Open Randomizer Settings",
     "Find the listed weapon",
     "Enter the shown weight",
     "Repeat for every weapon",
@@ -1574,9 +1574,9 @@ function RandomizedWeaponsGuide() {
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
   }, []);
   return <div className="randomized-weapons-guide">
-    <button ref={triggerRef} className="guide-trigger icon-only" type="button" aria-label="How to enter randomized weapons" aria-expanded={isOpen} aria-describedby={isOpen ? "randomized-weapons-guide" : undefined} onMouseEnter={openGuide} onMouseLeave={scheduleClose} onFocus={openGuide} onBlur={scheduleClose} onClick={() => isOpen ? setIsOpen(false) : openGuide()}>?</button>
+    <button ref={triggerRef} className="guide-trigger icon-only" type="button" aria-label="How to enter randomizer settings" aria-expanded={isOpen} aria-describedby={isOpen ? "randomized-weapons-guide" : undefined} onMouseEnter={openGuide} onMouseLeave={scheduleClose} onFocus={openGuide} onBlur={scheduleClose} onClick={() => isOpen ? setIsOpen(false) : openGuide()}>?</button>
     {isOpen && typeof document !== "undefined" ? createPortal(<aside className="guide-popover" id="randomized-weapons-guide" role="tooltip" style={position} onMouseEnter={openGuide} onMouseLeave={scheduleClose}>
-      <header><strong>Enter randomized weapons</strong><p>Manual entry only. Copy is plain text.</p></header>
+      <header><strong>Enter Randomizer Settings</strong><p>Manual entry only. Copy is plain text.</p></header>
       <ol>{steps.map((step, index) => <li key={step}>
         <div className="guide-screenshot" aria-hidden="true"><span>Game UI screenshot</span></div>
         <p><b>{index + 1}</b>{step}</p>

@@ -143,7 +143,7 @@ async function decodeRevisionContentData(content: PresetRevisionContent) {
           source: "validation",
           field: `${prefix}.encodedValue`,
           code: "invalid_swapper_code",
-          message: "The swapper settings export is invalid.",
+          message: "The Swapper Settings export is invalid.",
         });
         return { ...config, name: "" };
       }

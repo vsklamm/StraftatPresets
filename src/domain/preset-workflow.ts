@@ -133,13 +133,13 @@ export function validatePresetRevision(content: PresetRevisionContent, options: 
     const randomized = version.weaponConfigurations.filter((c) => c.kind === "randomized");
 
     if (swappers.length > 0 && randomized.length > 0) {
-      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "mixed_weapon_configurations", "A version cannot mix randomized weapons and swapper settings"));
+      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "mixed_weapon_configurations", "A version cannot mix Randomizer Settings and Swapper Settings"));
     }
     if (swappers.length > rules.maximumSwapperConfigurations) {
-      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "too_many_swapper_configurations", `A version can have at most ${rules.maximumSwapperConfigurations} swapper settings`));
+      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "too_many_swapper_configurations", `A version can have at most ${rules.maximumSwapperConfigurations} Swapper Settings`));
     }
     if (randomized.length > 1) {
-      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "too_many_randomized_pools", "A version can have at most 1 randomized weapon pool"));
+      issues.push(validationIssue(`versions.${versionIndex}.weaponConfigurations`, "too_many_randomized_pools", "A version can have at most 1 Randomizer Settings"));
     }
 
     for (const [playlistIndex, playlist] of version.mapPlaylists.entries()) {
@@ -168,7 +168,7 @@ export function validatePresetRevision(content: PresetRevisionContent, options: 
 
       if (configuration.kind === "swapper") {
         if (!configuration.encodedValue.trim()) {
-          issues.push(validationIssue(`${configPrefix}.encodedValue`, "missing_swapper_code", "Add the encoded swapper settings"));
+          issues.push(validationIssue(`${configPrefix}.encodedValue`, "missing_swapper_code", "Add the encoded Swapper Settings"));
         } else if (!swapperNameTrimmed) {
           issues.push(validationIssue(`${configPrefix}.encodedValue`, "invalid_swapper_code", "The swapper export is invalid or missing a name"));
         }
@@ -185,10 +185,10 @@ export function validatePresetRevision(content: PresetRevisionContent, options: 
       }
       if (configuration.kind !== "randomized") continue;
       if (configuration.weapons.length < rules.minimumRandomizedWeapons) {
-        issues.push(validationIssue(`${configPrefix}.weapons`, "empty_randomized_pool", "Add at least one weapon to the randomized weapon pool"));
+        issues.push(validationIssue(`${configPrefix}.weapons`, "empty_randomized_pool", "Add at least one weapon to Randomizer Settings"));
       }
       if (configuration.weapons.length > rules.maximumRandomizedWeapons) {
-        issues.push(validationIssue(`${configPrefix}.weapons`, "too_many_weapons", `A randomized weapon pool can have at most ${rules.maximumRandomizedWeapons} weapons`));
+        issues.push(validationIssue(`${configPrefix}.weapons`, "too_many_weapons", `Randomizer Settings can have at most ${rules.maximumRandomizedWeapons} weapons`));
       }
       const seenWeapons = new Set<string>();
       for (const [weaponIndex, weapon] of configuration.weapons.entries()) {

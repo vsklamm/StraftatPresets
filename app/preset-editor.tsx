@@ -234,7 +234,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
             </div>)}
         {versioningEnabled && versions.length > 1 ? <ConfirmDeleteButton className="editor-remove-version" label={`Remove ${version.label}`} onConfirm={removeVersion} /> : null}
       </div>
-      <div className="editor-version-hint"><strong>Tip:</strong> Versions keep a clear history of changes and make the preset easier to maintain over time. Add, edit, or remove them anytime. Multiple versions show care and boost ranking.</div>
+      <div className="editor-version-hint"><strong>Tip:</strong> Versions let you update your preset over time without creating duplicates. Add, edit, or remove them anytime. Multiple versions show care and boost ranking.</div>
 
     <WeaponConfigurationPicker version={version} onChange={updateVersion} />
     {version.weaponConfigurations.some(c => c.kind === "randomized") ? <RandomizedWeaponsEditor version={version} onChange={updateVersion} /> : null}
@@ -259,10 +259,10 @@ function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersi
         <button
           type="button"
           className="weapon-type-button"
-          onClick={() => onChange((current) => ({ ...current, weaponConfigurations: [{ kind: "randomized", name: "Randomized weapons", weapons: [] }] }))}
+          onClick={() => onChange((current) => ({ ...current, weaponConfigurations: [{ kind: "randomized", name: "Randomizer Settings", weapons: [] }] }))}
         >
           <DiceIcon />
-          <span>Randomized weapons</span>
+          <span>Randomizer Settings</span>
         </button>
         <button
           type="button"
@@ -270,7 +270,7 @@ function WeaponConfigurationPicker({ version, onChange }: { version: PresetVersi
           onClick={() => onChange((current) => ({ ...current, weaponConfigurations: [{ kind: "swapper", name: "", encodedValue: "" }] }))}
         >
           <SwapIcon />
-          <span>Swapper settings</span>
+          <span>Swapper Settings</span>
         </button>
       </div>
     </section>
@@ -334,8 +334,8 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
   const maximumWeaponWeight = Math.max(...weaponsWithChance.map((weapon) => weapon.weight), 0);
   return <section className="editor-block randomized-editor">
     <header>
-      <h3>Randomized weapons <span>{configuration.weapons.length}</span></h3>
-      <ConfirmDeleteButton label="Remove randomized weapons" onConfirm={removeConfiguration} />
+      <h3>Randomizer Settings <span>{configuration.weapons.length}</span></h3>
+      <ConfirmDeleteButton label="Remove randomizer settings" onConfirm={removeConfiguration} />
     </header>
     <div className="weapon-entry">
       <label htmlFor="weapon-search">Add weapon</label>
@@ -355,7 +355,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
       </div>
     </div>
 
-    {weaponsWithChance.length ? <div className="randomized-entry-table" role="table" aria-label="Randomized weapons">
+    {weaponsWithChance.length ? <div className="randomized-entry-table" role="table" aria-label="Randomizer Settings">
       <div className="randomized-entry-head" role="row"><span role="columnheader">Weapon</span><span role="columnheader">Weight</span><span role="columnheader">Chance</span><span aria-hidden="true" /></div>
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
         <span className="weapon-entry-name" role="cell"><Image src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
@@ -518,7 +518,7 @@ function SwapperSettingsEditor({
   if (swapperIndices.length === 0) return null;
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Swapper settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}>＋ Add swapper</button></header>
+    <header><h3>Swapper Settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}>＋ Add swapper</button></header>
     <div className="playlist-editor-list">{swapperIndices.map((index, renderIndex) => {
       const configuration = version.weaponConfigurations[index];
       if (configuration.kind !== "swapper") return null;

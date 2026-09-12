@@ -74,7 +74,7 @@ test("createPresetVersionFromPrevious copies weapons and empty sections", () => 
     weaponConfigurations: [
       {
         kind: "randomized" as const,
-        name: "Randomized weapons",
+        name: "Randomizer Settings",
         weapons: [
           { name: "Pistol", weight: 100 },
           { name: "Rifle", weight: 50 },

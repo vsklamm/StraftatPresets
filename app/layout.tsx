@@ -10,13 +10,15 @@ const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost"
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
   title: "StraftatPresets",
-  description: "Browse, create, and share custom weapon randomizers, 369-map playlists, and swapper settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
+  description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
   applicationName: "StraftatPresets",
   keywords: [
     "STRAFTAT",
     "STRAFTAT presets",
+    "STRAFTAT Randomizer Settings",
     "STRAFTAT weapon randomizer",
     "STRAFTAT map playlists",
+    "STRAFTAT Swapper Settings",
     "STRAFTAT swapper settings",
     "STRAFTAT custom game",
     "STRAFTAT codes",
@@ -43,8 +45,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://straftatpresets.com",
     siteName: "StraftatPresets",
-    title: "StraftatPresets — STRAFTAT Weapon Randomizer, Map Playlists & Swapper Presets",
-    description: "Browse, create, and share custom weapon randomizers, 369-map playlists, and swapper settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
+    title: "StraftatPresets — STRAFTAT Randomizer Settings, Map Playlists & Swapper Settings",
+    description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
     images: [
       {
         url: "/android-chrome-512x512.png",
@@ -56,8 +58,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "StraftatPresets — STRAFTAT Weapon Randomizer, Map Playlists & Swapper Presets",
-    description: "Browse, create, and share custom weapon randomizers, 369-map playlists, and swapper settings for STRAFTAT.",
+    title: "StraftatPresets — STRAFTAT Randomizer Settings, Map Playlists & Swapper Settings",
+    description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT.",
     images: ["/android-chrome-512x512.png"],
   },
   robots: {
@@ -87,7 +89,7 @@ const jsonLd = {
       "url": "https://straftatpresets.com",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Windows, Linux",
-      "description": "Community-made STRAFTAT map playlists, weapon randomizers, and swapper presets with one-click copy codes for custom duel match setups.",
+      "description": "Community-made STRAFTAT map playlists, Randomizer Settings, and Swapper Settings with one-click copy codes for custom duel match setups.",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -105,7 +107,7 @@ const jsonLd = {
       "@id": "https://straftatpresets.com/#website",
       "url": "https://straftatpresets.com",
       "name": "StraftatPresets",
-      "description": "Browse and share custom weapon randomizers, map playlists, and swapper presets for STRAFTAT.",
+      "description": "Browse and share custom Randomizer Settings, map playlists, and Swapper Settings for STRAFTAT.",
       "publisher": {
         "@type": "Organization",
         "name": "StraftatPresets",

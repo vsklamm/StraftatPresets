@@ -16,7 +16,7 @@ function content(): PresetRevisionContent {
         mapPlaylists: [{ name: "Renamed", description: "Changed metadata", encodedValue: "QU JD\n", mapNames: ["Map"] }],
         weaponConfigurations: [{
           kind: "randomized",
-          name: "Randomized weapons",
+          name: "Randomizer Settings",
           weapons: [{ name: "Zed", weight: 2 }, { name: "Alpha", weight: 1 }],
         }],
       },
@@ -40,7 +40,7 @@ test("randomized weapon order does not change its copy target", async () => {
   const original = content();
   const reordered = content();
   const randomized = reordered.versions[0].weaponConfigurations[0];
-  if (randomized.kind !== "randomized") throw new Error("Expected randomized weapons.");
+  if (randomized.kind !== "randomized") throw new Error("Expected randomizer settings.");
   randomized.weapons.reverse();
   const [left, right] = await Promise.all([
     createPresetCopyManifest("left", original),

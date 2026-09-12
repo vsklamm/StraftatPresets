@@ -313,7 +313,7 @@ test("validatePresetRevision enforces sanity checks on each version in multi-ver
   assert.equal(missingPlaylistIssue?.field, "versions.0.mapPlaylists");
 });
 
-test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and randomized weapons [1, max] per version", () => {
+test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and randomizer settings [1, max] per version", () => {
   const baseValid = structuredClone(completePreset);
 
   // 1. Map playlists max 7:
@@ -335,7 +335,7 @@ test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and
   }));
   assert.equal(validatePresetRevision(sevenPlaylists).some((i) => i.code === "too_many_map_playlists"), false);
 
-  // 2. Swapper settings [1, 7]:
+  // 2. Swapper Settings [1, 7]:
   const eightSwappers = structuredClone(baseValid);
   eightSwappers.versions[0].weaponConfigurations = Array.from({ length: 8 }, (_, i) => ({
     kind: "swapper" as const,
@@ -352,7 +352,7 @@ test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and
   }));
   assert.equal(validatePresetRevision(sevenSwappers).some((i) => i.code === "too_many_swapper_configurations"), false);
 
-  // 3. Randomized weapons [1, max weapons]:
+  // 3. Randomizer Settings [1, max weapons]:
   const emptyRandomized = structuredClone(baseValid);
   emptyRandomized.versions[0].weaponConfigurations = [{
     kind: "randomized" as const,
@@ -369,7 +369,7 @@ test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and
   }];
   assert.equal(validatePresetRevision(singleWeaponRandomized).some((i) => i.code === "empty_randomized_pool"), false);
 
-  // 4. Mixing swappers and randomized weapons:
+  // 4. Mixing swappers and randomizer settings:
   const mixedVersion = structuredClone(baseValid);
   mixedVersion.versions[0].weaponConfigurations = [
     { kind: "randomized" as const, name: "Pool", weapons: [{ name: "Claymore", weight: 50 }] },
