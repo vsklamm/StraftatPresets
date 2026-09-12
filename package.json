@@ -30,7 +30,9 @@
     "tags:sync": "tsx scripts/check-tag-catalog.ts && tsx scripts/sync-tag-catalog.ts",
     "search:rebuild": "wrangler d1 migrations apply DB --local && tsx scripts/rebuild-preset-search.ts",
     "search:rebuild:remote": "tsx scripts/rebuild-preset-search.ts remote --confirm rebuild-published-search",
-    "stats": "tsx scripts/preset-stats.ts"
+    "stats": "tsx scripts/preset-stats.ts",
+    "ranks:local": "tsx scripts/preset-stats.ts local list",
+    "ranks:prod": "tsx scripts/preset-stats.ts remote list"
   },
   "dependencies": {
     "@2toad/profanity": "3.3.0",

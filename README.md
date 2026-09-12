@@ -55,8 +55,16 @@ npm run tags:sync           # mirror the reviewed tags into local D1
 npm run search:rebuild        # rebuild the local published-preset search index
 npm run search:rebuild:remote # rebuild the remote published-preset search index
 npm run stats               # inspect the cached ranking (read-only)
+npm run ranks:local         # local ranking table (read-only)
+npm run ranks:prod          # production ranking table (read-only)
 npm run stats -- local refresh-ranking # recalculate ranking without changing public counters
 ```
+
+The `ranks:*` commands print each preset's cached total and category scores:
+quality (completeness), engagement, freshness, surge, and lucky. The snapshot's
+calculation time is printed above the table. These commands only read the ranking
+cache, never recalculate scores or modify data. A missing cache is reported without
+creating one. Production requires Wrangler authentication.
 
 ## Catalogs and assets
 
