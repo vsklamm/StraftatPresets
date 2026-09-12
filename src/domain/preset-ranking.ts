@@ -14,13 +14,19 @@ import {
   MIN_RANDOMIZED_WEAPONS,
 } from "./preset-content";
 import { MAX_PRESET_TAGS } from "./tag-policy";
+import { stripColorAndFormattingTags } from "./straftat-markup";
+
+export const PRESET_RANKING_VERSION = 2;
+export const RANKING_DAY_MS = 86_400_000;
 
 export const PRESET_RANKING_LIMITS = {
-  quality: 40,
-  engagement: 55,
-  freshness: 5,
-  total: 100,
-  freshnessDays: 14,
+  quality: 34,
+  engagement: 40,
+  freshness: 24,
+  surge: 16,
+  lucky: 24,
+  total: 138,
+  freshnessDays: 5,
 } as const;
 
 export const PRESET_PUBLICATION_RULES = {
@@ -59,6 +65,8 @@ export type InteractionSignals = {
   total: number;
   uniqueAnonymous: number;
   uniqueAuthenticated: number;
+  /** Ranking-only sum of time-decayed distinct actors. Public counters stay unchanged. */
+  effective?: number;
 };
 
 export type PresetEngagementSignals = {
@@ -76,6 +84,8 @@ export type RankingBreakdown = {
   quality: number;
   engagement: number;
   freshness: number;
+  surge: number;
+  lucky: number;
   total: number;
 };
 
@@ -101,13 +111,14 @@ export function validatePresetPublication(content: PresetContentSignals): Public
 }
 
 /**
- * Calculates preset content completeness and polish score (0–40 points).
+ * Calculates preset content completeness and polish score (below 34 points).
  * Focuses on meaningful quality signals (thumbnail, tags, clear descriptions, map pool descriptions)
  * without penalizing compact, laser-focused presets.
  */
 export function calculateQualityScore(content: PresetContentSignals) {
-  const publication = validatePresetPublication(content);
-  const descLen = content.description.trim().length;
+  const visibleDescription = stripColorAndFormattingTags(content.description).trim();
+  const publication = validatePresetPublication({ ...content, title: stripColorAndFormattingTags(content.title), description: visibleDescription });
+  const descLen = visibleDescription.length;
 
   // 1. Base publishable standard (5 pts)
   const baseScore = publication.publishable ? 5 : 0;
@@ -115,14 +126,13 @@ export function calculateQualityScore(content: PresetContentSignals) {
   // 2. Custom thumbnail (8 pts)
   const thumbnailScore = content.hasThumbnail ? 8 : 0;
 
-  // 3. Tags (8 pts max) - 2 tags = 3 pts, 3-4 tags = 5 pts, 5-6 tags = 7 pts, 7-8 tags = 8 pts
+  // Extra tags after four have geometrically diminishing marginal credit.
   const tagCount = clamp(boundedCount(content.tagCount), 0, PRESET_PUBLICATION_RULES.maximumTags);
   const tagScore = tagCount === 0 ? 0
     : tagCount === 1 ? 1.5
     : tagCount === 2 ? 3
-    : tagCount <= 4 ? 3 + (tagCount - 2) * 1.0
-    : tagCount <= 6 ? 5 + (tagCount - 4) * 1.0
-    : 7 + (tagCount - 6) * 0.5;
+    : tagCount === 3 ? 4
+    : 6 - 2 ** (-(tagCount - 4));
 
   // 4. Description depth (7 pts max) - 40-80 chars (2 pts), 80-160 chars (5 pts), 160-250+ chars (7 pts)
   const descScore = descLen < 40 ? 0
@@ -131,56 +141,43 @@ export function calculateQualityScore(content: PresetContentSignals) {
     : descLen <= 250 ? 5 + 2 * ((descLen - 160) / 90)
     : 7;
 
-  // 5. Map Playlist & Descriptions (6 pts max)
-  // 1 playlist with custom description = 5 pts (sweet spot), 2+ playlists with descriptions = 6 pts
+  // Presence and explanation matter, not the quantity of playlists.
   const playlistCount = boundedCount(content.mapPlaylistCount);
   const playlistWithDesc = boundedCount(content.mapPlaylistWithDescriptionCount);
   const playlistBase = playlistCount >= 1 ? 2 : 0;
-  const playlistDescBonus = playlistWithDesc >= 1 ? 3 : 0;
-  const multiPlaylistBonus = playlistCount >= 2 && playlistWithDesc >= 2 ? 1 : 0;
-  const playlistScore = playlistBase + playlistDescBonus + multiPlaylistBonus;
+  const playlistDescBonus = playlistCount >= 1 && playlistWithDesc >= 1 ? 2 : 0;
+  const playlistScore = playlistBase + playlistDescBonus;
 
-  // 6. Weapon configuration setup (4 pts max)
-  const weaponScore = boundedCount(content.weaponConfigurationCount) >= 1 ? 4 : 0;
+  const weaponScore = boundedCount(content.weaponConfigurationCount) >= 1 ? 3 : 0;
 
-  // 7. Version maintenance (2 pts max)
-  const versionScore = boundedCount(content.versionCount) >= 2 ? 2 : 0;
+  const versionScore = boundedCount(content.versionCount) >= 2 ? 1 : 0;
 
   const totalQuality = baseScore + thumbnailScore + tagScore + descScore + playlistScore + weaponScore + versionScore;
   return roundScore(clamp(totalQuality, 0, PRESET_RANKING_LIMITS.quality));
 }
 
 /**
- * Calculates effective interaction value with anti-abuse dampening.
- * Authenticated Discord users receive 2.0x weight, anonymous unique actors receive 1.0x,
- * and repeat clicks from the same actor flatline quickly to prevent self-boosting.
+ * Repeats never multiply credit. Projection supplies the recency-weighted actor sum.
  */
 export function calculateEffectiveInteractions(signals: InteractionSignals) {
-  const total = boundedCount(signals.total);
+  if (signals.effective !== undefined) return Math.max(0, Number.isFinite(signals.effective) ? signals.effective : 0);
   const anonymous = boundedCount(signals.uniqueAnonymous);
   const authenticated = boundedCount(signals.uniqueAuthenticated);
-  const unique = anonymous + authenticated;
-  const repeats = Math.max(0, total - unique);
-  const repeatCredit = Math.min(repeats * 0.02, 0.5);
-  return anonymous * 1.0 + authenticated * 2.0 + repeatCredit;
+  return anonymous + authenticated * 2.5;
 }
 
 /**
- * Calculates engagement score (0–55 points).
- * Rebalanced for a small-community browsing dynamic:
- * - Copies: 28 pts (primary intent action, saturating around 25 copies)
- * - Views: 20 pts (daily unique opens from cards or links, saturating around 35 viewers)
- * - Direct Link Referrals: 7 pts additional credit (external shares from Discord/forums, saturating around 10 visitors)
+ * Copies dominate (28), opens contribute 9, direct link opens add at most 3.
  */
 export function calculateEngagementScore(signals: PresetEngagementSignals) {
   const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 28);
-  const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 35, 20);
-  const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 10, 7);
+  const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 35, 9);
+  const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 10, 3);
   return roundScore(clamp(copies + opens + linkOpens, 0, PRESET_RANKING_LIMITS.engagement));
 }
 
 /**
- * Calculates freshness boost (0–5 points) decaying linearly over 14 days.
+ * First-publication boost with a five-day half-life. Edits cannot refresh it.
  */
 export function calculateFreshnessScore(publishedAt: Date | number | string | null, now: Date | number = Date.now()) {
   if (publishedAt === null) return 0;
@@ -188,7 +185,7 @@ export function calculateFreshnessScore(publishedAt: Date | number | string | nu
   const nowTime = now instanceof Date ? now.getTime() : now;
   if (!Number.isFinite(publishedTime) || !Number.isFinite(nowTime)) return 0;
   const ageDays = Math.max(0, nowTime - publishedTime) / (24 * 60 * 60 * 1_000);
-  return roundScore(PRESET_RANKING_LIMITS.freshness * clamp(1 - ageDays / PRESET_RANKING_LIMITS.freshnessDays, 0, 1));
+  return roundScore(PRESET_RANKING_LIMITS.freshness * 2 ** (-ageDays / PRESET_RANKING_LIMITS.freshnessDays));
 }
 
 export function calculatePresetRanking(
@@ -196,11 +193,14 @@ export function calculatePresetRanking(
   engagement: PresetEngagementSignals,
   publishedAt: Date | number | string | null,
   now: Date | number = Date.now(),
+  bonuses: { surge: number; lucky: number } = { surge: 0, lucky: 0 },
 ): RankingBreakdown {
   const quality = calculateQualityScore(content);
   const engagementScore = calculateEngagementScore(engagement);
   const freshness = calculateFreshnessScore(publishedAt, now);
-  return { quality, engagement: engagementScore, freshness, total: roundScore(quality + engagementScore + freshness) };
+  const surge = roundScore(clamp(bonuses.surge, 0, PRESET_RANKING_LIMITS.surge));
+  const lucky = roundScore(clamp(bonuses.lucky, 0, PRESET_RANKING_LIMITS.lucky));
+  return { quality, engagement: engagementScore, freshness, surge, lucky, total: roundScore(quality + engagementScore + freshness + surge + lucky) };
 }
 
 export function scoreToMilli(score: number) {

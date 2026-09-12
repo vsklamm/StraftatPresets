@@ -29,6 +29,13 @@
       "when": 1788086311132,
       "tag": "0003_raise_preset_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789173508094,
+      "tag": "0004_faithful_human_torch",
+      "breakpoints": true
     }
   ]
 }

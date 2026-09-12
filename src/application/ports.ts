@@ -158,6 +158,8 @@ export type RankedPresetOrderEntry = {
   quality: number;
   engagement: number;
   freshness: number;
+  surge: number;
+  lucky: number;
 };
 
 export type RecordPresetEventInput = {
@@ -184,7 +186,7 @@ export type RecordPresetEventResult = {
 export interface PresetInteractionRepository {
   recordPresetEvent(input: RecordPresetEventInput): Promise<RecordPresetEventResult>;
   recalculatePresetStatistics(presetId: string, now?: Date): Promise<PresetStatisticsSnapshot | undefined>;
-  listRankedPresetOrder(limit: number, offset: number, now?: Date): Promise<{ items: RankedPresetOrderEntry[]; total: number }>;
+  listRankedPresetOrder(limit: number, offset: number, now?: Date): Promise<{ items: RankedPresetOrderEntry[]; total: number; rankingVersion: number; generatedAt: number }>;
 }
 
 export type StoredThumbnail = {

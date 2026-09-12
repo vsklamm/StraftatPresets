@@ -30,7 +30,6 @@ import type {
   PresetReviewResult,
   PresetSearchInput,
   PresetSubmitResult,
-  RankedPresetOrderEntry,
   PresetStatisticsSnapshot,
   PresetThumbnailRepository,
   PresetThumbnailTarget,
@@ -59,13 +58,13 @@ import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
 import { PRESET_EVENT_POLICY, type PresetEventKind } from "@/src/domain/preset-events";
 import {
-  calculateFreshnessScore,
-  calculatePresetRanking,
   scoreToMilli,
   type InteractionSignals,
-  type PresetContentSignals,
   type PresetEngagementSignals,
 } from "@/src/domain/preset-ranking";
+import { applyLaunchPlacement } from "@/src/domain/preset-ranking-projection";
+import { PresetRankingStore } from "@/src/infrastructure/preset-ranking-store";
+import { analyticsHash } from "@/src/lib/analytics-hash";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import {
@@ -308,6 +307,13 @@ function telegramRejectionDecision(issues: readonly PresetIssue[]): "text" | "pi
 export class D1Repository implements HealthRepository, PresetInteractionRepository, PresetThumbnailRepository, PresetWorkflowRepository, TagRepository, UserRepository {
   constructor(private readonly database: AppDatabase) {}
 
+  private rankingStore() {
+    return new PresetRankingStore(async <T>(statement: string, params: readonly (string | number | null)[] = []) => {
+      const result = await this.database.$client.prepare(statement).bind(...params).all<T>();
+      return result.results;
+    }, analyticsHash);
+  }
+
   async ping() {
     await this.database.run(sql`select 1`);
   }
@@ -521,13 +527,18 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .innerJoin(dashboardRevision, eq(dashboardRevision.id, presets.publishedRevisionId))
       .leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id))
       .where(condition);
-    const rows = (view === "newest" || view === "updated")
-      ? await baseQuery().orderBy(desc(presets.updatedAt), asc(presets.id)).limit(limit).offset(offset).all()
-      : await baseQuery().orderBy(
-        desc(sql`coalesce(${presetStatistics.qualityScoreMilli}, 0) + coalesce(${presetStatistics.engagementScoreMilli}, 0)`),
-        desc(presets.updatedAt),
-        asc(presets.id),
-      ).limit(limit).offset(offset).all();
+    let rows: DashboardRow[];
+    if (view === "newest" || view === "updated") {
+      rows = await baseQuery().orderBy(desc(presets.updatedAt), asc(presets.id)).limit(limit).offset(offset).all() as DashboardRow[];
+    } else {
+      const projection = await this.rankingStore().get();
+      const order = applyLaunchPlacement(projection.items, projection.generatedAt);
+      const positions = new Map(order.map((item, index) => [item.id, index]));
+      rows = (await baseQuery().all() as DashboardRow[])
+        .filter((row) => positions.has(row.id))
+        .sort((a, b) => positions.get(a.id)! - positions.get(b.id)!)
+        .slice(offset, offset + limit);
+    }
     const total = await this.database.select({ value: count() }).from(presets).where(condition).get();
 
     return {
@@ -577,15 +588,15 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .where(visibility)
       .all() as DashboardRow[];
 
+    const popularity = input.order === "updated" ? new Map<string, number>()
+      : new Map((await this.rankingStore().get()).items.map((preset, index) => [preset.id, index]));
     rows.sort((left, right) => {
       const relevance = (scores.get(right.id) ?? 0) - (scores.get(left.id) ?? 0);
       if (relevance) return relevance;
       if (input.order === "updated") {
         return right.updatedAt.getTime() - left.updatedAt.getTime() || left.id.localeCompare(right.id);
       }
-      const rightPopularity = Number(right.qualityScoreMilli ?? 0) + Number(right.engagementScoreMilli ?? 0);
-      const leftPopularity = Number(left.qualityScoreMilli ?? 0) + Number(left.engagementScoreMilli ?? 0);
-      return rightPopularity - leftPopularity || right.updatedAt.getTime() - left.updatedAt.getTime() || left.id.localeCompare(right.id);
+      return (popularity.get(left.id) ?? Infinity) - (popularity.get(right.id) ?? Infinity) || left.id.localeCompare(right.id);
     });
 
     const total = rows.length;
@@ -1423,28 +1434,19 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
   }
 
   async recalculatePresetStatistics(presetId: string, now = new Date()): Promise<PresetStatisticsSnapshot | undefined> {
-    const preset = await this.database.select({
-      title: presets.title,
-      description: presets.description,
-      thumbnailKey: presets.thumbnailKey,
-      publishedAt: presets.publishedAt,
-    }).from(presets).where(eq(presets.id, presetId)).get();
+    const preset = await this.database.select({ id: presets.id }).from(presets).where(eq(presets.id, presetId)).get();
     if (!preset) return undefined;
 
     const dailyViewActor = sql<string>`${presetEvents.actorHash} || ':' || date(${presetEvents.createdAt} / 1000, 'unixepoch')`;
     const openKinds: PresetEventKind[] = ["view", "link_open"];
-    const [versionTotal, playlistTotal, playlistWithDescTotal, tagTotal, weaponTotal, eventTotals, uniqueTotals, dailyOpenTotal, uniqueOpenTotals, abuseTotal, latestEvent] = await Promise.all([
-      this.database.select({ value: count() }).from(presetVersions).where(eq(presetVersions.presetId, presetId)).get(),
-      this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
-      this.database.select({ value: count() }).from(mapPlaylists).innerJoin(presetVersions, eq(mapPlaylists.presetVersionId, presetVersions.id)).where(and(eq(presetVersions.presetId, presetId), ne(mapPlaylists.description, ""))).get(),
-      this.database.select({ value: count() }).from(presetTags).where(eq(presetTags.presetId, presetId)).get(),
-      this.database.select({ value: count() }).from(weaponConfigurations).innerJoin(presetVersions, eq(weaponConfigurations.presetVersionId, presetVersions.id)).where(eq(presetVersions.presetId, presetId)).get(),
+    const [eventTotals, uniqueTotals, dailyOpenTotal, uniqueOpenTotals, abuseTotal, latestEvent, projection] = await Promise.all([
       this.database.select({ kind: presetEvents.kind, value: count() }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), eq(presetEvents.isInvalidated, false))).groupBy(presetEvents.kind).all(),
       this.database.select({ kind: presetUniqueActors.kind, isAuthenticated: presetUniqueActors.isAuthenticated, value: count() }).from(presetUniqueActors).where(eq(presetUniqueActors.presetId, presetId)).groupBy(presetUniqueActors.kind, presetUniqueActors.isAuthenticated).all(),
       this.database.select({ value: countDistinct(dailyViewActor) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), inArray(presetEvents.kind, openKinds), eq(presetEvents.isInvalidated, false))).get(),
       this.database.select({ isAuthenticated: presetEvents.isAuthenticated, value: countDistinct(presetEvents.actorHash) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), inArray(presetEvents.kind, openKinds), eq(presetEvents.isInvalidated, false))).groupBy(presetEvents.isAuthenticated).all(),
       this.database.select({ value: sql<number>`coalesce(sum(${presetAbuseSignals.attemptCount}), 0)`.mapWith(Number) }).from(presetAbuseSignals).where(eq(presetAbuseSignals.presetId, presetId)).get(),
       this.database.select({ value: sql<number | null>`max(${presetEvents.createdAt})`.mapWith(Number) }).from(presetEvents).where(and(eq(presetEvents.presetId, presetId), eq(presetEvents.isInvalidated, false))).get(),
+      this.rankingStore().get(now.getTime()),
     ]);
 
     const interactions: Record<PresetEventKind, InteractionSignals> = {
@@ -1464,22 +1466,15 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       interactions.view[key] = Number(row.value);
     }
 
-    const content: PresetContentSignals = {
-      title: preset.title,
-      description: preset.description,
-      hasThumbnail: Boolean(preset.thumbnailKey),
-      versionCount: Number(versionTotal?.value ?? 0),
-      mapPlaylistCount: Number(playlistTotal?.value ?? 0),
-      mapPlaylistWithDescriptionCount: Number(playlistWithDescTotal?.value ?? 0),
-      tagCount: Number(tagTotal?.value ?? 0),
-      weaponConfigurationCount: Number(weaponTotal?.value ?? 0),
-    };
     const engagement: PresetEngagementSignals = {
       opens: interactions.view,
       linkOpens: interactions.link_open,
       copies: interactions.copy,
     };
-    const ranking = calculatePresetRanking(content, engagement, preset.publishedAt, now);
+    const ranked = projection.items.find((item) => item.id === presetId);
+    const ranking = ranked
+      ? { quality: ranked.quality, engagement: ranked.engagement, freshness: ranked.freshness, surge: ranked.surge, lucky: ranked.lucky, total: ranked.total }
+      : { quality: 0, engagement: 0, freshness: 0, surge: 0, lucky: 0, total: 0 };
     const snapshot: PresetStatisticsSnapshot = {
       opens: engagement.opens,
       linkOpens: engagement.linkOpens,
@@ -1508,34 +1503,12 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
   }
 
   async listRankedPresetOrder(limit: number, offset: number, now = new Date()) {
-    const published = await this.database.select({
-      id: presets.id,
-      slug: presets.slug,
-      presetUpdatedAt: presets.updatedAt,
-      publishedAt: presets.publishedAt,
-      statisticsUpdatedAt: presetStatistics.updatedAt,
-      qualityScoreMilli: presetStatistics.qualityScoreMilli,
-      engagementScoreMilli: presetStatistics.engagementScoreMilli,
-    }).from(presets).leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id)).where(eq(presets.status, "published")).all();
-
-    for (const row of published) {
-      if (!row.statisticsUpdatedAt || Number(row.qualityScoreMilli ?? 0) === 0 || row.statisticsUpdatedAt.getTime() < row.presetUpdatedAt.getTime()) await this.recalculatePresetStatistics(row.id, now);
-    }
-
-    const current = await this.database.select({
-      id: presets.id,
-      slug: presets.slug,
-      publishedAt: presets.publishedAt,
-      qualityScoreMilli: presetStatistics.qualityScoreMilli,
-      engagementScoreMilli: presetStatistics.engagementScoreMilli,
-    }).from(presets).leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id)).where(eq(presets.status, "published")).all();
-    const items: RankedPresetOrderEntry[] = current.map((row) => {
-      const quality = Number(row.qualityScoreMilli ?? 0) / 1_000;
-      const engagement = Number(row.engagementScoreMilli ?? 0) / 1_000;
-      const freshness = calculateFreshnessScore(row.publishedAt, now);
-      return { id: row.id, slug: row.slug, quality, engagement, freshness, score: Math.round((quality + engagement + freshness) * 1_000) / 1_000 };
-    }).sort((left, right) => right.score - left.score || right.quality - left.quality || left.id.localeCompare(right.id));
-    return { items: items.slice(offset, offset + limit), total: items.length };
+    const projection = await this.rankingStore().get(now.getTime());
+    const items = applyLaunchPlacement(projection.items, projection.generatedAt);
+    return {
+      items: items.slice(offset, offset + limit), total: items.length,
+      rankingVersion: projection.version, generatedAt: projection.generatedAt,
+    };
   }
 
   private async toDashboardItem(row: DashboardRow, userId: string | undefined): Promise<PresetDashboardItem> {

@@ -3,6 +3,23 @@ import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } fro
 
 const now = sql`(unixepoch() * 1000)`;
 
+// Derived ranking cache only. Original revisions, events and public counters are retained.
+export const presetRankingCache = sqliteTable("preset_ranking_cache", {
+  id: integer("id").primaryKey(),
+  generation: integer("generation").notNull().default(0),
+  formulaVersion: integer("formula_version").notNull().default(0),
+  generatedAt: integer("generated_at").notNull().default(0),
+  expiresAt: integer("expires_at").notNull().default(0),
+  payload: text("payload"),
+}, (table) => [check("preset_ranking_cache_singleton", sql`${table.id} = 1`)]);
+
+export const presetRankingLottery = sqliteTable("preset_ranking_lottery", {
+  day: text("day").primaryKey(),
+  // Deliberately no FK: deleting a winner must not redraw the day's lottery.
+  firstPresetId: text("first_preset_id"),
+  secondPresetId: text("second_preset_id"),
+});
+
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -71,6 +88,7 @@ export const presets = sqliteTable("presets", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(now),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(now),
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  firstPublishedAt: integer("first_published_at", { mode: "timestamp_ms" }),
 }, (table) => [
   uniqueIndex("uq_presets_slug").on(table.slug),
   index("idx_presets_author_id").on(table.authorId),

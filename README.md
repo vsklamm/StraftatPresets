@@ -54,7 +54,8 @@ npm run game:sync           # mirror the reviewed game catalog into local D1
 npm run tags:sync           # mirror the reviewed tags into local D1
 npm run search:rebuild        # rebuild the local published-preset search index
 npm run search:rebuild:remote # rebuild the remote published-preset search index
-npm run stats               # inspect ranking and abuse signals
+npm run stats               # inspect the cached ranking (read-only)
+npm run stats -- local refresh-ranking # recalculate ranking without changing public counters
 ```
 
 ## Catalogs and assets
@@ -114,6 +115,12 @@ Deploy only after reviewing the Worker configuration and environment:
 ```bash
 npm run deploy
 ```
+
+The v1.2.0 deploy command builds first, applies pending production D1 migrations,
+recalculates ranking for every published preset using the production analytics
+secret, and only then uploads the Worker. A failed migration or recalculation stops
+the deployment. Do not bypass these steps with a direct `wrangler deploy`.
+No event history, published content, thumbnails, or public counters are reset.
 
 ## Project layout
 
