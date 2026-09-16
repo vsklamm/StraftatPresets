@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { WeaponImage } from "@/app/weapon-image";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-weapons";
@@ -236,7 +236,7 @@ export function RadialWeaponPicker({
               }}
               aria-label={weapon.name}
             >
-              <Image src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
+              <WeaponImage src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} sizes={`${Math.ceil(imgW * hoverScale)}px`} className="radial-weapon-img" />
             </button>
           );
         })}

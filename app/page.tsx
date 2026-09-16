@@ -8,6 +8,8 @@ import { signIn, useSession } from "next-auth/react";
 import { AuthControl } from "@/app/auth-control";
 import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
+import { WeaponImage } from "@/app/weapon-image";
+import { preloadCatalogWeapons } from "@/src/domain/weapon-image-sizes";
 import { SwapperWeaponMix } from "@/app/swapper-weapon-mix";
 import { ScrollingContent } from "@/app/scrolling-content";
 import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
@@ -20,7 +22,7 @@ import {
   getPresetLimitMessage,
   PRESET_LIMIT_UPGRADE_THRESHOLD,
 } from "@/src/domain/preset-policy";
-import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount, weaponAssetUrl } from "@/src/domain/game-weapons";
+import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
 import { calculateRelativeWeaponBarWidth, calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
@@ -242,6 +244,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    preloadCatalogWeapons();
     if (typeof window !== "undefined") {
       void Promise.resolve().then(() => {
         setIsMounted(true);
@@ -322,10 +325,6 @@ export default function Home() {
     setSearchItems((current) => current?.map((item) => item.authorId === userId ? { ...item, authorName: profile.displayName } : item));
     setSelected((current) => current?.canEdit ? { ...current, author: profile.displayName } : current);
   }, [authSession?.user.id, updateDashboardItems]);
-
-  useEffect(() => {
-    void Promise.allSettled(catalogWeapons.map((weapon) => fetch(weaponAssetUrl(weapon.image), { cache: "force-cache" })));
-  }, []);
 
   useEffect(() => {
     void retryPendingPresetCopies((presetId, result) => {
@@ -1491,7 +1490,7 @@ export default function Home() {
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
-                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <Image src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
+                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <WeaponImage src={imageUrl} alt="" width={34} height={34} sizes="34px" className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
               })}</tbody></table></div>
             </PresetSection> : null}
 

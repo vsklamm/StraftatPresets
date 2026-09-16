@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
+import { buildWeaponVariants } from "./build-weapon-variants";
 
 const rawDir = path.join(process.cwd(), "game-data", "raw-weapons");
 const targetDir = path.join(process.cwd(), "public", "weapons");
-const sourceDir = fs.existsSync(rawDir) ? rawDir : targetDir;
-const files = fs.readdirSync(sourceDir).filter((file) => file.endsWith(".webp"));
+// Always normalize from checked-in originals, never recompress generated files.
+const sourceDir = rawDir;
+const files = fs.readdirSync(sourceDir).filter((file) => file.endsWith(".webp")).sort();
 
 const CANONICAL_FILENAME_MAP: Record<string, string> = {
   "the-katana.webp": "katana.webp",
@@ -114,6 +116,7 @@ async function main() {
 
   const CANVAS_SIZE = 512;
   const MAX_DIM = 460;
+  fs.mkdirSync(targetDir, { recursive: true });
 
   for (const w of analyses) {
     // For elongated vertical blades/poles/weapons (aspect <= 0.45), rotate 45 deg diagonally
@@ -178,7 +181,8 @@ async function main() {
     );
   }
 
-  console.log("All 72 canonical weapon images normalized and centered successfully!");
+  await buildWeaponVariants();
+  console.log(`All ${files.length} canonical weapon images normalized with responsive variants.`);
 }
 
 main().catch((error) => {

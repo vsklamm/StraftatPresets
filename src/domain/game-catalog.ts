@@ -110,7 +110,7 @@ export const supportedMapCount = gameCatalog.maps.length;
 
 export function weaponAssetUrl(path: string) {
   const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}game=${encodeURIComponent(supportedGameRelease.version)}&v=norm5`;
+  return `${path}${separator}game=${encodeURIComponent(supportedGameRelease.version)}&v=norm6`;
 }
 
 // Bidirectional and normalized lookup indices

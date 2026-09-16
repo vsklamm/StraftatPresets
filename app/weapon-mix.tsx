@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { WeaponImage } from "@/app/weapon-image";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { getWeaponImage } from "@/src/domain/game-weapons";
 import { MAX_SWAPPER_RESULT_WEAPONS } from "@/src/domain/swapper-result-weapons";
@@ -227,7 +227,7 @@ export function WeaponMix({
         } as React.CSSProperties}
       >
         <div className="weapon-atmosphere-art">
-          <Image src={getWeaponImage(weapon.name)!} alt="" fill sizes="280px" />
+          <WeaponImage src={getWeaponImage(weapon.name)!} alt="" fill sizes={`${Math.ceil(Math.max(54, size * .55) * 1.5)}px`} />
         </div>
       </div>;
     })}

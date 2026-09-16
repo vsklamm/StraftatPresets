@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { WeaponImage } from "@/app/weapon-image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
 import { catalogWeapons, getWeaponImage, weaponAssetUrl } from "@/src/domain/game-weapons";
@@ -350,7 +350,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
             if (event.key === "Escape") setPickerOpen(false);
           }} />
         {pickerOpen && matchingWeapons.length ? <div id="weapon-results" className="weapon-results" role="listbox">
-          {matchingWeapons.map((weapon, index) => <button className={index === highlightedIndex ? "active" : ""} type="button" role="option" aria-selected={index === highlightedIndex} key={weapon.name} onMouseDown={(event) => event.preventDefault()} onClick={() => addWeapon(weapon.name)}><Image src={weaponAssetUrl(weapon.image)} alt="" width={44} height={44} /><span>{weapon.name}</span></button>)}
+          {matchingWeapons.map((weapon, index) => <button className={index === highlightedIndex ? "active" : ""} type="button" role="option" aria-selected={index === highlightedIndex} key={weapon.name} onMouseDown={(event) => event.preventDefault()} onClick={() => addWeapon(weapon.name)}><WeaponImage src={weaponAssetUrl(weapon.image)} alt="" width={44} height={44} sizes="44px" /><span>{weapon.name}</span></button>)}
         </div> : null}
       </div>
     </div>
@@ -358,7 +358,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
     {weaponsWithChance.length ? <div className="randomized-entry-table" role="table" aria-label="Randomizer Settings">
       <div className="randomized-entry-head" role="row"><span role="columnheader">Weapon</span><span role="columnheader">Weight</span><span role="columnheader">Chance</span><span aria-hidden="true" /></div>
       {weaponsWithChance.map((weapon) => <div className="randomized-entry-row" role="row" key={weapon.name}>
-        <span className="weapon-entry-name" role="cell"><Image src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} /><b>{weapon.name}</b></span>
+        <span className="weapon-entry-name" role="cell"><WeaponImage src={getWeaponImage(weapon.name) ?? "/discord-symbol.svg"} alt="" width={34} height={34} sizes="(max-width: 640px) 44px, 34px" /><b>{weapon.name}</b></span>
         <span role="cell"><input id={`weapon-weight-${weapon.name}`} aria-label={`${weapon.name} weight`} inputMode="numeric" min={MIN_WEAPON_WEIGHT} max={MAX_WEAPON_WEIGHT} step={1} type="number" value={weapon.weight !== undefined ? weapon.weight : ""} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const num = clampWeaponWeight(Number(event.target.value)); updateConfiguration((current) => ({ ...current, weapons: current.weapons.map((item) => item.name === weapon.name ? { ...item, weight: num } : item) })); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); searchRef.current?.focus(); } }} /></span>
         <span role="cell"><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></span>
         <ConfirmDeleteButton label={`Remove ${weapon.name}`} onConfirm={() => updateConfiguration((current) => ({ ...current, weapons: current.weapons.filter((item) => item.name !== weapon.name) }))} />
