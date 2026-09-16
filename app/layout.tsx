@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     "STRAFTAT presets",
     "STRAFTAT Randomizer Settings",
     "STRAFTAT weapon randomizer",
-    "STRAFTAT map playlists",
+    "STRAFTAT Map Playlists",
     "STRAFTAT Swapper Settings",
     "STRAFTAT swapper settings",
     "STRAFTAT custom game",
@@ -89,7 +89,7 @@ const jsonLd = {
       "url": "https://straftatpresets.com",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Windows, Linux",
-      "description": "Community-made STRAFTAT map playlists, Randomizer Settings, and Swapper Settings with one-click copy codes for custom duel match setups.",
+      "description": "Community-made STRAFTAT Map Playlists, Randomizer Settings, and Swapper Settings with one-click copy codes for custom duel match setups.",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -107,7 +107,7 @@ const jsonLd = {
       "@id": "https://straftatpresets.com/#website",
       "url": "https://straftatpresets.com",
       "name": "StraftatPresets",
-      "description": "Browse and share custom Randomizer Settings, map playlists, and Swapper Settings for STRAFTAT.",
+      "description": "Browse and share custom Randomizer Settings, Map Playlists, and Swapper Settings for STRAFTAT.",
       "publisher": {
         "@type": "Organization",
         "name": "StraftatPresets",

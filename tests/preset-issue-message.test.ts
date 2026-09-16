@@ -31,11 +31,11 @@ function issue(field: string, message: string): PresetIssue {
 test("submission issue messages identify the version and numbered editor section", () => {
   assert.equal(
     formatPresetIssueMessage(issue("versions.0.mapPlaylists.1.encodedValue", "Add the encoded map playlist"), content),
-    "Version v2.1, map playlist 2: Add the encoded map playlist",
+    "Version v2.1, Map Playlist 2: Add the encoded map playlist",
   );
   assert.equal(
     formatPresetIssueMessage(issue("versions.0.weaponConfigurations.2.encodedValue", "Add the encoded Swapper Settings"), content),
-    "Version v2.1, swapper 2: Add the encoded Swapper Settings",
+    "Version v2.1, Swapper 2: Add the encoded Swapper Settings",
   );
 });
 
@@ -43,7 +43,7 @@ test("submission issue messages omit versions when versioning is disabled", () =
   const unversioned = { ...content, versioningEnabled: false };
   assert.equal(
     formatPresetIssueMessage(issue("versions.0.mapPlaylists.1.description", "Playlist description is too long"), unversioned),
-    "Map playlist 2: Playlist description is too long",
+    "Map Playlist 2: Playlist description is too long",
   );
   assert.equal(
     formatPresetIssueMessage(issue("versions.0.weaponConfigurations.1.encodedValue", "The swapper export is invalid"), unversioned),

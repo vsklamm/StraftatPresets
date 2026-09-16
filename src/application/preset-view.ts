@@ -70,3 +70,23 @@ export function urlWithoutPreset(url: URL): string {
   url.searchParams.delete("p");
   return `${url.pathname}${url.search}${url.hash}`;
 }
+
+export const RANDOMIZER_SETTINGS_LABEL_TMPRO =
+  "<#DDA270>R<#E1A074>a<#E49E79>n<#E79C7E>d<#E99A84>o<#EB998A>m<#EB9890>i<#D0A771>z<#9EB679>e<#66BEA2>r <#7CB3E8>S<#BEA3DB>e<#ADA7E2>t<#9AACE7>t<#85B1E9>i<#70B5E8>n<#5BB8E4>g<#49BBDC>s";
+
+export const SWAPPER_SETTING_LABEL_TMPRO =
+  "<#5EB8DF>S<#54BADA>w<#4EBCD4>a<#4CBDCC>p<#4EBDC4>p<#53BEBB>e<#5BBEB2>r <#5BBEB2>S<#54BEBA>e<#4FBEC1>t<#4DBDC9>t<#4DBCCF>i<#50BBD5>n<#5EB8DF>g";
+
+export const SWAPPER_SETTINGS_LABEL_TMPRO =
+  "<#5EB8DF>S<#54BADA>w<#4EBCD4>a<#4CBDCC>p<#4EBDC4>p<#53BEBB>e<#5BBEB2>r <#5BBEB2>S<#54BEBA>e<#4FBEC1>t<#4DBDC9>t<#4DBCCF>i<#50BBD5>n<#55BADB>g<#5EB8DF>s";
+
+export function configLabels(version: PresetVersion): string[] {
+  return [
+    version.maps?.length ? `${version.maps.length} Map Playlist${version.maps.length === 1 ? "" : "s"}` : null,
+    version.randomizedWeapons ? RANDOMIZER_SETTINGS_LABEL_TMPRO : null,
+    version.swapper?.length
+      ? `${version.swapper.length} ${version.swapper.length === 1 ? SWAPPER_SETTING_LABEL_TMPRO : SWAPPER_SETTINGS_LABEL_TMPRO}`
+      : null,
+  ].filter(Boolean) as string[];
+}
+

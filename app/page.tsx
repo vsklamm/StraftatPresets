@@ -48,7 +48,7 @@ import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { configLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -197,13 +197,6 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
 }
 
 function latestVersion(preset: Preset) { return sortPresetVersionsNewestFirst(preset.versions)[0]; }
-function configLabels(version: PresetVersion) {
-  return [
-    version.maps?.length ? `${version.maps.length} Map playlist${version.maps.length === 1 ? "" : "s"}` : null,
-    version.randomizedWeapons ? "Randomizer Settings" : null,
-    version.swapper?.length ? `${version.swapper.length} Swapper Setting${version.swapper.length === 1 ? "" : "s"}` : null,
-  ].filter(Boolean) as string[];
-}
 
 export default function Home() {
   const { data: authSession, status: authStatus } = useSession();
@@ -1230,7 +1223,7 @@ export default function Home() {
         <h1>StraftatPresets — Community Presets, Weapon Randomizer & Map Playlists for STRAFTAT</h1>
         <p>
           Discover, generate, and share custom game configurations for the arena duel shooter STRAFTAT.
-          Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 map playlist codes, and Swapper Settings.
+          Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 Map Playlist codes, and Swapper Settings.
         </p>
       </section>
       <div className={`site-header ${isHeaderCompact ? "is-compact" : ""}`}>
@@ -1321,7 +1314,7 @@ export default function Home() {
                   <div className="preset-card-body">
                     <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{showStateBadge && preset.state ? <PresetStateBadge state={preset.state} /> : null}{preset.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(version.label)}</span> : null}</div></div>
                     <p>{formatCardDescriptionPreview(preset.description)}</p>
-                    <div className="content-labels">{labels.map((label) => <span key={label}>{label}</span>)}</div>
+                    <div className="content-labels">{labels.map((label, index) => <span key={index}><StraftatText text={label} /></span>)}</div>
                     <div className="tag-row">{preset.tags.slice(0, compact ? 3 : MAX_VISIBLE_PRESET_TAGS).map((tag) => <span key={tag}>{tag}</span>)}</div>
                     <div className="preset-author"><span>by <StraftatText text={preset.author} /></span></div>
                   </div>
@@ -1498,7 +1491,7 @@ export default function Home() {
               <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
 
-            {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map playlists" count={selectedVersion.maps.length}>
+            {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map Playlists" count={selectedVersion.maps.length}>
               <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>

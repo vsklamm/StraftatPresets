@@ -595,7 +595,7 @@ button { color: inherit; }
 .preset-state.published { border-color: rgba(152, 208, 170, 0.4); background: transparent; color: #98d0aa; }
 .preset-card .preset-card-body > p { display: -webkit-box; min-height: 50px; max-height: 50px; margin: 7px 0 6px; overflow: hidden; color: var(--card-text-secondary); font-size: 11.8px; line-height: 1.42; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .content-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: auto; margin-bottom: 7px; color: var(--card-text-muted); font-size: 11px; font-weight: 450; line-height: 1.3; }
-.content-labels span { display: inline-flex; align-items: center; }
+.content-labels > span { display: inline-flex; align-items: center; }
 .preset-card .tag-row { display: flex; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 4.5px; margin-top: 0; margin-bottom: 2px; min-width: 0; max-width: 100%; }
 .preset-card .tag-row span {
   flex: 0 0 auto;
@@ -1069,8 +1069,9 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 .editor-add-version-cancel:hover { border-color: #d98e95; color: #d98e95; background: transparent; }
 .editor-version-tabs .editor-remove-version { border: 0 !important; height: 24px; min-height: 24px; width: 24px; min-width: 24px; font-size: 15px; border-radius: 4px; }
 .editor-version-tabs .editor-remove-version.confirming { border: 0 !important; width: auto; min-width: 46px; padding: 0 6px; font-size: 12px; }
-.editor-version-hint { max-width: 680px; margin: 7px 0 2px; padding: 2px 0 2px 10px; border-left: 2px dashed var(--frame-warm); color: var(--ui-text-dim); font-size: 11.5px; line-height: 1.45; }
+.editor-version-hint { max-width: 680px; margin: 10px 0 6px; padding: 4px 0 4px 12px; border-left: 2px dashed var(--frame-warm); background: transparent; color: var(--ui-text-muted); font-size: 13px; line-height: 1.5; }
 .editor-version-hint strong { color: var(--ui-text-bright); font-weight: 550; }
+.editor-version-hint b { color: #ffffff; font-weight: 550; }
 
 .editor-delete-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; min-width: 26px; height: 26px; min-height: 26px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ui-text-dim); cursor: pointer; font-family: inherit; font-size: 16px; line-height: 1; flex: 0 0 auto; transition: color .15s ease, background .15s ease; }
 .editor-delete-btn:hover { color: #e49aa1; background: transparent; }

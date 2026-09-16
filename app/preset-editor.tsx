@@ -99,7 +99,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   };
 
   if (!version) {
-    return <section className="editor-empty"><p>Add a version to start entering playlists and weapons.</p><button type="button" onClick={() => addVersion("v1.0.0")}>＋ Add version</button></section>;
+    return <section className="editor-empty"><p>Add a version to start entering Map Playlists and weapons.</p><button type="button" onClick={() => addVersion("v1.0.0")}>＋ Add version</button></section>;
   }
 
   return (
@@ -422,15 +422,15 @@ function MapPlaylistsEditor({
       });
     } catch (error) {
       if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
-      setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode this playlist." }));
+      setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode this Map Playlist." }));
     }
   };
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Map playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange((current) => current.mapPlaylists.length >= MAX_MAP_PLAYLISTS ? current : { ...current, mapPlaylists: [...current.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add playlist</button></header>
+    <header><h3>Map Playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange((current) => current.mapPlaylists.length >= MAX_MAP_PLAYLISTS ? current : { ...current, mapPlaylists: [...current.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add Map Playlist</button></header>
     <div className="playlist-editor-list">{version.mapPlaylists.map((playlist, index) => <article className="playlist-editor-item" key={index}>
-      <header><div><strong><StraftatText text={playlist.name || `Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove playlist ${index + 1}`} onConfirm={() => onChange((current) => ({ ...current, mapPlaylists: current.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) }))} /></header>
-      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 playlist code" value={playlist.encodedValue} onChange={(event) => onPendingChange(handlePlaylistCodeChange(index, event.target.value))} /></label>
+      <header><div><strong><StraftatText text={playlist.name || `Map Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove Map Playlist ${index + 1}`} onConfirm={() => onChange((current) => ({ ...current, mapPlaylists: current.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) }))} /></header>
+      <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 Map Playlist code" value={playlist.encodedValue} onChange={(event) => onPendingChange(handlePlaylistCodeChange(index, event.target.value))} /></label>
       {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
       <label><span>Short description <b className="field-counter">{playlist.description.length}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input required maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="Which maps or pacing define this playlist, and why choose it?" value={playlist.description} onChange={(event) => updatePlaylist(index, (current) => ({ ...current, description: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
     </article>)}</div>
@@ -511,20 +511,20 @@ function SwapperSettingsEditor({
       });
     } catch (error) {
       if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
-      setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode swapper." }));
+      setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode Swapper." }));
     }
   };
 
   if (swapperIndices.length === 0) return null;
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Swapper Settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}>＋ Add swapper</button></header>
+    <header><h3>Swapper Settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}>＋ Add Swapper</button></header>
     <div className="playlist-editor-list">{swapperIndices.map((index, renderIndex) => {
       const configuration = version.weaponConfigurations[index];
       if (configuration.kind !== "swapper") return null;
       return <article className="playlist-editor-item" key={index}>
-        <header><div><strong><StraftatText text={configuration.name || `Swapper ${renderIndex + 1}`} /></strong></div><ConfirmDeleteButton label={`Remove swapper ${renderIndex + 1}`} onConfirm={() => removeSwapper(index)} /></header>
-        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 swapper code" value={configuration.encodedValue} onChange={(event) => onPendingChange(handleSwapperCodeChange(index, event.target.value))} /></label>
+        <header><div><strong><StraftatText text={configuration.name || `Swapper ${renderIndex + 1}`} /></strong></div><ConfirmDeleteButton label={`Remove Swapper ${renderIndex + 1}`} onConfirm={() => removeSwapper(index)} /></header>
+        <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 Swapper code" value={configuration.encodedValue} onChange={(event) => onPendingChange(handleSwapperCodeChange(index, event.target.value))} /></label>
         {decodeErrors[index] ? <p className="field-error-message">{decodeErrors[index]}</p> : null}
         <label><span>Short description <b className="field-counter">{(configuration.description?.length ?? 0)}/{MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS}</b></span><input maxLength={MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS} placeholder="What key weapon swaps happen here, and how does it change the match?" value={configuration.description ?? ""} onChange={(event) => updateSwapper(index, (current) => ({ ...current, description: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></label>
       </article>;
