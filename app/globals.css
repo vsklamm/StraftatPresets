@@ -595,7 +595,8 @@ button { color: inherit; }
 .preset-state.published { border-color: rgba(152, 208, 170, 0.4); background: transparent; color: #98d0aa; }
 .preset-card .preset-card-body > p { display: -webkit-box; min-height: 50px; max-height: 50px; margin: 7px 0 6px; overflow: hidden; color: var(--card-text-secondary); font-size: 11.8px; line-height: 1.42; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .content-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: auto; margin-bottom: 7px; color: var(--card-text-muted); font-size: 11px; font-weight: 450; line-height: 1.3; }
-.content-labels > span { display: inline-flex; align-items: center; }
+.content-labels > span { display: inline-block; white-space: nowrap; }
+
 .preset-card .tag-row { display: flex; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 4.5px; margin-top: 0; margin-bottom: 2px; min-width: 0; max-width: 100%; }
 .preset-card .tag-row span {
   flex: 0 0 auto;
