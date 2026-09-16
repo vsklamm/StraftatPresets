@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -209,16 +209,36 @@ async function main() {
 
   const releaseVersion = latestRelease.title.slice("STRAFTAT ".length);
   const releasePublishedAt = new Date(latestRelease.date * 1000).toISOString().slice(0, 10);
+  const existingCatalogRaw = await readFile("game-data/catalog.json", "utf8").catch(() => null);
+  const existingCatalog = existingCatalogRaw ? JSON.parse(existingCatalogRaw) : null;
+  const existingWeaponMap = new Map((existingCatalog?.weapons ?? []).map((w) => [w.name, w]));
+  const existingMapMap = new Map((existingCatalog?.maps ?? []).map((m) => [m.name, m]));
+
   const catalog = {
-    schemaVersion: 1,
-    supportedRelease: { version: releaseVersion, publishedAt: releasePublishedAt, sourceUrl: latestRelease.url },
+    schemaVersion: 2,
+    supportedRelease: { version: releaseVersion, publishedAt: releasePublishedAt, sourceUrl: "https://store.steampowered.com/app/2386720/STRAFTAT/" },
     sources: {
       weapons: { url: "https://straftat.wiki/index.php?title=Weapons", revision: revisionByTitle.get("Weapons") },
       maps: { url: "https://straftat.wiki/wiki/Maps", revision: revisionByTitle.get("Maps") },
       versions: { url: "https://straftat.wiki/wiki/Versions_and_Patch-Notes", revision: revisionByTitle.get("Versions and Patch-Notes") },
     },
-    weapons: weapons.map(({ name, image }) => ({ name, image })),
-    maps: maps.sort((left, right) => left.name.localeCompare(right.name)),
+    weapons: weapons.map(({ name, image }) => ({
+      name,
+      gameId: existingWeaponMap.get(name)?.gameId ?? name,
+      image,
+    })),
+    maps: maps
+      .map((m) => {
+        const existing = existingMapMap.get(m.name);
+        return {
+          name: m.name,
+          kind: m.kind,
+          family: existing?.family ?? m.name.split("_")[0],
+          isDlc: existing?.isDlc ?? (m.kind === "dlc"),
+          weapons: existing?.weapons ?? { spawners: [] },
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name)),
   };
   const provenance = weapons.map(({ name, sourcePage, sourceFile, image, imageInfo }) => ({
     name,

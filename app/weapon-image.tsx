@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { weaponImageSource } from "@/src/domain/weapon-image-sizes";
 
 /** Prebuilt optimized WebP assets: served uniformly at 128px across the app. */
-export function WeaponImage({ src, alt, width, height, sizes, fill, className }: {
+export function WeaponImage({ src, alt, width, height, fill, className }: {
   src: string;
   alt: string;
   width?: number;

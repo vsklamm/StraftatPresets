@@ -587,7 +587,7 @@ test("link detection blocks recognizable links without guessing obfuscated text"
   assert.equal(detectLinks("Also, a flashlight. It kills.").hasLink, false);
   assert.equal(detectLinks("Hide AP mines inside weapon spawn circles. Spread them out").hasLink, false);
   assert.equal(detectLinks("GoM: an explosives-only mode. Weapon chances balance aggressive play with trap-setting. Also, a flashlight. It kills.\n\nTips & tricks\n- Place Claymores low to hide them and make them easier to jump over\n- Crouch/slide under enemy Clays only if the laser is high or angled up\n- Find Clay angles that cover long or unexpected paths\n- Hide AP mines inside weapon spawn circles. Spread them out\n- Throw flashlights onto AP mines to trigger them near enemies").hasLink, false);
-  assert.equal(detectLinks("STRAFTAT 1.4.8 version v1.0.0").hasLink, false);
+  assert.equal(detectLinks("STRAFTAT 1.4.9 version v1.0.0").hasLink, false);
   assert.equal(detectLinks("e.g. shotgun or rocket launcher").hasLink, false);
   assert.equal(detectLinks("Damage multiplier is 1.5 with 100.0 percent accuracy").hasLink, false);
 });
