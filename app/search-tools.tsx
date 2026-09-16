@@ -236,7 +236,7 @@ export function RadialWeaponPicker({
               }}
               aria-label={weapon.name}
             >
-              <WeaponImage src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} sizes={`${Math.ceil(imgW * hoverScale)}px`} className="radial-weapon-img" />
+              <WeaponImage src={weaponAssetUrl(weapon.image)} alt={weapon.name} width={imgW} height={imgH} className="radial-weapon-img" />
             </button>
           );
         })}

@@ -227,7 +227,7 @@ export function WeaponMix({
         } as React.CSSProperties}
       >
         <div className="weapon-atmosphere-art">
-          <WeaponImage src={getWeaponImage(weapon.name)!} alt="" fill sizes={`${Math.ceil(Math.max(54, size * .55) * 1.5)}px`} />
+          <WeaponImage src={getWeaponImage(weapon.name)!} alt="" fill />
         </div>
       </div>;
     })}

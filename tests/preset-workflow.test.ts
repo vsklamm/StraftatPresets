@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   assertPresetRevisionTransition,
   deriveUserPresetState,
-  emptyPresetRevision,
   MAX_PRESET_SUBMISSIONS_PER_HOUR,
   ONE_HOUR_MS,
   planPresetEdit,
@@ -11,6 +10,15 @@ import {
   validatePresetRevision,
   type PresetRevisionContent,
 } from "../src/domain/preset-workflow";
+
+const emptyPresetRevision = (title = ""): PresetRevisionContent => ({
+  title,
+  description: "",
+  thumbnailKey: null,
+  tags: [],
+  versioningEnabled: false,
+  versions: [],
+});
 import {
   DEFAULT_PRESET_LIMIT,
   ELEVATED_PRESET_LIMIT,

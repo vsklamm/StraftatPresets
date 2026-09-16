@@ -13,6 +13,10 @@ export function StraftatText({ text }: { text: string }) {
   return (
     <>
       {spans.map((span, index) => {
+        if (!hasSpanStyles(span)) {
+          return <Fragment key={index}>{span.text}</Fragment>;
+        }
+
         const style: React.CSSProperties = {};
         if (span.color) style.color = span.color;
         if (span.backgroundColor) {
@@ -36,10 +40,6 @@ export function StraftatText({ text }: { text: string }) {
           style.verticalAlign = "sub";
           style.fontSize = "0.75em";
           style.lineHeight = 1;
-        }
-
-        if (Object.keys(style).length === 0) {
-          return <Fragment key={index}>{span.text}</Fragment>;
         }
 
         return (

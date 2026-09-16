@@ -7,7 +7,6 @@ export function WeaponImage({ src, alt, width, height, fill, className }: {
   alt: string;
   width?: number;
   height?: number;
-  sizes?: string;
   fill?: boolean;
   className?: string;
 }) {

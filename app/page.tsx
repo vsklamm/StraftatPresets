@@ -1490,7 +1490,7 @@ export default function Home() {
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
-                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <WeaponImage src={imageUrl} alt="" width={34} height={34} sizes="34px" className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
+                return <tr key={weapon.name}><td><div className="weapon-table-name">{imageUrl ? <WeaponImage src={imageUrl} alt="" width={34} height={34} className="weapon-table-thumb" /> : null}<span>{weapon.name}</span></div></td><td>{weapon.weight}</td><td><span className="chance"><i aria-hidden="true" style={{ width: `${calculateRelativeWeaponBarWidth(weapon.weight, maximumWeaponWeight)}%` }} />{formatWeaponPercent(weapon.percent)}</span></td></tr>;
               })}</tbody></table></div>
             </PresetSection> : null}
 

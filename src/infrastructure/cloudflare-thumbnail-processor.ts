@@ -5,7 +5,7 @@ export class CloudflareThumbnailProcessor implements ThumbnailProcessor {
   constructor(private readonly images: ImagesBinding) {}
 
   async transform(bytes: Uint8Array) {
-    const input = new Blob([Uint8Array.from(bytes).buffer]).stream();
+    const input = new Blob([bytes as BlobPart]).stream();
     const result = await this.images
       .input(input)
       .transform({ width: MAX_THUMBNAIL_TARGET_WIDTH, height: MAX_THUMBNAIL_TARGET_HEIGHT, fit: "scale-down" })

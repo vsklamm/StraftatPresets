@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import packageMetadata from "@/package.json";
+import { APP_VERSION } from "@/src/lib/app-version";
 
 const sources = [
   { name: "STRAFTAT-Public", href: "https://github.com/Lemaitre-Logiciels/STRAFTAT-Public", icon: "github" },
@@ -58,7 +58,7 @@ export function ProjectInfo() {
             </a>
           ))}
         </nav>
-        <strong>v{packageMetadata.version}</strong>
+        <strong>v{APP_VERSION}</strong>
       </div>
     </aside>
   );

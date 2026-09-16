@@ -1,6 +1,6 @@
 import rawWeapons from "@/game-data/weapons.json";
 import rawMaps from "@/game-data/maps.json";
-import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
+import { type CatalogWeapon, weaponAssetUrl } from "@/src/domain/game-weapons";
 
 const rawCatalog = {
   schemaVersion: rawWeapons.schemaVersion,
@@ -11,11 +11,7 @@ const rawCatalog = {
 
 export type MapKind = "core" | "alt" | "dlc";
 
-export type CatalogWeapon = {
-  name: string;
-  gameId: string;
-  image: string;
-};
+export type { CatalogWeapon };
 
 export type CatalogMapWeapons = {
   spawners: string[];
@@ -35,11 +31,6 @@ export type GameCatalog = {
   supportedRelease: { version: string; publishedAt: string; sourceUrl: string };
   weapons: CatalogWeapon[];
   maps: CatalogMap[];
-};
-
-export type PresetGameData = {
-  mapNames?: readonly string[];
-  randomizedWeapons?: readonly { name: string; weight: number }[];
 };
 
 function normalizeLookupKey(value: string) {
@@ -108,10 +99,7 @@ export const supportedGameRelease = gameCatalog.supportedRelease;
 export const supportedWeaponCount = gameCatalog.weapons.length;
 export const supportedMapCount = gameCatalog.maps.length;
 
-export function weaponAssetUrl(path: string) {
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}game=${encodeURIComponent(supportedGameRelease.version)}&v=norm6`;
-}
+export { weaponAssetUrl };
 
 // Bidirectional and normalized lookup indices
 const weaponByNameKey = new Map<string, CatalogWeapon>();
@@ -219,21 +207,6 @@ export function isSupportedMap(value: string): boolean {
   return mapByName.has(value.trim());
 }
 
-/**
- * Returns the map object for a given map name.
- */
-export function getMap(value: string): CatalogMap | null {
-  if (!value || typeof value !== "string") return null;
-  return mapByName.get(value.trim()) ?? null;
-}
-
-/**
- * Returns the default weapon spawners for a given map.
- */
-export function getMapWeapons(mapName: string): readonly string[] {
-  const map = getMap(mapName);
-  return map ? map.weapons.spawners : [];
-}
 
 /**
  * Safely expands a map wildcard pattern (e.g. "Adobe_*", "*_Alt", "*") into matching map names.
@@ -257,30 +230,4 @@ export function expandMapPattern(pattern: string): string[] {
   } catch {
     return [];
   }
-}
-
-export function validatePresetGameData(data: PresetGameData) {
-  const errors: string[] = [];
-  const canonicalWeapons: Array<{ name: string; weight: number }> = [];
-  const seenWeapons = new Set<string>();
-
-  for (const mapName of data.mapNames ?? []) {
-    if (!isSupportedMap(mapName)) errors.push(`Unknown map: ${mapName}`);
-  }
-
-  for (const weapon of data.randomizedWeapons ?? []) {
-    const canonicalName = resolveWeaponName(weapon.name);
-    if (!canonicalName) {
-      errors.push(`Unknown weapon: ${weapon.name}`);
-      continue;
-    }
-    if (!Number.isSafeInteger(weapon.weight) || weapon.weight < MIN_WEAPON_WEIGHT || weapon.weight > MAX_WEAPON_WEIGHT) {
-      errors.push(`Invalid weight for ${canonicalName}`);
-    }
-    if (seenWeapons.has(canonicalName)) errors.push(`Duplicate weapon: ${canonicalName}`);
-    seenWeapons.add(canonicalName);
-    canonicalWeapons.push({ name: canonicalName, weight: weapon.weight });
-  }
-
-  return { valid: errors.length === 0, errors, canonicalWeapons } as const;
 }

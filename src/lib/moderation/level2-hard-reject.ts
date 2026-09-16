@@ -39,23 +39,27 @@ const HARD_REJECT_TERMS = [
 
 const SYMBOL_TERMS = new Set(["卐", "卍", "\u0fd5", "\u0fd6", "\u0fd7", "\u0fd8", "ꖦ", "ᛋᛋ", "⚡⚡"]);
 
+type CompiledHardRejectTerm =
+  | { term: string; isSymbolOrPhrase: true }
+  | { term: string; isSymbolOrPhrase: false; regex: RegExp };
+
+const COMPILED_HARD_REJECT_TERMS: CompiledHardRejectTerm[] = HARD_REJECT_TERMS.map((term) => {
+  if (SYMBOL_TERMS.has(term) || term.includes(" ")) {
+    return { term, isSymbolOrPhrase: true };
+  }
+  return { term, isSymbolOrPhrase: false, regex: new RegExp(`\\b${term}\\b`, "i") };
+});
+
 export function checkLevel2HardReject(fields: ModeratableField[]): ModerationResult {
   const flags: ModerationFlag[] = [];
 
   for (const field of fields) {
     const textLower = field.cleanText.toLowerCase();
 
-    for (const term of HARD_REJECT_TERMS) {
-      let isMatch = false;
-
-      if (SYMBOL_TERMS.has(term)) {
-        isMatch = textLower.includes(term);
-      } else if (term.includes(" ")) {
-        isMatch = textLower.includes(term);
-      } else {
-        const regex = new RegExp(`\\b${term}\\b`, "i");
-        isMatch = regex.test(textLower);
-      }
+    for (const entry of COMPILED_HARD_REJECT_TERMS) {
+      const isMatch = entry.isSymbolOrPhrase
+        ? textLower.includes(entry.term)
+        : entry.regex.test(textLower);
 
       if (isMatch) {
         flags.push({
@@ -64,7 +68,7 @@ export function checkLevel2HardReject(fields: ModeratableField[]): ModerationRes
           field: field.path,
           code: "hard_rejected_term",
           message: `Contains prohibited language in ${field.label}`,
-          matchedTerm: term,
+          matchedTerm: entry.term,
         });
         break;
       }

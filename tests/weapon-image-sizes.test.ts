@@ -7,7 +7,7 @@ import { WEAPON_IMAGE_WIDTHS, preloadCatalogWeapons, weaponImageSource, weaponIm
 
 test("weapon variants keep canonical names and cache versions in every candidate", () => {
   const src = weaponAssetUrl("/weapons/ak.webp");
-  assert.match(src, /&v=norm6$/);
+  assert.match(src, /\?v=norm6$/);
   assert.equal(weaponImageSource(src), src.replace("/weapons/", "/weapons/128/"));
   assert.equal(weaponImageSource(src, 128), src.replace("/weapons/", "/weapons/128/"));
   assert.equal(weaponImageSource(src, 512), src);

@@ -19,10 +19,12 @@ export function shouldQueueDraftSave(signature: string, savedSignature: string, 
 }
 
 export function isUnmodifiedStarterDraft(content: PresetRevisionContent, savedContentSignature: string | undefined): boolean {
-  if (!savedContentSignature || JSON.stringify(content) !== savedContentSignature) return false;
+  if (!savedContentSignature) return false;
+  const serialized = JSON.stringify(content);
+  if (serialized !== savedContentSignature) return false;
   const title = content.title.trim().toLocaleLowerCase("en-US");
   if (title !== "untitled" && title !== "untitled name") return false;
-  return JSON.stringify(content) === JSON.stringify(createStarterPresetContent(content.title));
+  return serialized === JSON.stringify(createStarterPresetContent(content.title));
 }
 
 export function serializeLocalDraftSnapshot(input: {

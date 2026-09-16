@@ -14,14 +14,49 @@ import {
   resolveWeaponName,
   getWeaponGameId,
   getWeaponDisplayName,
-  getMapWeapons,
   expandMapPattern,
   supportedGameRelease,
   supportedMapCount,
   supportedWeaponCount,
-  validatePresetGameData,
   weaponAssetUrl,
 } from "../src/domain/game-catalog";
+import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "../src/domain/weapon-weights";
+
+type PresetGameData = {
+  mapNames?: readonly string[];
+  randomizedWeapons?: readonly { name: string; weight: number }[];
+};
+
+function validatePresetGameData(data: PresetGameData) {
+  const errors: string[] = [];
+  const canonicalWeapons: Array<{ name: string; weight: number }> = [];
+  const seenWeapons = new Set<string>();
+
+  for (const mapName of data.mapNames ?? []) {
+    if (!isSupportedMap(mapName)) errors.push(`Unknown map: ${mapName}`);
+  }
+
+  for (const weapon of data.randomizedWeapons ?? []) {
+    const canonicalName = resolveWeaponName(weapon.name);
+    if (!canonicalName) {
+      errors.push(`Unknown weapon: ${weapon.name}`);
+      continue;
+    }
+    if (!Number.isSafeInteger(weapon.weight) || weapon.weight < MIN_WEAPON_WEIGHT || weapon.weight > MAX_WEAPON_WEIGHT) {
+      errors.push(`Invalid weight for ${canonicalName}`);
+    }
+    if (seenWeapons.has(canonicalName)) errors.push(`Duplicate weapon: ${canonicalName}`);
+    seenWeapons.add(canonicalName);
+    canonicalWeapons.push({ name: canonicalName, weight: weapon.weight });
+  }
+
+  return { valid: errors.length === 0, errors, canonicalWeapons } as const;
+}
+
+function getMapWeapons(mapName: string): readonly string[] {
+  const map = gameCatalog.maps.find((m) => m.name === mapName.trim());
+  return map ? map.weapons.spawners : [];
+}
 
 const normalizedKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "");
 
@@ -166,4 +201,9 @@ test("map lookup and wildcard expansion stay backed by the complete catalog", ()
   }
   assert.deepEqual(expandMapPattern("*"), gameCatalog.maps.map((map) => map.name));
   assert.deepEqual(expandMapPattern("__not.a.map__"), []);
+});
+
+test("weaponAssetUrl appends the cache version parameter consistently", () => {
+  assert.equal(weaponAssetUrl("/weapons/ak.webp"), "/weapons/ak.webp?v=norm6");
+  assert.equal(weaponAssetUrl("/weapons/ak.webp?custom=1"), "/weapons/ak.webp?custom=1&v=norm6");
 });
