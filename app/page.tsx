@@ -9,6 +9,8 @@ import { AuthControl } from "@/app/auth-control";
 import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
 import { SwapperWeaponMix } from "@/app/swapper-weapon-mix";
+import { ScrollingContent } from "@/app/scrolling-content";
+import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
 import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
@@ -298,10 +300,8 @@ export default function Home() {
   const [weaponSort, setWeaponSort] = useState<WeaponSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [weaponCopyBurst, setWeaponCopyBurst] = useState(0);
-  const [isDialogScrolling, setIsDialogScrolling] = useState(false);
   const weaponCopyButtonRef = useRef<HTMLButtonElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  const dialogScrollTimer = useRef<number | null>(null);
   const savedContentRef = useRef("");
   const draftContentRef = useRef<PresetRevisionContent | null>(null);
   const serverContentByPresetRef = useRef(new Map<string, string>());
@@ -1016,11 +1016,6 @@ export default function Home() {
     setWeaponCopyBurst((burst) => burst + 1);
     void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), targetKey).catch(() => undefined);
   };
-  const handleDialogScroll = () => {
-    setIsDialogScrolling(true);
-    if (dialogScrollTimer.current !== null) window.clearTimeout(dialogScrollTimer.current);
-    dialogScrollTimer.current = window.setTimeout(() => setIsDialogScrolling(false), 650);
-  };
   const submitPreset = () => {
     if (authStatus !== "authenticated") {
       if (authStatus !== "loading") setAuthPrompt({ action: "submit" });
@@ -1438,7 +1433,7 @@ export default function Home() {
               </div>
             );
           })()}
-          <div className={`dialog-content ${!isEditing && (selectedVersion.randomizedWeapons || selectedVersion.swapper?.length) ? "has-weapon-atmosphere" : ""} ${isDialogScrolling ? "is-scrolling" : ""}`} onScroll={handleDialogScroll}>
+          <ScrollingContent className={`dialog-content ${!isEditing && (selectedVersion.randomizedWeapons || selectedVersion.swapper?.length) ? "has-weapon-atmosphere" : ""}`}>
             {!isEditing && selectedVersion.randomizedWeapons
               ? <WeaponMix key={`${selected.id}-${selectedVersion.label}`} weapons={selectedVersion.randomizedWeapons} copyButtonRef={weaponCopyButtonRef} copyBurst={weaponCopyBurst} />
               : !isEditing && selectedVersion.swapper?.length
@@ -1508,7 +1503,7 @@ export default function Home() {
               <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
-          </div>
+          </ScrollingContent>
         </section>
         {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} content={draftContent ?? selected.content} /> : null}
         </div>
@@ -1741,6 +1736,7 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
 }
 
 function CardThumbnail({ title, src, priority, onError }: { title: string; src: string; priority: boolean; onError: () => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [loadState, setLoadState] = useState<ThumbnailLoadState>(() => ({
     src,
     phase: loadedThumbnailSources.has(src) ? "ready" : "loading",
@@ -1759,9 +1755,19 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
     setLoadState({ src, phase: wasAlreadyLoaded ? "ready" : "arriving" });
   }, [src]);
 
+  useEffect(() => {
+    if (phase !== "ready" && rootRef.current) return observeAnimationVisibility(rootRef.current);
+  }, [phase]);
+  useEffect(() => {
+    if (phase !== "arriving") return;
+    // Reduced motion or overridden CSS may prevent animationend from firing.
+    const timer = window.setTimeout(() => setLoadState({ src, phase: "ready" }), 650);
+    return () => window.clearTimeout(timer);
+  }, [phase, src]);
+
   return (
-    <div className={`preset-image has-thumbnail is-${phase}`}>
-      <div className="thumbnail-tunnel-loader" aria-hidden="true">
+    <div ref={rootRef} className={`preset-image has-thumbnail is-${phase}`}>
+      {phase !== "ready" ? <div className="thumbnail-tunnel-loader" aria-hidden="true">
         <svg className="thumbnail-tunnel" viewBox="0 0 160 90" preserveAspectRatio="none">
           <g className="thumbnail-tunnel-track">
             <path className="thumbnail-tunnel-rail" pathLength="100" d="M-6-4C23-1 31 32 61.5 35.4375" />
@@ -1780,7 +1786,7 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
           </g>
         </svg>
         <div className="thumbnail-loading-title"><ThumbnailPlaceholder title={title} mode="card" /></div>
-      </div>
+      </div> : null}
       <Image
         className="preset-thumbnail-image"
         src={src}
@@ -1790,6 +1796,9 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
         sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw"
         ref={captureCachedImage}
         onLoad={finishLoading}
+        onAnimationEnd={(event) => {
+          if (event.animationName === "thumbnail-tunnel-arrival") setLoadState({ src, phase: "ready" });
+        }}
         onError={onError}
       />
     </div>

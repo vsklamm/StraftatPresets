@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { getWeaponImage } from "@/src/domain/game-weapons";
 import { MAX_SWAPPER_RESULT_WEAPONS } from "@/src/domain/swapper-result-weapons";
 import { calculateWeaponChances, type WeightedWeapon } from "@/src/domain/weapon-weights";
+import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
 
 const MAX_VISIBLE_WEAPONS = 18;
 const X_ANCHORS = [74, 52, 28, 38];
@@ -108,6 +109,10 @@ export function WeaponMix({
   const [layoutSeed, setLayoutSeed] = useState(() => Math.floor(Math.random() * 1000));
   const [patternSeed] = useState(() => Math.floor(Math.random() * FLOAT_PATTERN_COUNT));
 
+  useEffect(() => {
+    if (rootRef.current) return observeAnimationVisibility(rootRef.current);
+  }, []);
+
   const visibleLimit = variant === "swapper" ? MAX_SWAPPER_RESULT_WEAPONS : MAX_VISIBLE_WEAPONS;
   const weighted = calculateWeaponChances(weapons)
     .filter((weapon) => getWeaponImage(weapon.name))
@@ -125,8 +130,9 @@ export function WeaponMix({
     const target = button.getBoundingClientRect();
     const items = root.querySelectorAll<HTMLDivElement>(".weapon-atmosphere-item");
 
-    items.forEach((item, index) => {
-      const itemRect = item.getBoundingClientRect();
+    // Finish all geometry reads before changing any element styles.
+    const measuredItems = Array.from(items, (item) => ({ item, rect: item.getBoundingClientRect() }));
+    measuredItems.forEach(({ item, rect: itemRect }, index) => {
       const copyX = target.left + target.width / 2 - itemRect.left - itemRect.width / 2;
       const copyY = target.top + target.height / 2 - itemRect.top - itemRect.height / 2;
       const distance = Math.max(1, Math.hypot(copyX, copyY));
