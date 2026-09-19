@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
+
+// Enforce jitless mode in Zod v4 to skip dynamic new Function evaluation under strict CSP.
+z.config({ jitless: true });
 import { supportedWeaponCount } from "@/src/domain/game-weapons";
 import { MAX_PRESET_TAGS } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";

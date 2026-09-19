@@ -128,6 +128,16 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/*
+          Zod v4 probes runtime `new Function("")` capability by default to enable JIT code generation.
+          Under strict production CSP (which disallows 'unsafe-eval'), the browser blocks the probe and
+          registers a securitypolicyviolation issue in DevTools.
+          Setting `globalThis.__zod_globalConfig = { jitless: true }` before client scripts execute tells
+          Zod to short-circuit the probe (see node_modules/zod/src/v4/core/util.ts: allowsEval probe skip under jitless).
+        */}
+        <script
+          dangerouslySetInnerHTML={{ __html: "globalThis.__zod_globalConfig={jitless:true};" }}
+        />
       </head>
       <body className={`${geist.className} ${jost.variable}`} suppressHydrationWarning><Providers>{children}</Providers></body>
     </html>
