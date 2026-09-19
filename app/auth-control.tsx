@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   MAX_USER_DISPLAY_NAME_CHARACTERS,
   type UserProfile,
@@ -131,27 +132,32 @@ function DisplayNameDialog({ initialName, isFirstChoice, onClose, onSaved }: {
     }
   };
 
-  return <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
-    <section className="auth-dialog display-name-dialog" role="dialog" aria-modal="true" aria-labelledby="display-name-title" onMouseDown={(event) => event.stopPropagation()}>
-      <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
-      <h2 id="display-name-title">{isFirstChoice ? "Choose a display name" : "Change display name"}</h2>
-      <p>This name appears on your presets. Change it anytime from the top-right menu.</p>
-      <form autoComplete="off" onSubmit={submit}>
-        <input
-          ref={inputRef}
-          aria-label="Display name"
-          autoComplete="off"
-          data-1p-ignore
-          data-bwignore
-          data-form-type="other"
-          data-lpignore="true"
-          maxLength={MAX_USER_DISPLAY_NAME_CHARACTERS}
-          value={displayName}
-          onChange={(event) => { setDisplayName(event.target.value); setError(""); }}
-        />
-        {error ? <small className="display-name-error" role="alert">{error}</small> : null}
-        <button type="submit" disabled={isSaving}>{isSaving ? "Saving…" : "Save"}</button>
-      </form>
-    </section>
-  </div>;
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="auth-dialog display-name-dialog" role="dialog" aria-modal="true" aria-labelledby="display-name-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
+        <h2 id="display-name-title">{isFirstChoice ? "Choose a display name" : "Change display name"}</h2>
+        <p>This name appears on your presets. Change it anytime from the top-right menu.</p>
+        <form autoComplete="off" onSubmit={submit}>
+          <input
+            ref={inputRef}
+            aria-label="Display name"
+            autoComplete="off"
+            data-1p-ignore
+            data-bwignore
+            data-form-type="other"
+            data-lpignore="true"
+            maxLength={MAX_USER_DISPLAY_NAME_CHARACTERS}
+            value={displayName}
+            onChange={(event) => { setDisplayName(event.target.value); setError(""); }}
+          />
+          {error ? <small className="display-name-error" role="alert">{error}</small> : null}
+          <button type="submit" disabled={isSaving}>{isSaving ? "Saving…" : "Save"}</button>
+        </form>
+      </section>
+    </div>,
+    document.body
+  );
 }

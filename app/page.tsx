@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -1826,7 +1827,8 @@ function SubmissionIssueRail({ issues, content }: { issues: PresetIssue[]; conte
   return <aside className="submission-issue-rail" aria-label="Preset submission issues"><ul>{issues.map((issue, index) => <li key={`${issue.code}-${issue.field}-${index}`}><Image src="/barrel.webp" alt="" width={40} height={40} /><span>{content ? formatPresetIssueMessage(issue, content) : issue.message}</span></li>)}</ul></aside>;
 }
 function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) {
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
@@ -1837,7 +1839,8 @@ function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: 
           Continue with Discord
         </button>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
 function PresetStateBadge({ state }: { state: UserPresetState }) {
@@ -1884,9 +1887,9 @@ function ReplacePicIcon() {
 
 function HelpQuestionIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M5.6 5.4a2.4 2.4 0 0 1 4.8 0c0 1.6-2.4 2.3-2.4 4.1" />
+      <line x1="8" y1="12.75" x2="8.01" y2="12.75" strokeWidth="2.6" />
     </svg>
   );
 }

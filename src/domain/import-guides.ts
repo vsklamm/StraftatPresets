@@ -23,7 +23,7 @@ export const GUIDE_DEFINITIONS: Record<GuideTopic, GuideDefinition> = {
     topic: "randomizer",
     tabLabel: "Randomizer Settings",
     title: "How to Apply Randomizer Settings",
-    estimatedTime: "~2–4 mins",
+    estimatedTime: "1–4 mins",
     steps: [
       {
         stepNumber: 1,
