@@ -386,8 +386,8 @@ test("validatePresetRevision enforces map playlists [1, 7], swappers [1, 7], and
   assert.equal(validatePresetRevision(mixedVersion).some((i) => i.code === "mixed_weapon_configurations"), true);
 });
 
-test("preset submission policy defines 20-second cooldown and 10 submissions per hour cap", () => {
+test("preset submission policy defines 20-second cooldown and 8 submissions per hour cap", () => {
   assert.equal(PRESET_SUBMISSION_COOLDOWN_MS, 20_000);
-  assert.equal(MAX_PRESET_SUBMISSIONS_PER_HOUR, 10);
+  assert.equal(MAX_PRESET_SUBMISSIONS_PER_HOUR, 8);
   assert.equal(ONE_HOUR_MS, 3_600_000);
 });
