@@ -6,6 +6,12 @@ initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
   ...securityConfig(process.env.NODE_ENV === "development"),
+  allowedDevOrigins: [
+    "192.168.50.211",
+    "192.168.*",
+    "10.*",
+    "*.local",
+  ],
   poweredByHeader: false,
   images: { unoptimized: true },
 };

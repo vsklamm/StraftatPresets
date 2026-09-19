@@ -1421,7 +1421,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 }
 .preset-section > header > button:hover { border-color: var(--control-frame-strong); background: transparent; }
 .preset-section > header > button svg, .export-action svg { width: 12px; height: 12px; flex: 0 0 auto; }
-.preset-section > header:has(.section-actions) { flex-wrap: wrap; }
+.preset-section > header:has(.section-actions) { flex-wrap: nowrap; }
 .section-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
 
 /* In-place Guide Trigger Button with subtle ambient glow */
@@ -2063,6 +2063,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .dashboard-views {
     grid-column: 1;
     grid-row: 1;
+    justify-self: start;
+    width: fit-content;
     display: inline-flex;
     max-width: 100%;
     min-width: 0;
@@ -2139,7 +2141,15 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .submission-issue-rail { position: absolute; right: 8px; bottom: 8px; z-index: 40; width: min(260px, calc(100% - 16px)); max-height: 42%; }
   .submission-issue-rail ul { max-height: 38vh; }
   .action-toast { right: 14px; left: 14px; max-width: none; }
-  .section-actions { width: 100%; }
+  .preset-section { margin-top: 22px; }
+  .preset-section > header { gap: 8px; flex-wrap: nowrap; align-items: center; }
+  .preset-section h3 { font-size: 13px; gap: 6px; white-space: nowrap; min-width: 0; }
+  .preset-section h3 span { min-width: 19px; height: 19px; font-size: 9.5px; padding: 0 4px; }
+  .section-actions { width: auto; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-left: auto; }
+  .guide-trigger { height: 26px; padding: 0 9px; font-size: 12px; gap: 5px; flex-shrink: 0; }
+  .guide-trigger-icon { width: 13px; height: 13px; }
+  .guide-trigger-icon svg { width: 13px; height: 13px; }
+  .weapon-copy-button.icon-only { width: 26px; height: 26px; min-height: 26px; flex-shrink: 0; }
   .project-info-widget { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
 }
 
@@ -2151,6 +2161,11 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .site-header.is-compact .wordmark { font-size: 17px; }
   .dashboard-views button { padding: 0 6px; font-size: 11px; }
   .submit-preset { padding: 0 8px; font-size: 11.5px; }
+  .preset-section h3 { font-size: 12px; gap: 4px; }
+  .preset-section h3 span { min-width: 17px; height: 17px; font-size: 9px; padding: 0 3px; }
+  .section-actions { gap: 4px; }
+  .guide-trigger { padding: 0 7px; font-size: 11px; gap: 4px; }
+  .weapon-copy-button.icon-only { width: 24px; height: 24px; min-height: 24px; }
 }
 
 @media (forced-colors: active) {
