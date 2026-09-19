@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -50,6 +49,7 @@ import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { configLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
+import { GuideTriggerButton, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
@@ -200,6 +200,7 @@ function latestVersion(preset: Preset) { return sortPresetVersionsNewestFirst(pr
 
 export default function Home() {
   const { data: authSession, status: authStatus } = useSession();
+  const isLoggedIn = authStatus === "authenticated";
   const [accountProfile, setAccountProfile] = useState<{ userId: string; profile: UserProfile } | null>(null);
   const [isProfileEditorRequested, setIsProfileEditorRequested] = useState(false);
   const [query, setQuery] = useState("");
@@ -272,6 +273,7 @@ export default function Home() {
   const [searchError, setSearchError] = useState("");
   const [tagCatalog, setTagCatalog] = useState<ActiveTag[]>([]);
   const [selected, setSelected] = useState<Preset | null>(null);
+  const [activeGuide, setActiveGuide] = useState<{ topic: GuideTopic; anchorEl: HTMLElement } | null>(null);
   const [versionLabel, setVersionLabel] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState<PresetRevisionContent | null>(null);
@@ -665,6 +667,7 @@ export default function Home() {
 
   const enterEditMode = useCallback(() => {
     if (!selected?.canEdit) return;
+    setActiveGuide(null);
     setIsEditing(true);
     if (!draftContent) {
       setDraftContent(selected.content ?? null);
@@ -681,6 +684,7 @@ export default function Home() {
     openPresetIdRef.current = "";
     draftContentRef.current = null;
     setSelected(null);
+    setActiveGuide(null);
     setIsEditing(false);
     setDraftContent(null);
     setShowSubmissionIssues(false);
@@ -773,6 +777,11 @@ export default function Home() {
           return;
         }
 
+        if (activeGuide) {
+          setActiveGuide(null);
+          return;
+        }
+
         if (selected) {
           const active = document.activeElement;
           const isInputFocused =
@@ -803,7 +812,7 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selected, isEditing, tagPickerOpen, authPrompt, exitEditMode, closePreset]);
+  }, [selected, isEditing, tagPickerOpen, authPrompt, activeGuide, exitEditMode, closePreset]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -1442,7 +1451,7 @@ export default function Home() {
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
             {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Saved on this device - sync failed" : "Changes autosave"}</p> : null}
-            {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { setVersionLabel(version.label); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
+            {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { setVersionLabel(version.label); setActiveGuide(null); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
             {isEditing && draftContent ? (
               <div className="editable-field">
                 <textarea
@@ -1476,10 +1485,14 @@ export default function Home() {
 
             {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} onPendingChange={trackPendingEditorChange} /> : null}
 
-            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomizer Settings" count={selectedVersion.randomizedWeapons.length} action={<div className="randomized-weapons-actions">
-              <span className="manual-entry-note">Enter manually in-game</span>
-              <RandomizedWeaponsGuide />
+            {!isEditing && selectedVersion.randomizedWeapons ? <PresetSection title="Randomizer Settings" count={selectedVersion.randomizedWeapons.length} action={<div className="section-actions">
               <button key={`weapon-copy-${weaponCopyBurst}`} className={`weapon-copy-button icon-only ${weaponCopyBurst ? "is-receiving" : ""}`} ref={weaponCopyButtonRef} type="button" data-tooltip={copied === "weapons" ? "Copied as plain text" : "Copy as plain text"} aria-label={copied === "weapons" ? "Copied randomizer settings as plain text" : "Copy randomizer settings as plain text"} onClick={() => copyWeapons(selectedVersion.randomizedWeapons!, selectedVersion.randomizedWeaponsCopyKey)}>{copied === "weapons" ? <CheckIcon /> : <CopyCountIcon />}</button>
+              <GuideTriggerButton
+                topic="randomizer"
+                isOpen={activeGuide?.topic === "randomizer"}
+                isLoggedIn={isLoggedIn}
+                onClick={(event) => setActiveGuide((curr) => (curr?.topic === "randomizer" ? null : { topic: "randomizer", anchorEl: event.currentTarget }))}
+              />
             </div>}>
               <div className="weapon-table-wrap"><table className="weapon-list"><thead><tr><th aria-sort={sortState("name")}><button type="button" onClick={() => changeWeaponSort("name")}>Weapon <span>{sortArrow("name")}</span></button></th><th aria-sort={sortState("weight")}><button type="button" onClick={() => changeWeaponSort("weight")}>Weight <span>{sortArrow("weight")}</span></button></th><th aria-sort={sortState("percent")}><button type="button" onClick={() => changeWeaponSort("percent")}>Chance <span>{sortArrow("percent")}</span></button></th></tr></thead><tbody>{sortedWeapons.map((weapon) => {
                 const imageUrl = getWeaponImage(weapon.name);
@@ -1487,16 +1500,38 @@ export default function Home() {
               })}</tbody></table></div>
             </PresetSection> : null}
 
-            {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper Settings" count={selectedVersion.swapper.length}>
+            {!isEditing && selectedVersion.swapper?.length ? <PresetSection title="Swapper Settings" count={selectedVersion.swapper.length} action={<div className="section-actions">
+              <GuideTriggerButton
+                topic="swapper"
+                isOpen={activeGuide?.topic === "swapper"}
+                isLoggedIn={isLoggedIn}
+                onClick={(event) => setActiveGuide((curr) => (curr?.topic === "swapper" ? null : { topic: "swapper", anchorEl: event.currentTarget }))}
+              />
+            </div>}>
               <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
 
-            {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map Playlists" count={selectedVersion.maps.length}>
+            {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map Playlists" count={selectedVersion.maps.length} action={<div className="section-actions">
+              <GuideTriggerButton
+                topic="playlist"
+                isOpen={activeGuide?.topic === "playlist"}
+                isLoggedIn={isLoggedIn}
+                onClick={(event) => setActiveGuide((curr) => (curr?.topic === "playlist" ? null : { topic: "playlist", anchorEl: event.currentTarget }))}
+              />
+            </div>}>
               <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
           </ScrollingContent>
+          {activeGuide ? (
+            <PresetImportGuideView
+              topic={activeGuide.topic}
+              anchorEl={activeGuide.anchorEl}
+              onClose={() => setActiveGuide(null)}
+            />
+          ) : null}
         </section>
+
         {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} content={draftContent ?? selected.content} /> : null}
         </div>
       </div>}
@@ -1515,64 +1550,8 @@ export default function Home() {
 function PresetSection({ title, count, action, children }: { title: string; count: number; action?: React.ReactNode; children: React.ReactNode }) {
   return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
 }
-function RandomizedWeaponsGuide() {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ left: 16, top: 16, width: 410 });
-  const steps = [
-    "Open Randomizer Settings",
-    "Find the listed weapon",
-    "Enter the shown weight",
-    "Repeat for every weapon",
-  ];
-  const updatePosition = useCallback(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    const edge = 16;
-    const gap = 12;
-    const width = Math.min(410, window.innerWidth - edge * 2);
-    const estimatedHeight = Math.min(330, window.innerHeight - edge * 2);
-    const left = Math.max(edge, rect.left - width - gap);
-    const maximumTop = Math.max(edge, window.innerHeight - estimatedHeight - edge);
-    const top = Math.min(maximumTop, Math.max(edge, rect.top + rect.height / 2 - estimatedHeight / 2));
-    setPosition({ left, top, width });
-  }, []);
-  const openGuide = useCallback(() => {
-    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    updatePosition();
-    setIsOpen(true);
-  }, [updatePosition]);
-  const scheduleClose = useCallback(() => {
-    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 120);
-  }, []);
-  useEffect(() => {
-    if (!isOpen) return;
-    const reposition = () => updatePosition();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [isOpen, updatePosition]);
-  useEffect(() => () => {
-    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-  }, []);
-  return <div className="randomized-weapons-guide">
-    <button ref={triggerRef} className="guide-trigger icon-only" type="button" aria-label="How to enter randomizer settings" aria-expanded={isOpen} aria-describedby={isOpen ? "randomized-weapons-guide" : undefined} onMouseEnter={openGuide} onMouseLeave={scheduleClose} onFocus={openGuide} onBlur={scheduleClose} onClick={() => isOpen ? setIsOpen(false) : openGuide()}>?</button>
-    {isOpen && typeof document !== "undefined" ? createPortal(<aside className="guide-popover" id="randomized-weapons-guide" role="tooltip" style={position} onMouseEnter={openGuide} onMouseLeave={scheduleClose}>
-      <header><strong>Enter Randomizer Settings</strong><p>Manual entry only. Copy is plain text.</p></header>
-      <ol>{steps.map((step, index) => <li key={step}>
-        <div className="guide-screenshot" aria-hidden="true"><span>Game UI screenshot</span></div>
-        <p><b>{index + 1}</b>{step}</p>
-      </li>)}</ol>
-    </aside>, document.body) : null}
-  </div>;
-}
 function PresetCounts({ views, copies, dialog = false }: { views: number; copies: number; dialog?: boolean }) {
+
   return <span className={`preset-counts ${dialog ? "dialog-preset-counts" : ""}`}>
     <span className="preset-count" aria-label={`${views.toLocaleString()} ${views === 1 ? "view" : "views"}`}><ViewIcon /><b>{views.toLocaleString()}</b></span>
     <span className="preset-count" aria-label={`${copies.toLocaleString()} ${copies === 1 ? "copy" : "copies"}`}><CopyCountIcon /><b>{copies.toLocaleString()}</b></span>

@@ -1322,11 +1322,110 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 }
 .preset-section > header > button:hover { border-color: var(--control-frame-strong); background: transparent; }
 .preset-section > header > button svg, .export-action svg { width: 12px; height: 12px; flex: 0 0 auto; }
-.preset-section > header:has(.randomized-weapons-actions) { flex-wrap: wrap; }
-.randomized-weapons-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-left: auto; }
-.manual-entry-note { color: var(--card-text-secondary); font-size: 12px; font-weight: 450; white-space: nowrap; }
-.randomized-weapons-guide { position: relative; display: inline-flex; }
-.guide-trigger, .weapon-copy-button.icon-only {
+.preset-section > header:has(.section-actions) { flex-wrap: wrap; }
+.section-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+
+/* In-place Guide Trigger Button with subtle ambient glow */
+.guide-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6.5px;
+  height: 28px;
+  padding: 0 11px;
+  border-style: solid;
+  border-width: 1.5px 1px 1.75px 1.25px;
+  border-color: rgba(205, 160, 95, 0.45) rgba(150, 115, 65, 0.5) rgba(120, 90, 50, 0.55) rgba(180, 140, 80, 0.45);
+  border-radius: 9px 5px 11px 6px / 6px 10px 5px 9px;
+  background: rgba(185, 135, 75, 0.06);
+  color: var(--card-text-primary);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  animation: guide-button-pulse 3.5s ease-in-out infinite;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.guide-trigger.is-active {
+  border-color: rgba(240, 200, 150, 0.85);
+  background: rgba(215, 165, 95, 0.2);
+  box-shadow: 0 0 14px rgba(225, 175, 100, 0.4);
+  color: #fff;
+  animation: none;
+}
+.guide-trigger:hover,
+.guide-trigger:focus-visible {
+  animation: none;
+  border-color: var(--control-frame-strong);
+  background: rgba(215, 165, 95, 0.16);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(225, 175, 100, 0.35);
+  outline: none;
+}
+.guide-trigger.is-logged-in {
+  animation: none;
+  border-color: rgba(151, 122, 81, 0.28);
+  background: transparent;
+  color: var(--card-text-muted);
+  box-shadow: none;
+}
+.guide-trigger.is-logged-in .guide-trigger-icon {
+  color: var(--card-text-muted);
+}
+.guide-trigger.is-logged-in:hover,
+.guide-trigger.is-logged-in:focus-visible {
+  animation: none;
+  border-color: rgba(205, 160, 95, 0.5);
+  background: rgba(185, 135, 75, 0.08);
+  color: var(--card-text-primary);
+  box-shadow: none;
+}
+.guide-trigger.is-logged-in:hover .guide-trigger-icon,
+.guide-trigger.is-logged-in:focus-visible .guide-trigger-icon {
+  color: #d0a771;
+}
+.guide-trigger.is-logged-in.is-active {
+  animation: none;
+  border-color: rgba(240, 200, 150, 0.85);
+  background: rgba(215, 165, 95, 0.2);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(225, 175, 100, 0.25);
+}
+.guide-trigger.is-logged-in.is-active .guide-trigger-icon {
+  color: #fff;
+}
+.guide-trigger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #d0a771;
+}
+.guide-trigger-icon svg {
+  width: 14px;
+  height: 14px;
+}
+@keyframes guide-button-pulse {
+  0%, 100% {
+    border-color: rgba(205, 160, 95, 0.35);
+    background: rgba(185, 135, 75, 0.05);
+    box-shadow: 0 0 0 rgba(225, 175, 100, 0);
+  }
+  50% {
+    border-color: rgba(240, 200, 140, 0.7);
+    background: rgba(215, 165, 95, 0.12);
+    box-shadow: 0 0 10px -1px rgba(225, 175, 100, 0.28), inset 0 0 6px rgba(225, 175, 100, 0.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-trigger {
+    animation: none;
+  }
+}
+
+.weapon-copy-button.icon-only {
   display: inline-grid;
   width: 28px;
   height: 28px;
@@ -1339,15 +1438,14 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   border-radius: 8px 4px 10px 6px / 5px 9px 4px 8px;
   background: transparent;
   color: var(--ui-text-muted);
-  cursor: help;
   font-size: 12px;
   font-weight: 650;
   line-height: 1;
+  position: relative;
+  cursor: pointer;
 }
-.guide-trigger { display: none; }
-.weapon-copy-button.icon-only { position: relative; cursor: pointer; }
-.guide-trigger:hover, .guide-trigger:focus-visible, .weapon-copy-button.icon-only:hover, .weapon-copy-button.icon-only:focus-visible { border-color: var(--control-frame-strong); background: transparent; color: var(--text); outline: none; }
-.guide-trigger svg, .weapon-copy-button.icon-only svg { width: 13px; height: 13px; }
+.weapon-copy-button.icon-only:hover, .weapon-copy-button.icon-only:focus-visible { border-color: var(--control-frame-strong); background: transparent; color: var(--text); outline: none; }
+.weapon-copy-button.icon-only svg { width: 13px; height: 13px; }
 .weapon-copy-button.icon-only::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -1375,42 +1473,141 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   transition: opacity .08s ease .04s, visibility .08s ease .04s, transform .08s ease .04s;
 }
 .weapon-copy-button.icon-only:hover::after, .weapon-copy-button.icon-only:focus-visible::after { opacity: 1; visibility: visible; transform: translateY(0); }
-.guide-popover {
+
+/* In-place Floating Guide Popover */
+.guide-floating-popover {
   position: fixed;
-  z-index: 90;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  padding: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
   border-style: solid;
   border-width: 1.5px 1px 2px 1.25px;
   border-color: var(--frame-warm) var(--frame-warm-deep) var(--frame-warm-deep) var(--frame-warm-soft);
-  border-radius: 12px 6px 14px 8px / 8px 13px 7px 11px;
-  background: var(--bg);
-  box-shadow: 0 20px 55px rgba(0,0,0,.82);
-  animation: guide-popover-in .12s ease-out both;
+  border-radius: 14px 7px 16px 9px / 9px 15px 8px 13px;
+  background: #100f0c;
+  box-shadow: 0 24px 75px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(185, 135, 75, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  animation: guide-popover-in .16s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-@keyframes guide-popover-in { from { opacity: 0; transform: translateX(4px) scale(.985); } to { opacity: 1; transform: translateX(0) scale(1); } }
-.guide-popover > header { display: block; margin: 0 0 11px; }
-.guide-popover > header strong { display: block; color: var(--text); font-size: 13px; font-weight: 600; line-height: 1.25; }
-.guide-popover > header p { margin: 4px 0 0; color: var(--ui-text-dim); font-size: 11px; line-height: 1.35; }
-.guide-popover ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
-.guide-popover li { min-width: 0; }
-.guide-screenshot {
+
+@keyframes guide-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% - 6px)) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.guide-popover-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 20px 22px;
+  overflow-y: auto;
+  color: var(--card-text-primary);
+  outline: none;
+}
+
+.guide-steps-grid {
   display: grid;
-  aspect-ratio: 16 / 9;
-  place-items: center;
-  border-style: solid;
-  border-width: 1.5px 1px 1px 1.5px;
-  border-color: var(--frame-warm);
-  border-radius: 9px 5px 11px 6px / 6px 10px 5px 8px;
-  background: transparent;
-  color: var(--ui-text-faint);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
 }
-.guide-popover li > p { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--ui-text-regular); font-size: 10.5px; line-height: 1.3; }
-.guide-popover li > p b { display: grid; flex: 0 0 auto; width: 17px; height: 17px; place-items: center; border: 1px solid var(--frame-warm); border-radius: 50%; background: transparent; color: var(--ui-text-bright); font-size: 9px; font-weight: 600; }
+
+@media (max-width: 680px) {
+  .guide-steps-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .guide-popover-content {
+    padding: 16px 14px;
+  }
+}
+
+.guide-step-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-step-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.guide-step-num {
+  font-size: 15px;
+  font-weight: 700;
+  color: #d0a771;
+}
+
+.guide-step-title {
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--card-text-primary);
+}
+
+.guide-screenshot-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid rgba(151, 122, 81, 0.35);
+  border-radius: 7px 4px 8px 5px;
+  background: #0d0c0a;
+}
+
+.guide-screenshot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.guide-screenshot-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 5px;
+  background: radial-gradient(circle at center, rgba(185, 135, 75, 0.06) 0%, rgba(13, 12, 10, 0.96) 80%);
+  color: #8c8273;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.guide-screenshot-placeholder svg {
+  width: 22px;
+  height: 22px;
+  color: #9c8360;
+}
+
+.guide-step-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--card-text-body);
+}
+
+.guide-step-note {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #c09a6e;
+}
+
 .export-list { display: flex; flex-direction: column; gap: 8px; }
 .export-item {
   display: grid;
@@ -1785,7 +1982,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   .submission-issue-rail { position: absolute; right: 8px; bottom: 8px; z-index: 40; width: min(260px, calc(100% - 16px)); max-height: 42%; }
   .submission-issue-rail ul { max-height: 38vh; }
   .action-toast { right: 14px; left: 14px; max-width: none; }
-  .randomized-weapons-actions { width: 100%; }
+  .section-actions { width: 100%; }
   .project-info-widget { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
 }
 
