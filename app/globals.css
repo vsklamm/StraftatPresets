@@ -157,6 +157,36 @@ button { color: inherit; }
 .tool-tabs a.tool-tab-link { display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 2px 9px; line-height: 1; }
 .tool-tabs a:hover, .tool-tabs button:hover { color: #ffffff; background: rgba(255,255,255,.05); }
 .tool-tabs .active, .tool-tabs button.active { color: var(--text); font-weight: 600; background: transparent; }
+.community-presets-tab-wrap { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.community-presets-tab-wrap button.active { padding-right: 4px; }
+.header-guide-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border-style: solid;
+  border-width: 1.5px 1px 1.75px 1.25px;
+  border-color: rgba(205, 160, 95, 0.45) rgba(150, 115, 65, 0.5) rgba(120, 90, 50, 0.55) rgba(180, 140, 80, 0.45);
+  border-radius: 6px 3px 7px 4px / 4px 7px 3px 6px;
+  background: rgba(185, 135, 75, 0.08);
+  color: #d0a771;
+  text-decoration: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.header-guide-trigger:hover,
+.header-guide-trigger:focus-visible {
+  border-color: var(--control-frame-strong);
+  background: rgba(215, 165, 95, 0.22);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(225, 175, 100, 0.35);
+  transform: scale(1.08);
+  outline: none;
+}
+.header-guide-trigger svg { width: 10px; height: 10px; display: block; }
 .tab-title-row { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 550; line-height: 1.1; }
 .tab-author { font-size: 9.5px; font-weight: 400; color: var(--ui-text-faint); line-height: 1; margin-top: -1px; letter-spacing: 0.01em; }
 .tool-tabs a.tool-tab-link:hover .tab-author { color: var(--ui-text-muted); }
@@ -1996,6 +2026,197 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 
 @media (forced-colors: active) {
   .site-header::before, .site-header.is-compact::before { border-bottom: 1px solid CanvasText; background: Canvas; box-shadow: none; }
+}
+
+/* Guide Modal Dialog */
+.dialog-stage.guide-dialog-stage {
+  width: min(1040px, 96vw);
+  height: min(840px, 90vh);
+}
+
+.preset-dialog.guide-modal-dialog {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: none;
+}
+
+.guide-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px 36px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(151, 122, 81, 0.4) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.guide-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.guide-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.guide-modal-content::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(151, 122, 81, 0.35);
+  background-clip: padding-box;
+}
+
+.guide-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(151, 122, 81, 0.6);
+  background-clip: padding-box;
+}
+
+.guide-modal-header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(151, 122, 81, 0.25);
+}
+
+.guide-modal-title {
+  margin: 0;
+  font-family: var(--font-jost), sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--card-text-primary);
+  padding-right: 48px;
+  line-height: 1.25;
+}
+
+.guide-modal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.guide-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(151, 122, 81, 0.22);
+}
+
+.guide-group-title {
+  margin: 0;
+  font-family: var(--font-jost), sans-serif;
+  font-size: 17.5px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--card-text-primary);
+}
+
+.guide-group-time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 27px;
+  min-height: 27px;
+  padding: 0 11px;
+  border-style: solid;
+  border-width: 1.5px 1px 1.5px 1px;
+  border-color: var(--frame-warm) var(--frame-warm-deep) var(--frame-warm-deep) var(--frame-warm-soft);
+  border-radius: 11px 7px 12px 6px / 7px 11px 6px 10px;
+  background: transparent;
+  color: var(--card-text-chip);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.guide-modal-dialog .guide-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px 14px;
+}
+
+.guide-modal-dialog .guide-step-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide-modal-dialog .guide-step-header {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.guide-modal-dialog .guide-step-num {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #d0a771;
+}
+
+.guide-modal-dialog .guide-step-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--card-text-primary);
+  line-height: 1.25;
+}
+
+.guide-modal-dialog .guide-screenshot-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid rgba(151, 122, 81, 0.35);
+  border-radius: 6px 3px 7px 4px;
+  background: #0d0c0a;
+  transition: border-color .15s ease;
+}
+
+.guide-modal-dialog .guide-step-item:hover .guide-screenshot-frame {
+  border-color: rgba(208, 167, 113, 0.65);
+}
+
+.guide-modal-dialog .guide-step-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.42;
+  color: var(--card-text-body);
+}
+
+.guide-modal-dialog .guide-step-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #c09a6e;
+}
+
+@media (max-width: 680px) {
+  .dialog-stage.guide-dialog-stage {
+    width: 96vw;
+    height: 94vh;
+  }
+  .guide-modal-content {
+    padding: 20px 14px 28px;
+    gap: 24px;
+  }
+  .guide-modal-title {
+    font-size: 17px;
+  }
+  .guide-modal-dialog .guide-steps-grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 14px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .guide-modal-dialog .guide-steps-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

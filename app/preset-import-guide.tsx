@@ -3,146 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type GuideTopic = "randomizer" | "swapper" | "playlist";
+import {
+  GUIDE_DEFINITIONS,
+  ORDERED_GUIDE_TOPICS,
+  type GuideDefinition,
+  type GuideStep,
+  type GuideTopic,
+} from "@/src/domain/import-guides";
 
-export type GuideStep = {
-  stepNumber: number;
-  title: string;
-  description: string;
-  note?: string;
-  imageSrc?: string;
-};
-
-export type GuideDefinition = {
-  topic: GuideTopic;
-  tabLabel: string;
-  title: string;
-  estimatedTime: string;
-  steps: GuideStep[];
-};
-
-export const GUIDE_DEFINITIONS: Record<GuideTopic, GuideDefinition> = {
-  randomizer: {
-    topic: "randomizer",
-    tabLabel: "Randomizer Settings",
-    title: "How to Apply Randomizer Settings",
-    estimatedTime: "~2–4 mins",
-    steps: [
-      {
-        stepNumber: 1,
-        title: "Host a Lobby",
-        description: "Start hosting a lobby.",
-        imageSrc: "/guide/host-lobby.webp",
-      },
-      {
-        stepNumber: 2,
-        title: "Open Randomizer Settings",
-        description: "Press checkbox 'Randomise Weapons' in lobby settings and press button 'Randomizer Settings'.",
-        imageSrc: "/guide/randomizer-settings.webp",
-      },
-      {
-        stepNumber: 3,
-        title: "Clear Weapons",
-        description: "Press button 'Toggle' to uncheck all weapons (press again if it enables them).",
-        imageSrc: "/guide/randomizer-toggle.webp",
-      },
-      {
-        stepNumber: 4,
-        title: "Set Weapon Weights",
-        description: "For each weapon from the preset, check the box and enter the weight (yes... it takes time).",
-        imageSrc: "/guide/randomizer-weights.webp",
-      },
-      {
-        stepNumber: 5,
-        title: "Save Preset",
-        description: "Don't forget to press button 'Save Preset'.",
-        note: "Do not select any other presets before saving, otherwise changes will be lost.",
-        imageSrc: "/guide/randomizer-save.webp",
-      },
-    ],
-  },
-  swapper: {
-    topic: "swapper",
-    tabLabel: "Swapper Settings",
-    title: "How to Import Swapper Settings",
-    estimatedTime: "< 1 min",
-    steps: [
-      {
-        stepNumber: 1,
-        title: "Copy Preset",
-        description: "Press button 'Copy' on this preset.",
-        imageSrc: "/guide/copy-preset.webp",
-      },
-      {
-        stepNumber: 2,
-        title: "Host a Lobby",
-        description: "Start hosting a lobby.",
-        imageSrc: "/guide/host-lobby.webp",
-      },
-      {
-        stepNumber: 3,
-        title: "Open Swapper",
-        description: "Press button 'Swapper Settings' (leave checkbox 'Randomise Weapons' unchecked).",
-        imageSrc: "/guide/swapper-settings.webp",
-      },
-      {
-        stepNumber: 4,
-        title: "Import Preset",
-        description: "Press button 'Import Preset'.",
-        imageSrc: "/guide/swapper-import.webp",
-      },
-      {
-        stepNumber: 5,
-        title: "Select Preset",
-        description: "Click on the imported preset in the list to select it.",
-        imageSrc: "/guide/swapper-select.webp",
-      },
-    ],
-  },
-  playlist: {
-    topic: "playlist",
-    tabLabel: "Map Playlists",
-    title: "How to Import Map Playlists",
-    estimatedTime: "< 1 min",
-    steps: [
-      {
-        stepNumber: 1,
-        title: "Copy Preset",
-        description: "Press button 'Copy' on this preset.",
-        imageSrc: "/guide/copy-preset.webp",
-      },
-      {
-        stepNumber: 2,
-        title: "Open Maps Menu",
-        description: "Press button 'Maps' in the top menu (to the left of 'HOME').",
-        imageSrc: "/guide/maps-menu.webp",
-      },
-      {
-        stepNumber: 3,
-        title: "Import Playlist",
-        description: "Press button 'Import' (the imported playlist appears at the end of the list).",
-        imageSrc: "/guide/maps-import.webp",
-      },
-      {
-        stepNumber: 4,
-        title: "Host a Lobby",
-        description: "Start hosting a lobby.",
-        imageSrc: "/guide/host-lobby.webp",
-      },
-      {
-        stepNumber: 5,
-        title: "Open Match Maps",
-        description: "Press button 'MAPS' at the bottom (to the right of 'START').",
-        imageSrc: "/guide/match-maps.webp",
-      },
-      {
-        stepNumber: 6,
-        title: "Load Playlist",
-        description: "Press button 'Load' and click on the imported Map Playlist.",
-        imageSrc: "/guide/maps-load.webp",
-      },
-    ],
-  },
+export {
+  GUIDE_DEFINITIONS,
+  ORDERED_GUIDE_TOPICS,
+  type GuideDefinition,
+  type GuideStep,
+  type GuideTopic,
 };
 
 export function GuideTriggerButton({
@@ -389,5 +263,102 @@ function CameraScanIcon() {
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
     </svg>
+  );
+}
+
+export function PresetImportGuideModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      dialogRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
+      <div
+        className="dialog-stage guide-dialog-stage"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <section
+          ref={dialogRef}
+          tabIndex={-1}
+          className="preset-dialog guide-modal-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label="How to import Map Playlists, Swapper and Randomizer Settings"
+        >
+          <button
+            className="dialog-close"
+            type="button"
+            aria-label="Close guide"
+            onClick={onClose}
+          >
+            ×
+          </button>
+          <div className="guide-modal-content">
+            <header className="guide-modal-header">
+              <h1 className="guide-modal-title">
+                How to import Map Playlists, Swapper and Randomizer Settings
+              </h1>
+            </header>
+            {ORDERED_GUIDE_TOPICS.map((topic) => {
+              const guide = GUIDE_DEFINITIONS[topic];
+              return (
+                <section key={topic} className="guide-modal-group">
+                  <div className="guide-group-header">
+                    <h2 className="guide-group-title">{guide.tabLabel}</h2>
+                    <span className="guide-group-time">{guide.estimatedTime}</span>
+                  </div>
+                  <div className="guide-steps-grid">
+                    {guide.steps.map((step) => (
+                      <div key={step.stepNumber} className="guide-step-item">
+                        <div className="guide-step-header">
+                          <span className="guide-step-num">{step.stepNumber}.</span>
+                          <strong className="guide-step-title">{step.title}</strong>
+                        </div>
+
+                        <div className="guide-screenshot-frame">
+                          {step.imageSrc ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={step.imageSrc}
+                              alt={`${step.title} screenshot`}
+                              className="guide-screenshot-img"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="guide-screenshot-placeholder" aria-hidden="true">
+                              <CameraScanIcon />
+                              <span>Screenshot</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="guide-step-text">
+                          {step.description}
+                          {step.note ? (
+                            <span className="guide-step-note">{step.note}</span>
+                          ) : null}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

@@ -49,7 +49,7 @@ import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { configLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
-import { GuideTriggerButton, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
+import { GuideTriggerButton, PresetImportGuideModal, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
@@ -274,6 +274,13 @@ export default function Home() {
   const [tagCatalog, setTagCatalog] = useState<ActiveTag[]>([]);
   const [selected, setSelected] = useState<Preset | null>(null);
   const [activeGuide, setActiveGuide] = useState<{ topic: GuideTopic; anchorEl: HTMLElement } | null>(null);
+  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
+  const closeGuideModal = useCallback(() => {
+    setIsGuideModalOpen(false);
+    if (window.location.pathname === "/how-to-import") {
+      window.history.pushState(null, "", "/");
+    }
+  }, []);
   const [versionLabel, setVersionLabel] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState<PresetRevisionContent | null>(null);
@@ -782,6 +789,11 @@ export default function Home() {
           return;
         }
 
+        if (isGuideModalOpen) {
+          closeGuideModal();
+          return;
+        }
+
         if (selected) {
           const active = document.activeElement;
           const isInputFocused =
@@ -812,12 +824,19 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selected, isEditing, tagPickerOpen, authPrompt, activeGuide, exitEditMode, closePreset]);
+  }, [selected, isEditing, tagPickerOpen, authPrompt, activeGuide, isGuideModalOpen, closeGuideModal, exitEditMode, closePreset]);
 
   useEffect(() => {
     let isCancelled = false;
     const openLinkedPreset = async () => {
       const url = new URL(window.location.href);
+      if (url.pathname === "/how-to-import") {
+        setIsGuideModalOpen(true);
+        if (openPresetIdRef.current) void closePresetFromHistory();
+        return;
+      } else {
+        setIsGuideModalOpen(false);
+      }
       const identifier = presetIdentifierFromUrl(url);
       if (!identifier) {
         if (openPresetIdRef.current) void closePresetFromHistory();
@@ -1239,7 +1258,30 @@ export default function Home() {
         <header className="topbar">
           <Link className="wordmark" href="/">STRAFTATPRESETS</Link>
           <nav className="tool-tabs" aria-label="StraftatPresets sections">
-            <button className="active" type="button">Community Presets</button>
+            <div className="community-presets-tab-wrap">
+              <button
+                className="active"
+                type="button"
+                onClick={() => {
+                  if (isGuideModalOpen) closeGuideModal();
+                }}
+              >
+                Community Presets
+              </button>
+              <Link
+                href="/how-to-import"
+                className="header-guide-trigger"
+                aria-label="How to import Map Playlists, Swapper and Randomizer Settings"
+                title="How to import Map Playlists, Swapper and Randomizer Settings"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setIsGuideModalOpen(true);
+                  window.history.pushState(null, "", "/how-to-import");
+                }}
+              >
+                <HelpQuestionIcon />
+              </Link>
+            </div>
             <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
               <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
               <span className="tab-author">by clodcan</span>
@@ -1535,6 +1577,10 @@ export default function Home() {
         {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} content={draftContent ?? selected.content} /> : null}
         </div>
       </div>}
+      <PresetImportGuideModal
+        isOpen={isGuideModalOpen}
+        onClose={closeGuideModal}
+      />
       {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
         const callbackUrl = new URL(window.location.href);
         callbackUrl.searchParams.set("create", "1");
@@ -1832,6 +1878,15 @@ function ReplacePicIcon() {
       <path d="m15.5 5.5 1.5 1.5-1.5 1.5" />
       <path d="M18 13h-3a1.5 1.5 0 0 1-1.5-1.5V10" />
       <path d="m16.5 14.5-1.5-1.5 1.5-1.5" />
+    </svg>
+  );
+}
+
+function HelpQuestionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
 }

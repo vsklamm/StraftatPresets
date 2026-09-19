@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { GUIDE_DEFINITIONS, type GuideTopic } from "../app/preset-import-guide";
+import { GUIDE_DEFINITIONS, type GuideTopic } from "../src/domain/import-guides";
 
 test("preset import guides are configured for randomizer, swapper, and playlist", () => {
   const topics: GuideTopic[] = ["randomizer", "swapper", "playlist"];
@@ -52,4 +52,15 @@ test("preset import guides are configured for randomizer, swapper, and playlist"
   // Copy preset is shared between swapper and playlist
   assert.equal(swap.steps[0].imageSrc, "/guide/copy-preset.webp");
   assert.equal(play.steps[0].imageSrc, "/guide/copy-preset.webp");
+});
+
+test("how-to-import page renders Home and valid metadata", async () => {
+  const { default: HowToImportPage, metadata } = await import("../app/how-to-import/page");
+  assert.ok(metadata.title, "Metadata should have a title");
+  assert.ok(metadata.description, "Metadata should have a description");
+  assert.equal(metadata.alternates?.canonical, "/how-to-import");
+
+  const vnode = HowToImportPage();
+  assert.ok(vnode, "Page should render a valid React element");
+  assert.equal(typeof vnode.type, "function");
 });
