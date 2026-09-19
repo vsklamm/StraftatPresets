@@ -2087,8 +2087,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 
 /* Guide Modal Dialog */
 .dialog-stage.guide-dialog-stage {
-  width: min(1040px, 96vw);
-  height: min(840px, 90vh);
+  width: min(1120px, 96vw);
+  height: min(860px, 90vh);
 }
 
 .preset-dialog.guide-modal-dialog {
@@ -2192,33 +2192,33 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 
 .guide-modal-dialog .guide-steps-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 16px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px 16px;
 }
 
 .guide-modal-dialog .guide-step-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .guide-modal-dialog .guide-step-header {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
 }
 
 .guide-modal-dialog .guide-step-num {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: #d0a771;
 }
 
 .guide-modal-dialog .guide-step-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--card-text-primary);
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .guide-modal-dialog .guide-screenshot-frame {
@@ -2227,7 +2227,7 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 1px solid rgba(151, 122, 81, 0.35);
-  border-radius: 6px 3px 7px 4px;
+  border-radius: 7px 4px 8px 5px;
   background: #0d0c0a;
   transition: border-color .15s ease;
 }
@@ -2238,16 +2238,16 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
 
 .guide-modal-dialog .guide-step-text {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.42;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--card-text-body);
 }
 
 .guide-modal-dialog .guide-step-note {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 11.5px;
+  line-height: 1.38;
   color: #c09a6e;
 }
 
@@ -2261,11 +2261,11 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
     gap: 24px;
   }
   .guide-modal-title {
-    font-size: 17px;
+    font-size: 18px;
   }
   .guide-modal-dialog .guide-steps-grid {
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    gap: 14px 10px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 16px 12px;
   }
 }
 
