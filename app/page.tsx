@@ -1360,8 +1360,12 @@ export default function Home() {
               const isOwner = Boolean(preset.canEdit);
               const showStateBadge = activeDashboardView === "mine" && Boolean(preset.state);
               const hasValidImage = Boolean(preset.image && !failedThumbnailIds.has(preset.id));
+              const cleanTitle = stripColorAndFormattingTags(preset.title);
+              const cardLabel = preset.versioningEnabled
+                ? `${cleanTitle} (${formatPresetVersionLabel(version.label)})`
+                : cleanTitle;
               return <article className={`preset-card ${compact ? "compact" : ""} ${isOwner ? "is-owner" : ""}`} key={preset.id}>
-                <button className="card-open" type="button" onClick={() => openPreset(preset)} aria-label={`Open ${preset.title} ${version.label}`}>
+                <button className="card-open" type="button" onClick={() => openPreset(preset)} aria-label={cardLabel}>
                   {!compact ? (hasValidImage ? <CardThumbnail title={preset.title} src={preset.image!} priority={presetIndex < 4} onError={() => handleThumbnailError(preset.id)} /> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" /></div>) : null}
                   <div className="preset-card-body">
                     <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{showStateBadge && preset.state ? <PresetStateBadge state={preset.state} /> : null}{preset.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(version.label)}</span> : null}</div></div>
@@ -1770,8 +1774,8 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
   const finishLoading = useCallback(() => {
     const wasAlreadyLoaded = loadedThumbnailSources.has(src);
     loadedThumbnailSources.add(src);
-    setLoadState({ src, phase: wasAlreadyLoaded ? "ready" : "arriving" });
-  }, [src]);
+    setLoadState({ src, phase: (wasAlreadyLoaded || priority) ? "ready" : "arriving" });
+  }, [priority, src]);
 
   useEffect(() => {
     if (phase !== "ready" && rootRef.current) return observeAnimationVisibility(rootRef.current);

@@ -16,12 +16,29 @@ export function weaponImageSrcSet(src: string): string | undefined {
 
 let hasPreloadedWeapons = false;
 
-/** Preload all 72 catalog weapon images at once into browser cache. */
+/** Preload all 72 catalog weapon images into browser cache during idle time. */
 export function preloadCatalogWeapons(): void {
   if (typeof window === "undefined" || hasPreloadedWeapons) return;
   hasPreloadedWeapons = true;
-  for (const weapon of catalogWeapons) {
-    const img = new window.Image();
-    img.src = weaponImageSource(weaponAssetUrl(weapon.image), 128);
+
+  const load = () => {
+    for (const weapon of catalogWeapons) {
+      const img = new window.Image();
+      img.decoding = "async";
+      if ("fetchPriority" in img) {
+        (img as HTMLImageElement & { fetchPriority: string }).fetchPriority = "low";
+      }
+      img.src = weaponImageSource(weaponAssetUrl(weapon.image), 128);
+    }
+  };
+
+  const idle = typeof window !== "undefined" && "requestIdleCallback" in window
+    ? (window as unknown as { requestIdleCallback: (cb: () => void, options?: { timeout: number }) => number }).requestIdleCallback
+    : undefined;
+
+  if (idle) {
+    idle(load, { timeout: 3500 });
+  } else {
+    setTimeout(load, 1500);
   }
 }

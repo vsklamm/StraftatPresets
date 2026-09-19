@@ -207,6 +207,9 @@ export function PresetImportGuideView({
                     src={step.imageSrc}
                     alt={`${step.title} screenshot`}
                     className="guide-screenshot-img"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
                   />
                 ) : (
                   <div className="guide-screenshot-placeholder" aria-hidden="true">
@@ -335,6 +338,8 @@ export function PresetImportGuideModal({
                               alt={`${step.title} screenshot`}
                               className="guide-screenshot-img"
                               loading="lazy"
+                              decoding="async"
+                              fetchPriority="low"
                             />
                           ) : (
                             <div className="guide-screenshot-placeholder" aria-hidden="true">

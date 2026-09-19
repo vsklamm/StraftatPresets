@@ -25,6 +25,13 @@ Design deep modules: a lot of behaviour behind a small interface, placed at a cl
 - Keep domain rules in `src/domain/`, interfaces in `src/application/ports.ts`, Cloudflare adapters in `src/infrastructure/`, and transport concerns in `app/api/` or `src/lib/`.
 - Reuse domain validation in browser and server code. Keep route handlers thin.
 
+## Maintain visual and interface fidelity
+
+- Apply geometric and optical balance: calibrate icons, badges, stroke weights, and typography proportionately to their visual weight rather than raw container bounds, ensuring harmonious hierarchy.
+- Preserve the design language: honor flat, unboxed button patterns; give popovers and menus solid opaque backing and explicit stacking (`z-index`) to eliminate layer bleed-through.
+- Portal modal dialogs and backdrops to `document.body` to avoid container layout containment, guaranteeing true viewport coverage and centered alignment.
+- Keep text terse and direct: use plain, functional phrasing; avoid conversational filler, robotic pleasantries, or redundant instructions.
+
 ## Protect state and environments
 
 - Use local commands by default. Treat deployment, `--remote`, and scripts ending in `:remote` as separate production actions requiring explicit authorization.
@@ -48,4 +55,4 @@ When editing `AGENTS.md`, harness files, or skills:
 
 ## Complete the change
 
-Use `npm run setup` for fresh local state and `npm run cf:types` after changing Wrangler bindings. Run focused tests during implementation and `npm run check` before handoff. For visual changes, inspect the local page. For persistence changes, test fresh D1 plus the production upgrade path. Finish with `git diff --check` and a clean accounting of every working-tree change.
+Use `npm run setup` for fresh local state and `npm run cf:types` after changing Wrangler bindings. Run focused tests during implementation and `npm run check` before handoff. Synchronize `package.json`, `package-lock.json`, and `src/lib/app-version.ts` on release bumps. For visual changes, inspect layout, optical alignment, and contrast. For persistence changes, test fresh D1 plus the production upgrade path. Finish with `git diff --check`, purge dead code and unused imports, and keep a clean accounting of every working-tree change.
