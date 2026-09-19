@@ -13,6 +13,7 @@ import { preloadCatalogWeapons } from "@/src/domain/weapon-image-sizes";
 import { SwapperWeaponMix } from "@/app/swapper-weapon-mix";
 import { ScrollingContent } from "@/app/scrolling-content";
 import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
+import { useBodyScrollLock } from "@/src/lib/body-scroll-lock";
 import { StraftatText } from "./straftat-text";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
@@ -215,11 +216,13 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const isHeaderCompactRef = useRef(false);
+  const isModalOpenRef = useRef(false);
 
   useEffect(() => {
     let animationFrame = 0;
     const measureHeaderState = () => {
       animationFrame = 0;
+      if (isModalOpenRef.current) return;
       const scrollOffset = Math.max(0, window.scrollY || document.documentElement.scrollTop);
       const nextCompact = scrollOffset > (isHeaderCompactRef.current ? HEADER_EXPAND_SCROLL_Y : HEADER_COLLAPSE_SCROLL_Y);
       if (nextCompact === isHeaderCompactRef.current) return;
@@ -448,6 +451,25 @@ export default function Home() {
       return (a[weaponSort] - b[weaponSort]) * direction;
     });
   }, [weightedWeapons, weaponSort, sortDirection]);
+
+  const isModalOpen = Boolean((selected && selectedVersion) || isGuideModalOpen || authPrompt || isProfileEditorRequested);
+  useEffect(() => {
+    isModalOpenRef.current = isModalOpen;
+  }, [isModalOpen]);
+  useBodyScrollLock(isModalOpen);
+
+  useEffect(() => {
+    if (!isMounted || isModalOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      const scrollOffset = Math.max(0, window.scrollY || document.documentElement.scrollTop);
+      const nextCompact = scrollOffset > (isHeaderCompactRef.current ? HEADER_EXPAND_SCROLL_Y : HEADER_COLLAPSE_SCROLL_Y);
+      if (nextCompact !== isHeaderCompactRef.current) {
+        isHeaderCompactRef.current = nextCompact;
+        setIsHeaderCompact(nextCompact);
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isModalOpen, isMounted]);
 
   const [isRevalidating, setIsRevalidating] = useState(false);
   const [revalidationFailedId, setRevalidationFailedId] = useState<string | null>(null);
@@ -1415,7 +1437,8 @@ export default function Home() {
         </section>
       </div>
 
-      {selected && selectedVersion && <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
+      {selected && selectedVersion && typeof document !== "undefined" ? createPortal(
+        <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
         <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
           <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
             <button className="dialog-close" type="button" aria-label="Close preset" disabled={isSubmitting} onClick={closePreset}>×</button>
@@ -1581,7 +1604,9 @@ export default function Home() {
 
         {visibleSubmissionIssues.length ? <SubmissionIssueRail issues={visibleSubmissionIssues} content={draftContent ?? selected.content} /> : null}
         </div>
-      </div>}
+      </div>,
+      document.body
+    ) : null}
       <PresetImportGuideModal
         isOpen={isGuideModalOpen}
         onClose={closeGuideModal}

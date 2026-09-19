@@ -9,6 +9,7 @@ import {
   validateUserDisplayNameStructure,
 } from "@/src/domain/user-profile";
 import { StraftatText } from "@/app/straftat-text";
+import { useBodyScrollLock } from "@/src/lib/body-scroll-lock";
 
 type AuthControlProps = {
   onProfileChange?: (profile: UserProfile) => void;
@@ -95,6 +96,7 @@ function DisplayNameDialog({ initialName, isFirstChoice, onClose, onSaved }: {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  useBodyScrollLock(true);
 
   useEffect(() => {
     inputRef.current?.select();

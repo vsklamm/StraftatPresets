@@ -284,9 +284,9 @@ export function PresetImportGuideModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <div
         className="dialog-stage guide-dialog-stage"
@@ -364,6 +364,7 @@ export function PresetImportGuideModal({
           </div>
         </section>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
