@@ -35,15 +35,15 @@ import {
 } from "../src/domain/preset-content";
 
 const completePreset: PresetRevisionContent = {
-  title: "Game of Mines",
+  title: "Example Arena Setup",
   description: "Mines, grenades and carefully selected maps.",
-  thumbnailKey: "presets/game-of-mines/thumbnail.jpg",
+  thumbnailKey: "presets/example-arena-setup/thumbnail.jpg",
   tags: ["mines", "placement"],
   versioningEnabled: false,
   versions: [{
     label: "v5.0.0",
-    mapPlaylists: [{ name: "GoM Mix", description: "Slower maps with room for mine setups.", encodedValue: "encoded", mapNames: ["Arena_00"] }],
-    weaponConfigurations: [{ kind: "randomized", name: "Game of Mines", weapons: [{ name: "AP Mine", weight: 100 }] }],
+    mapPlaylists: [{ name: "Example Mix", description: "Slower maps with room for mine setups.", encodedValue: "encoded", mapNames: ["Arena_00"] }],
+    weaponConfigurations: [{ kind: "randomized", name: "Example Arena Setup", weapons: [{ name: "AP Mine", weight: 100 }] }],
   }],
 };
 

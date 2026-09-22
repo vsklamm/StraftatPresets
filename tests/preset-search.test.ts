@@ -18,7 +18,7 @@ test("search projection indexes content from the latest version only and only sw
     },
   });
   const content: PresetRevisionContent = {
-    title: "<#ff0000>Game of Mines",
+    title: "<#ff0000>Example Arena Setup",
     description: "Carefully picked maps.",
     thumbnailKey: null,
     tags: ["mines"],
@@ -40,8 +40,8 @@ test("search projection indexes content from the latest version only and only sw
     ],
   };
 
-  const projection = await buildPresetSearchProjection(content, "klammvs");
-  assert.equal(projection.document.title, "Game of Mines");
+  const projection = await buildPresetSearchProjection(content, "sample-author");
+  assert.equal(projection.document.title, "Example Arena Setup");
   assert.equal(projection.document.secondaryText, "Current maps The current set");
   assert.deepEqual(projection.terms, [
     { field: "map", value: "Adobe_01" },
@@ -78,7 +78,7 @@ test("search projection indexes swapper targets from the latest version, not sou
     ],
   };
 
-  const projection = await buildPresetSearchProjection(content, "klammvs");
+  const projection = await buildPresetSearchProjection(content, "sample-author");
   assert.equal(projection.document.secondaryText, "Close range replacements Pistol becomes AK");
   assert.deepEqual(projection.terms, [{ field: "swapper_result", value: "AK-K" }]);
   assert.equal(projection.terms.some((term) => term.value === "Gun"), false);
@@ -93,5 +93,5 @@ test("catalog entity resolution tolerates small weapon and map typos without gue
 
 test("search query parsing is bounded and FTS input is escaped into field queries", () => {
   assert.deepEqual(splitSearchQuery(" mines, claymore, , Adobe_00 "), ["mines", "claymore", "Adobe_00"]);
-  assert.equal(buildFtsMatch("Game of Mines", "title"), 'title : ("game"* AND "of"* AND "mines"*)');
+  assert.equal(buildFtsMatch("Example Arena Setup", "title"), 'title : ("example"* AND "arena"* AND "setup"*)');
 });

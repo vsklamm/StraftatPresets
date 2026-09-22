@@ -51,9 +51,9 @@ test("an unpublished pending preset keeps its private ID link", () => {
 });
 
 test("preset identifiers are read from new paths and legacy query links", () => {
-  assert.equal(presetIdentifierFromUrl(new URL("https://example.com/p/game-of-mines")), "game-of-mines");
+  assert.equal(presetIdentifierFromUrl(new URL("https://example.com/p/example-arena-setup")), "example-arena-setup");
   assert.equal(presetIdentifierFromUrl(new URL("https://example.com/?p=legacy-id")), "legacy-id");
-  assert.equal(urlWithoutPreset(new URL("https://example.com/p/game-of-mines")), "/");
+  assert.equal(urlWithoutPreset(new URL("https://example.com/p/example-arena-setup")), "/");
   assert.equal(urlWithoutPreset(new URL("https://example.com/?p=legacy-id&q=mines")), "/?q=mines");
 });
 
@@ -102,5 +102,4 @@ test("configLabels generates TMPro colored labels for Randomizer and Swapper", (
   const emptyLabels = configLabels({ label: "v1.2", released: "2026-09-16" });
   assert.deepEqual(emptyLabels, []);
 });
-
 

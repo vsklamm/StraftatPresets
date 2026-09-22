@@ -4,8 +4,8 @@ import { resolvePresetSlug, slugifyPresetTitle } from "@/src/domain/preset-conte
 
 test("slugifyPresetTitle creates slug with sanitized title and 7-character suffix", () => {
   const id = "a1b2c3d4-5678-90ab-cdef-1234567890ab";
-  assert.equal(slugifyPresetTitle("Snipers only", id), "snipers-only-a1b2c3d");
-  assert.equal(slugifyPresetTitle("Game of Mines (v2)", id), "game-of-mines-v2-a1b2c3d");
+  assert.equal(slugifyPresetTitle("Practice Only", id), "practice-only-a1b2c3d");
+  assert.equal(slugifyPresetTitle("Example Arena Setup (v2)", id), "example-arena-setup-v2-a1b2c3d");
 });
 
 test("slugifyPresetTitle strips TMPro color tags before slugifying", () => {

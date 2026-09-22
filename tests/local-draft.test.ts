@@ -24,7 +24,7 @@ test("only the unchanged starter content is treated as a disposable draft", () =
   const starter = createStarterPresetContent("Untitled");
   const signature = JSON.stringify(starter);
   assert.equal(isUnmodifiedStarterDraft(starter, signature), true);
-  assert.equal(isUnmodifiedStarterDraft({ ...starter, title: "Game of Mines" }, signature), false);
+  assert.equal(isUnmodifiedStarterDraft({ ...starter, title: "Example Arena Setup" }, signature), false);
   assert.equal(isUnmodifiedStarterDraft({ ...starter, description: "Changed" }, signature), false);
   assert.equal(isUnmodifiedStarterDraft(starter, undefined), false);
 });

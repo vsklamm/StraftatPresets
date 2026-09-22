@@ -82,12 +82,12 @@ test("clearing a custom display name restores the Discord name without reopening
 test("saving rejects another user's Discord name or colored display name before updating", async () => {
   const { database, queries, getBatchCalls } = recordingD1([
     { name: "Original Name", display_name: "<#FF0000>Public</color> name" },
-    { name: "so0.so0wy", display_name: null },
-    { name: "Frikadelka", display_name: null },
+    { name: "sample.user", display_name: null },
+    { name: "ExamplePlayer", display_name: null },
   ]);
   const repository = new D1Repository(database);
 
-  for (const candidate of ["original name", "PUBLIC NAME", "Publiq name", "so0.so0fwy", "Frikadelk"]) {
+  for (const candidate of ["original name", "PUBLIC NAME", "Publiq name", "sample.usxer", "ExamplePlaye"]) {
     await assert.rejects(repository.updateUserDisplayName("discord-user", candidate), DisplayNameAlreadyUsedError);
   }
   assert.equal(getBatchCalls(), 0);

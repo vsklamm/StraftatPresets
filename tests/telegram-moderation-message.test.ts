@@ -10,7 +10,7 @@ import type { PresetRevisionContent } from "../src/domain/preset-content";
 import { getChangedModeratableFields } from "../src/lib/moderation";
 
 const published: PresetRevisionContent = {
-  title: "<#ff0000>Game of Mines</color>",
+  title: "<#ff0000>Example Arena Setup</color>",
   description: "Careful placement wins.\nWatch every corner.",
   thumbnailKey: "presets/mines.webp",
   tags: ["placement", "explosives"],
@@ -44,7 +44,7 @@ test("new moderation messages stay concise, preserve multiline text, and strip g
   });
 
   assert.match(message.html, /^<b>🆕 New<\/b>/);
-  assert.match(message.html, /<b>Game of Mines<\/b>/);
+  assert.match(message.html, /<b>Example Arena Setup<\/b>/);
   assert.match(message.text, /Careful placement wins\.\nWatch every corner\./);
   assert.equal(message.text.match(/Mine Swaps/g)?.length, 1);
   assert.equal(message.text.match(/Close Quarters/g)?.length, 1);
@@ -59,7 +59,7 @@ test("nested fields are omitted when only the picture needs review", () => {
     requiresTextReview: false,
     hasThumbnail: true,
   });
-  assert.match(message.text, /Game of Mines/);
+  assert.match(message.text, /Example Arena Setup/);
   assert.match(message.text, /Careful placement wins/);
   assert.doesNotMatch(message.text, /Mine Swaps|Close Quarters/);
 });
@@ -83,7 +83,7 @@ test("published edits show the name and only changed review text", () => {
   });
 
   assert.match(message.html, /^<b>✏️ Edit<\/b>/);
-  assert.match(message.text, /Game of Mines/);
+  assert.match(message.text, /Example Arena Setup/);
   assert.match(message.text, /Tight Corners/);
   assert.doesNotMatch(message.text, /Careful placement wins|Mine Swaps|Close Quarters/);
 });
