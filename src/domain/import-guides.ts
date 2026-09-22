@@ -110,21 +110,21 @@ export const GUIDE_DEFINITIONS: Record<GuideTopic, GuideDefinition> = {
       },
       {
         stepNumber: 2,
+        title: "Host a Lobby",
+        description: "Start hosting a lobby.",
+        imageSrc: "/guide/host-lobby.webp",
+      },
+      {
+        stepNumber: 3,
         title: "Open Maps Menu",
         description: "Press button 'Maps' in the top menu (to the left of 'HOME').",
         imageSrc: "/guide/maps-menu.webp",
       },
       {
-        stepNumber: 3,
+        stepNumber: 4,
         title: "Import Playlist",
         description: "Press button 'Import' (the imported playlist appears at the end of the list).",
         imageSrc: "/guide/maps-import.webp",
-      },
-      {
-        stepNumber: 4,
-        title: "Host a Lobby",
-        description: "Start hosting a lobby.",
-        imageSrc: "/guide/host-lobby.webp",
       },
       {
         stepNumber: 5,

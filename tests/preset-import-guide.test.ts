@@ -48,7 +48,7 @@ test("preset import guides are configured for randomizer, swapper, and playlist"
   // Host lobby is shared across all three
   assert.equal(rand.steps[0].imageSrc, "/guide/host-lobby.webp");
   assert.equal(swap.steps[1].imageSrc, "/guide/host-lobby.webp");
-  assert.equal(play.steps[3].imageSrc, "/guide/host-lobby.webp");
+  assert.equal(play.steps[1].imageSrc, "/guide/host-lobby.webp");
 
   // Copy preset is shared between swapper and playlist
   assert.equal(swap.steps[0].imageSrc, "/guide/copy-preset.webp");
