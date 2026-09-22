@@ -16,6 +16,23 @@ export type UserDisplayNameValidation =
   | { displayName: string | null; visibleName: string }
   | { error: string };
 
+export class DisplayNameAlreadyUsedError extends Error {}
+
+export function namesConflict(candidate: string, existing: string): boolean {
+  const first = normalizeUserDisplayName(stripColorAndFormattingTags(candidate)).toLowerCase();
+  const second = normalizeUserDisplayName(stripColorAndFormattingTags(existing)).toLowerCase();
+  if (first === second) return true;
+
+  const a = Array.from(first);
+  const b = Array.from(second);
+  if (a.length < 6 || a.length !== b.length) return false;
+  let differences = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index] && ++differences > 1) return false;
+  }
+  return differences === 1;
+}
+
 export function normalizeUserDisplayName(value: string) {
   return value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 }

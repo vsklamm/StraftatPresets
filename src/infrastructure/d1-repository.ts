@@ -67,6 +67,7 @@ import { PresetRankingStore } from "@/src/infrastructure/preset-ranking-store";
 import { analyticsHash } from "@/src/lib/analytics-hash";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
+import { DisplayNameAlreadyUsedError, namesConflict } from "@/src/domain/user-profile";
 import {
   DEFAULT_PRESET_LIMIT,
   PresetLimitReachedError,
@@ -375,6 +376,14 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .get();
     if (!existingUser) return undefined;
     const effectiveDisplayName = displayName ?? existingUser.providerName;
+    const otherUsers = await this.database.select({ name: users.name, displayName: users.displayName })
+      .from(users)
+      .where(ne(users.id, id))
+      .all();
+    if (otherUsers.some((user) => namesConflict(effectiveDisplayName, user.name) ||
+      (user.displayName !== null && namesConflict(effectiveDisplayName, user.displayName)))) {
+      throw new DisplayNameAlreadyUsedError("Choose a different display name.");
+    }
     const searchableDisplayName = stripColorAndFormattingTags(effectiveDisplayName);
     const publishedPresetIds = this.database.select({ id: presets.id })
       .from(presets)

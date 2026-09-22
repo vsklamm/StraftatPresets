@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeUserDisplayName, validateUserDisplayName } from "../src/domain/user-display-name";
+import { namesConflict } from "../src/domain/user-profile";
 
 function assertRejected(value: string) {
   assert.equal("error" in validateUserDisplayName(value), true, value);
@@ -32,4 +33,21 @@ test("display names reject unsafe or unsuitable public values", () => {
   for (const value of ["x", "https://example.com", "<player>", "сука", "<#FF0000>сука</color>"]) {
     assertRejected(value);
   }
+});
+
+test("name conflicts ignore case, spacing, and TMPro colors", () => {
+  assert.equal(namesConflict("  <#FF0000>GoM</color> Host ", "gom host"), true);
+  assert.equal(namesConflict("Ｐｌａｙｅｒ", "player"), true);
+  assert.equal(namesConflict("<color=red>Player</color>", "player"), true);
+});
+
+test("fuzzy conflicts stay narrow for short names and substrings", () => {
+  assert.equal(namesConflict("Player", "Plaver"), true);
+  assert.equal(namesConflict("Klamm", "Klamn"), false);
+  assert.equal(namesConflict("Cat", "Cats"), false);
+  assert.equal(namesConflict("The Player", "Player"), false);
+  assert.equal(namesConflict("Player", "The Player"), false);
+  assert.equal(namesConflict("Players", "Player"), false);
+  assert.equal(namesConflict("Player", "Players"), false);
+  assert.equal(namesConflict("Player", "Plxver"), false);
 });

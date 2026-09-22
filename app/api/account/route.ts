@@ -4,6 +4,7 @@ import { authOptions } from "@/src/lib/auth";
 import { isSameOriginMutation } from "@/src/lib/request-security";
 import { getApplicationServices } from "@/src/infrastructure/runtime";
 import { validateUserDisplayName } from "@/src/domain/user-display-name";
+import { DisplayNameAlreadyUsedError } from "@/src/domain/user-profile";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,9 @@ export async function PATCH(request: Request) {
     if (!profile) return Response.json({ error: "Account not found." }, { status: 404 });
     return Response.json({ profile }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
+    if (error instanceof DisplayNameAlreadyUsedError) {
+      return Response.json({ error: error.message }, { status: 422 });
+    }
     console.error(JSON.stringify({ message: "display name update failed", error: error instanceof Error ? error.message : String(error) }));
     return Response.json({ error: "Display name could not be saved. Try again." }, { status: 503 });
   }

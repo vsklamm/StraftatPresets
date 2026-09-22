@@ -3,10 +3,11 @@ import test from "node:test";
 import { createDatabase } from "../db";
 import { D1Repository } from "../src/infrastructure/d1-repository";
 import { getPublishedPresetPreview } from "../src/infrastructure/d1-published-preset-preview";
+import { DisplayNameAlreadyUsedError } from "../src/domain/user-profile";
 
 type RecordedQuery = { sql: string; params: unknown[] };
 
-function recordingD1() {
+function recordingD1(otherUsers: { name: string; display_name: string | null }[] = []) {
   const queries: RecordedQuery[] = [];
   let batchCalls = 0;
   const binding = {
@@ -20,10 +21,11 @@ function recordingD1() {
               ? [{ name: "Discord name", display_name: params[0], display_name_configured_at: params[1], preset_limit: 4 }]
               : [];
           return {
-            all: async () => ({ success: true, meta: { changes: 0 }, results: [] }),
+            all: async () => ({ success: true, meta: { changes: 0 }, results: sql.includes('from "users"') ? otherUsers : [] }),
             raw: async () => {
               if (sql.startsWith('insert into "users"')) return [[1, "Discord name", null, null, 4]];
               if (sql.startsWith('select "name" from "users"')) return [["Discord name"]];
+              if (sql.includes('from "users"') && sql.includes('"display_name"')) return otherUsers.map((user) => [user.name, user.display_name]);
               if (sql.startsWith('update "users"')) return [["Discord name", params[0], params[1], 4]];
               return [[1]];
             },
@@ -75,6 +77,36 @@ test("clearing a custom display name restores the Discord name without reopening
   const profile = await repository.updateUserDisplayName("discord-user", null);
 
   assert.deepEqual(profile, { displayName: "Discord name", hasCustomDisplayName: false, hasConfiguredDisplayName: true, presetLimit: 4 });
+});
+
+test("saving rejects another user's Discord name or colored display name before updating", async () => {
+  const { database, queries, getBatchCalls } = recordingD1([
+    { name: "Original Name", display_name: "<#FF0000>Public</color> name" },
+  ]);
+  const repository = new D1Repository(database);
+
+  for (const candidate of ["original name", "PUBLIC NAME", "Publiq name"]) {
+    await assert.rejects(repository.updateUserDisplayName("discord-user", candidate), DisplayNameAlreadyUsedError);
+  }
+  assert.equal(getBatchCalls(), 0);
+  assert.equal(queries.some((query) => query.sql.startsWith('update "users"')), false);
+  assert.equal(queries.some((query) => query.sql.includes('from "users"') && query.params.includes("discord-user")), true);
+});
+
+test("saving allows a substring and the user's own name", async () => {
+  const { database } = recordingD1([{ name: "Player Two", display_name: null }]);
+  const repository = new D1Repository(database);
+  const profile = await repository.updateUserDisplayName("discord-user", "Player");
+  assert.equal(profile?.displayName, "Player");
+  const ownName = await repository.updateUserDisplayName("discord-user", "Discord name");
+  assert.equal(ownName?.displayName, "Discord name");
+});
+
+test("clearing a custom name cannot switch to another user's name", async () => {
+  const { database, getBatchCalls } = recordingD1([{ name: "Discord Name", display_name: null }]);
+  const repository = new D1Repository(database);
+  await assert.rejects(repository.updateUserDisplayName("discord-user", null), DisplayNameAlreadyUsedError);
+  assert.equal(getBatchCalls(), 0);
 });
 
 test("preset search executes all criteria as one D1 statement", async () => {
