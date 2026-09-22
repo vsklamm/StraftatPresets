@@ -8,8 +8,8 @@ import { D1Repository } from "../src/infrastructure/d1-repository";
 import { PresetRankingStore, type RankingQuery } from "../src/infrastructure/preset-ranking-store";
 import { analyticsHash } from "../src/lib/analytics-hash";
 import { applyLaunchPlacement, buildRankingProjection, dailySurgePoints, rankingContentSignals, selectDailyWinners, type RankingEvent, type RankingPreset } from "../src/domain/preset-ranking-projection";
-import { calculateEngagementScore, calculateFreshnessScore, calculateQualityScore, RANKING_DAY_MS as DAY, scoreToMilli } from "../src/domain/preset-ranking";
-import { type PresetRevisionContent } from "../src/domain/preset-content";
+import { calculateEngagementScore, calculateFreshnessScore, calculateQualityScore, PRESET_RANKING_VERSION, RANKING_DAY_MS as DAY, scoreToMilli } from "../src/domain/preset-ranking";
+import { parsePresetRevisionContent, type PresetRevisionContent } from "../src/domain/preset-content";
 import { bindRankingSql } from "../scripts/ranking-sql";
 
 const now = Date.UTC(2026, 8, 12, 12);
@@ -35,10 +35,10 @@ function fixture(upgrade = false) {
     return db.prepare(sql).all(...params) as T[];
   };
   if (!upgrade) for (const slug of tags) db.prepare("INSERT INTO tags (slug, label) VALUES (?, ?)").run(slug, slug);
-  const add = (id = "p", published = now - DAY) => {
+  const add = (id = "p", published = now - DAY, revision = content) => {
     db.prepare("INSERT INTO users (id, name, preset_limit) VALUES (?, ?, 100)").run(`author-${id}`, `Author ${id}`);
     db.prepare("INSERT INTO presets (id, slug, author_id, title, status, published_at, published_revision_id) VALUES (?, ?, ?, ?, 'published', ?, ?)").run(id, id, `author-${id}`, id, published, `r-${id}`);
-    db.prepare("INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES (?, ?, 1, 'published', ?, 'hash')").run(`r-${id}`, id, JSON.stringify(content));
+    db.prepare("INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES (?, ?, 1, 'published', ?, 'hash')").run(`r-${id}`, id, JSON.stringify(revision));
   };
   const addEvent = (actor: string, at = now, options: { auth?: boolean; invalid?: boolean; presetId?: string; kind?: string; target?: string } = {}) => {
     db.prepare("INSERT INTO preset_events (id, preset_id, kind, actor_hash, is_authenticated, is_invalidated, dedupe_bucket, target_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -59,12 +59,12 @@ function fixture(upgrade = false) {
   return { db, query, statements, add, addEvent, repository: new D1Repository(createDatabase(binding)), store: new PresetRankingStore(query, hash) };
 }
 
-test("tag gains diminish after four, extra configurations and playlists give no extra credit", () => {
-  const base = rankingContentSignals({ ...content, description: "x".repeat(40) }, tags);
+test("tag gains diminish after four and extra weapon configurations give no credit", () => {
+  const base = rankingContentSignals({ ...content, description: "x".repeat(250) }, tags);
   const points = Array.from({ length: 7 }, (_, i) => calculateQualityScore({ ...base, tagCount: i + 2 }));
   assert.deepEqual(points.map((p) => Math.round((p - points[0]) * 1000) / 1000), [0, 1, 2, 2.5, 2.75, 2.875, 2.938]);
-  assert.equal(calculateQualityScore({ ...base, mapPlaylistCount: 1, mapPlaylistWithDescriptionCount: 1, weaponConfigurationCount: 1 }),
-    calculateQualityScore({ ...base, mapPlaylistCount: 7, mapPlaylistWithDescriptionCount: 7, weaponConfigurationCount: 7 }));
+  assert.equal(calculateQualityScore({ ...base, weaponConfigurationCount: 1 }),
+    calculateQualityScore({ ...base, weaponConfigurationCount: 7 }));
 });
 
 test("quality uses latest semantic version, visible descriptions, canonical tags and enabled history", () => {
@@ -76,6 +76,61 @@ test("quality uses latest semantic version, visible descriptions, canonical tags
   assert.equal(signals.versionCount, 1);
   assert.equal(rankingContentSignals({ ...content, versioningEnabled: true, versions: [older, latest] }, tags).versionCount, 2);
   assert.equal(calculateQualityScore({ ...signals, description: `<b>${content.description}</b>` }), calculateQualityScore({ ...signals, description: content.description }));
+});
+
+test("pool signatures ignore names, export strings, ordering and repeated maps without mutating content", () => {
+  const playlist = content.versions[0].mapPlaylists[0];
+  const candidate = { ...content, versions: [{ ...content.versions[0], mapPlaylists: [
+    { ...playlist, mapNames: ["B", "A", "A"] },
+    { ...playlist, name: "Renamed", encodedValue: "another-code", mapNames: ["A", "B"] },
+    { ...playlist, mapNames: ["A", "C"] },
+    { ...playlist, mapNames: [] },
+    { ...playlist, encodedValue: " ", mapNames: ["D"] },
+  ] }] };
+  const before = structuredClone(candidate);
+  const signals = rankingContentSignals(candidate, tags);
+  assert.equal(signals.mapPlaylistCount, 2);
+  assert.deepEqual(candidate, before);
+  assert.equal(rankingContentSignals({ ...content, versions: [] }, tags).mapPlaylistCount, 0);
+});
+
+test("playlist explanation uses the longest eligible visible text, never the sum", () => {
+  const playlist = content.versions[0].mapPlaylists[0];
+  const signals = (mapPlaylists: typeof content.versions[number]["mapPlaylists"]) => rankingContentSignals({
+    ...content, versions: [{ ...content.versions[0], mapPlaylists }],
+  }, tags);
+  assert.equal(signals([{ ...playlist, description: "  <b>Learn</b>  " }]).mapPlaylistDescriptionLength, 5);
+  assert.equal(signals([{ ...playlist, name: "ＭＡＰＳ   ONLY", description: "<b>maps\nonly</b>" }]).mapPlaylistDescriptionLength, 0);
+  const two = signals([
+    { ...playlist, description: "x".repeat(20) },
+    { ...playlist, mapNames: ["Other"], description: "x".repeat(30) },
+    { ...playlist, mapNames: [], description: "x".repeat(160) },
+  ]);
+  assert.equal(two.mapPlaylistDescriptionLength, 30);
+  assert.equal(two.mapPlaylistCount, 2);
+  assert.equal(signals([{ ...playlist, description: " <b> </b> " }]).mapPlaylistDescriptionLength, 0);
+});
+
+test("older version pools and explanations do not affect latest-version quality", () => {
+  const old = { ...content.versions[0], label: "v2.0", mapPlaylists: [
+    { ...content.versions[0].mapPlaylists[0], description: "x".repeat(160) },
+    { ...content.versions[0].mapPlaylists[0], mapNames: ["Other"] },
+  ] };
+  const latest = { ...content.versions[0], label: "v10.0" };
+  const signals = rankingContentSignals({ ...content, versions: [old, latest] }, tags);
+  assert.equal(signals.mapPlaylistCount, 1);
+  assert.equal(signals.mapPlaylistDescriptionLength, 0);
+  const single = rankingContentSignals({ ...content, versions: [latest], versioningEnabled: true }, tags);
+  assert.equal(single.versionCount, 1);
+  const legacy = parsePresetRevisionContent({ ...content, versioningEnabled: undefined, versions: [old, latest] });
+  assert.equal(rankingContentSignals(legacy, tags).versionCount, 2);
+});
+
+test("one randomized weapon and several weapons have equal configuration credit", () => {
+  const quality = (weapons: { name: string; weight: number }[]) => calculateQualityScore(rankingContentSignals({
+    ...content, versions: [{ ...content.versions[0], weaponConfigurations: [{ kind: "randomized", name: "Weapons", weapons }] }],
+  }, tags));
+  assert.equal(quality([{ name: "Katana", weight: 100 }]), quality([{ name: "Katana", weight: 1 }, { name: "AK", weight: 100 }]));
 });
 
 test("copies dedupe across targets, opens union both kinds, repeats only refresh recency", () => {
@@ -102,14 +157,14 @@ test("surge handles sparse days, relative leaders, midnight continuity and a one
   assert.equal(projection([...events, ...events.map((e) => ({ ...e, createdAt: e.createdAt - DAY }))]).surge, projection(events).surge);
 });
 
-test("scores may exceed 100, never 135, and future timestamps do not amplify freshness", () => {
+test("scores may exceed 100, never 133, and future timestamps do not amplify freshness", () => {
   const full = { ...preset(), firstPublishedAt: now, contentJson: JSON.stringify({ ...content, thumbnailKey: "image", description: "x".repeat(300), tags: [...tags] }) };
   const events = Array.from({ length: 100 }, (_, i) => [event(String(i)), event(String(i), "link_open")]).flat();
   const ranked = buildRankingProjection([full], events, tags, { first: "p", second: "p" }, now)[0];
-  assert.ok(ranked.total > 100 && ranked.total <= 135);
+  assert.ok(ranked.total > 100 && ranked.total <= 133);
   assert.equal(ranked.lucky, 24);
   assert.equal(scoreToMilli(ranked.total), Math.round(ranked.total * 1000));
-  assert.equal(calculateFreshnessScore(now + DAY, now), 18);
+  assert.equal(calculateFreshnessScore(now + DAY, now), 12);
   assert.equal(calculateFreshnessScore(null, now), 0);
 });
 
@@ -170,8 +225,8 @@ test("store excludes invalid and owner events, caches globally, invalidates imme
     assert.equal(f.statements.length, reads + 1);
     f.db.exec("UPDATE preset_events SET is_invalidated = 1 WHERE actor_hash = 'reader'");
     assert.equal((await f.store.get(now + 2000)).items[0].engagement, 0);
-    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 2");
-    assert.equal((await f.store.get(now + 3000)).version, 3);
+    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 3");
+    assert.equal((await f.store.get(now + 3000)).version, PRESET_RANKING_VERSION);
     f.db.exec("UPDATE presets SET status = 'hidden' WHERE id = 'p'");
     assert.equal((await f.store.get(now + 4000)).items.length, 0);
     assert.equal(f.db.prepare("SELECT count(*) AS n FROM preset_events").get()?.n, 4);
@@ -191,6 +246,36 @@ test("lottery persists across concurrent refreshes and hiding a winner does not 
     assert.equal(f.db.prepare("SELECT count(*) AS n FROM preset_ranking_lottery").get()?.n, 1);
     const midnight = Math.floor(now / DAY) * DAY + DAY;
     assert.equal((await f.store.get(midnight)).items[0].lucky, 24);
+  } finally { f.db.close(); }
+});
+
+test("formula revision 4 replaces a revision 3 cache without changing content, counters or lucky winners", async () => {
+  const f = fixture();
+  try {
+    const published: PresetRevisionContent = {
+      ...content, description: "x".repeat(250), thumbnailKey: "image", tags: ["a", "b", "c", "d", "e"], versioningEnabled: true,
+      versions: Array.from({ length: 5 }, (_, i) => ({
+        label: `v1.${i}`, mapPlaylists: ["A", "B", "C", "D"].map((map) => ({ name: map, description: "x".repeat(40), encodedValue: "code", mapNames: [map] })),
+        weaponConfigurations: [{ kind: "randomized", name: "Weapons", weapons: [{ name: "Katana", weight: 100 }] }],
+      })),
+    };
+    const json = JSON.stringify(published);
+    f.add("p", now - DAY, published);
+    f.db.exec("INSERT INTO preset_statistics (preset_id, views_total, copies_total) VALUES ('p', 20, 10)");
+    const first = await f.store.get(now);
+    const winners = f.db.prepare("SELECT * FROM preset_ranking_lottery").all();
+    const stale = { ...first, version: 3, items: first.items.map((p) => ({ ...p, quality: 999, score: 999 })) };
+    f.db.prepare("UPDATE preset_ranking_cache SET formula_version = 3, payload = ?").run(JSON.stringify(stale));
+    const refreshed = await f.store.get(now + 1000);
+    assert.equal(PRESET_RANKING_VERSION, 4);
+    assert.equal(refreshed.version, 4);
+    assert.equal(refreshed.items[0].quality, 35.3);
+    assert.equal(refreshed.items[0].lucky, first.items[0].lucky);
+    assert.deepEqual(f.db.prepare("SELECT * FROM preset_ranking_lottery").all(), winners);
+    assert.equal(f.db.prepare("SELECT content_json FROM preset_revisions WHERE id = 'r-p'").get()?.content_json, json);
+    const counters = f.db.prepare("SELECT views_total, copies_total FROM preset_statistics WHERE preset_id = 'p'").get();
+    assert.equal(counters?.views_total, 20);
+    assert.equal(counters?.copies_total, 10);
   } finally { f.db.close(); }
 });
 

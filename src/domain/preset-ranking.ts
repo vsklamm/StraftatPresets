@@ -16,17 +16,17 @@ import {
 import { MAX_PRESET_TAGS } from "./tag-policy";
 import { stripColorAndFormattingTags } from "./straftat-markup";
 
-export const PRESET_RANKING_VERSION = 3;
+export const PRESET_RANKING_VERSION = 4;
 export const RANKING_DAY_MS = 86_400_000;
 
 export const PRESET_RANKING_LIMITS = {
   quality: 37,
-  engagement: 40,
-  freshness: 18,
+  engagement: 44,
+  freshness: 12,
   surge: 16,
   lucky: 24,
-  total: 135,
-  freshnessDays: 5,
+  total: 133,
+  freshnessDays: 3,
 } as const;
 
 export const PRESET_PUBLICATION_RULES = {
@@ -56,7 +56,7 @@ export type PresetContentSignals = {
   hasThumbnail: boolean;
   versionCount: number;
   mapPlaylistCount: number;
-  mapPlaylistWithDescriptionCount: number;
+  mapPlaylistDescriptionLength: number;
   tagCount: number;
   weaponConfigurationCount: number;
 };
@@ -99,6 +99,14 @@ function logarithmicPoints(value: number, pointsAtSaturation: number, maximumPoi
   return maximumPoints * clamp(normalized, 0, 1);
 }
 
+function extendedLogarithmicPoints(value: number, threshold: number, pointsAtThreshold: number, maximumPoints: number) {
+  const count = Math.max(0, Number.isFinite(value) ? value : 0);
+  if (count <= threshold) return logarithmicPoints(count, threshold, pointsAtThreshold);
+  const headroom = maximumPoints - pointsAtThreshold;
+  const scale = headroom * (1 + threshold) * Math.log1p(threshold) / pointsAtThreshold;
+  return pointsAtThreshold + headroom * -Math.expm1(-(count - threshold) / scale);
+}
+
 export function validatePresetPublication(content: PresetContentSignals): PublicationValidation {
   const validationErrors: string[] = [];
   if (content.title.trim().length < PRESET_PUBLICATION_RULES.minimumTitleCharacters) validationErrors.push("Add a preset name");
@@ -110,21 +118,13 @@ export function validatePresetPublication(content: PresetContentSignals): Public
   return { publishable: validationErrors.length === 0, validationErrors };
 }
 
-/**
- * Calculates preset content completeness and polish score (below 37 points).
- * Focuses on meaningful quality signals (thumbnail, tags, clear descriptions, map pool descriptions)
- * without penalizing compact, laser-focused presets.
- */
 export function calculateQualityScore(content: PresetContentSignals) {
   const visibleDescription = stripColorAndFormattingTags(content.description).trim();
   const publication = validatePresetPublication({ ...content, title: stripColorAndFormattingTags(content.title), description: visibleDescription });
   const descLen = visibleDescription.length;
 
-  // 1. Base publishable standard (5 pts)
   const baseScore = publication.publishable ? 5 : 0;
-
-  // 2. Custom thumbnail (8 pts)
-  const thumbnailScore = content.hasThumbnail ? 8 : 0;
+  const thumbnailScore = content.hasThumbnail ? 6 : 0;
 
   // Extra tags after four have geometrically diminishing marginal credit.
   const tagCount = clamp(boundedCount(content.tagCount), 0, PRESET_PUBLICATION_RULES.maximumTags);
@@ -134,23 +134,17 @@ export function calculateQualityScore(content: PresetContentSignals) {
     : tagCount === 3 ? 4
     : 6 - 2 ** (-(tagCount - 4));
 
-  // Preserve the description curve, scaling its maximum from 7 to 9 points.
-  const descScore = (descLen < 40 ? 0
-    : descLen <= 80 ? 2 * ((descLen - 40) / 40)
-    : descLen <= 160 ? 2 + 3 * ((descLen - 80) / 80)
-    : descLen <= 250 ? 5 + 2 * ((descLen - 160) / 90)
-    : 7) * (9 / 7);
+  const descScore = descLen < 40 ? 0 : 9 * Math.min(1, Math.log1p(descLen / 80) / Math.log1p(250 / 80));
 
-  // Presence and explanation matter, not the quantity of playlists.
-  const playlistCount = boundedCount(content.mapPlaylistCount);
-  const playlistWithDesc = boundedCount(content.mapPlaylistWithDescriptionCount);
-  const playlistBase = playlistCount >= 1 ? 2 : 0;
-  const playlistDescBonus = playlistCount >= 1 && playlistWithDesc >= 1 ? 3 : 0;
+  const playlistCount = Math.min(7, boundedCount(content.mapPlaylistCount));
+  const playlistBase = playlistCount >= 1 ? 2 + 0.4 * (playlistCount - 1) : 0;
+  const playlistDescBonus = playlistCount >= 1 ? 2 * Math.min(1, boundedCount(content.mapPlaylistDescriptionLength) / 40) : 0;
   const playlistScore = playlistBase + playlistDescBonus;
 
   const weaponScore = boundedCount(content.weaponConfigurationCount) >= 1 ? 3 : 0;
 
-  const versionScore = boundedCount(content.versionCount) >= 2 ? 1 : 0;
+  const versionCount = Math.min(10, boundedCount(content.versionCount));
+  const versionScore = versionCount >= 2 ? 1.5 + 0.05 * Math.log2(versionCount - 1) : 0;
 
   const totalQuality = baseScore + thumbnailScore + tagScore + descScore + playlistScore + weaponScore + versionScore;
   return roundScore(clamp(totalQuality, 0, PRESET_RANKING_LIMITS.quality));
@@ -166,19 +160,13 @@ export function calculateEffectiveInteractions(signals: InteractionSignals) {
   return anonymous + authenticated * 2.5;
 }
 
-/**
- * Copies dominate (28), opens contribute 9, direct link opens add at most 3.
- */
 export function calculateEngagementScore(signals: PresetEngagementSignals) {
-  const copies = logarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 28);
-  const opens = logarithmicPoints(calculateEffectiveInteractions(signals.opens), 35, 9);
+  const copies = extendedLogarithmicPoints(calculateEffectiveInteractions(signals.copies), 25, 28, 31);
+  const opens = extendedLogarithmicPoints(calculateEffectiveInteractions(signals.opens), 35, 9, 10);
   const linkOpens = logarithmicPoints(calculateEffectiveInteractions(signals.linkOpens), 10, 3);
   return roundScore(clamp(copies + opens + linkOpens, 0, PRESET_RANKING_LIMITS.engagement));
 }
 
-/**
- * First-publication boost with a five-day half-life. Edits cannot refresh it.
- */
 export function calculateFreshnessScore(publishedAt: Date | number | string | null, now: Date | number = Date.now()) {
   if (publishedAt === null) return 0;
   const publishedTime = publishedAt instanceof Date ? publishedAt.getTime() : new Date(publishedAt).getTime();

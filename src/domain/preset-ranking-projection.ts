@@ -20,15 +20,22 @@ export type RankingEvent = {
 export type RankedPreset = Omit<RankingPreset, "contentJson"> & RankingBreakdown & { score: number };
 export type DailyWinners = { first: string | null; second: string | null };
 
+const normalizePlaylistText = (text: string) => stripColorAndFormattingTags(text).normalize("NFKC").toLowerCase().trim().replace(/\s+/gu, " ");
+
 export function rankingContentSignals(content: PresetRevisionContent, canonicalTags: ReadonlySet<string>): PresetContentSignals {
   const latest = sortPresetVersionsNewestFirst(content.versions)[0];
+  const playlists = latest?.mapPlaylists.filter((playlist) => playlist.mapNames.length > 0 && playlist.encodedValue.trim()) ?? [];
+  const pools = new Set(playlists.map((playlist) => JSON.stringify([...new Set(playlist.mapNames)].sort())));
+  const descriptionLength = Math.max(0, ...playlists.map((playlist) =>
+    normalizePlaylistText(playlist.description) === normalizePlaylistText(playlist.name)
+      ? 0 : stripColorAndFormattingTags(playlist.description).trim().length));
   return {
     title: stripColorAndFormattingTags(content.title),
     description: stripColorAndFormattingTags(content.description),
     hasThumbnail: Boolean(content.thumbnailKey),
     versionCount: content.versioningEnabled ? content.versions.length : Math.min(1, content.versions.length),
-    mapPlaylistCount: latest?.mapPlaylists.length ?? 0,
-    mapPlaylistWithDescriptionCount: latest?.mapPlaylists.filter((p) => stripColorAndFormattingTags(p.description).trim()).length ?? 0,
+    mapPlaylistCount: pools.size,
+    mapPlaylistDescriptionLength: descriptionLength,
     tagCount: new Set(content.tags.filter((tag) => canonicalTags.has(tag))).size,
     weaponConfigurationCount: latest?.weaponConfigurations.filter((configuration) => configuration.kind === "randomized"
       ? configuration.weapons.length > 0 : configuration.encodedValue.trim().length > 0).length ?? 0,
