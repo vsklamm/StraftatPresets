@@ -18,6 +18,31 @@ export type UserDisplayNameValidation =
 
 export class DisplayNameAlreadyUsedError extends Error {}
 
+function isWithinOneDamerauLevenshteinEdit(first: string[], second: string[]): boolean {
+  if (Math.abs(first.length - second.length) > 1) return false;
+  let twoRowsBack: number[] = [];
+  let previous = Array.from({ length: second.length + 1 }, (_, index) => index);
+
+  for (let row = 1; row <= first.length; row += 1) {
+    const current = [row];
+    for (let column = 1; column <= second.length; column += 1) {
+      let distance = Math.min(
+        previous[column] + 1,
+        current[column - 1] + 1,
+        previous[column - 1] + Number(first[row - 1] !== second[column - 1]),
+      );
+      if (row > 1 && column > 1 && first[row - 1] === second[column - 2] && first[row - 2] === second[column - 1]) {
+        distance = Math.min(distance, twoRowsBack[column - 2] + 1);
+      }
+      current[column] = distance;
+    }
+    if (Math.min(...current) > 1) return false;
+    twoRowsBack = previous;
+    previous = current;
+  }
+  return previous[second.length] <= 1;
+}
+
 export function namesConflict(candidate: string, existing: string): boolean {
   const first = normalizeUserDisplayName(stripColorAndFormattingTags(candidate)).toLowerCase();
   const second = normalizeUserDisplayName(stripColorAndFormattingTags(existing)).toLowerCase();
@@ -25,12 +50,8 @@ export function namesConflict(candidate: string, existing: string): boolean {
 
   const a = Array.from(first);
   const b = Array.from(second);
-  if (a.length < 6 || a.length !== b.length) return false;
-  let differences = 0;
-  for (let index = 0; index < a.length; index += 1) {
-    if (a[index] !== b[index] && ++differences > 1) return false;
-  }
-  return differences === 1;
+  if (Math.min(a.length, b.length) < 6) return false;
+  return isWithinOneDamerauLevenshteinEdit(a, b);
 }
 
 export function normalizeUserDisplayName(value: string) {

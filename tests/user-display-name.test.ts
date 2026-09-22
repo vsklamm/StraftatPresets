@@ -41,13 +41,22 @@ test("name conflicts ignore case, spacing, and TMPro colors", () => {
   assert.equal(namesConflict("<color=red>Player</color>", "player"), true);
 });
 
-test("fuzzy conflicts stay narrow for short names and substrings", () => {
+test("fuzzy conflicts reject one edit in longer names but allow short or longer substrings", () => {
   assert.equal(namesConflict("Player", "Plaver"), true);
+  assert.equal(namesConflict("Frikadelka", "Frikadelk"), true);
+  assert.equal(namesConflict("Frikadelk", "Frikadelka"), true);
+  assert.equal(namesConflict("so0.so0fwy", "so0.so0wy"), true);
+  assert.equal(namesConflict("so0.so0wy", "so0.so0fwy"), true);
+  assert.equal(namesConflict("so0.so0yw", "so0.so0wy"), true);
   assert.equal(namesConflict("Klamm", "Klamn"), false);
+  assert.equal(namesConflict("Klamm", "Klammm"), false);
   assert.equal(namesConflict("Cat", "Cats"), false);
   assert.equal(namesConflict("The Player", "Player"), false);
   assert.equal(namesConflict("Player", "The Player"), false);
-  assert.equal(namesConflict("Players", "Player"), false);
-  assert.equal(namesConflict("Player", "Players"), false);
+  assert.equal(namesConflict("Players", "Player"), true);
+  assert.equal(namesConflict("Player", "Players"), true);
+  assert.equal(namesConflict("so0.so0wy", "so0.so0wyx"), true);
+  assert.equal(namesConflict("so0.so0wy", "xso0.so0wy"), true);
+  assert.equal(namesConflict("so0.so0wy", "xxso0.so0wy"), false);
   assert.equal(namesConflict("Player", "Plxver"), false);
 });
