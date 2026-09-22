@@ -4,7 +4,7 @@ import { Providers } from "@/app/providers";
 import "./globals.css";
 import "./weapon-animations.css";
 
-const geist = Geist({ subsets: ["latin"], display: "swap" });
+const geist = Geist({ subsets: ["latin"], display: "swap", fallback: ["Arimo Name Symbols", "Noto Name Symbols", "sans-serif"] });
 const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost", style: ["normal", "italic"] });
 
 export const metadata: Metadata = {

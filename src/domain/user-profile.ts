@@ -44,8 +44,8 @@ function isWithinOneDamerauLevenshteinEdit(first: string[], second: string[]): b
 }
 
 export function namesConflict(candidate: string, existing: string): boolean {
-  const first = normalizeUserDisplayName(stripColorAndFormattingTags(candidate)).toLowerCase();
-  const second = normalizeUserDisplayName(stripColorAndFormattingTags(existing)).toLowerCase();
+  const first = normalizeUserDisplayName(stripColorAndFormattingTags(candidate)).normalize("NFKC").toLowerCase();
+  const second = normalizeUserDisplayName(stripColorAndFormattingTags(existing)).normalize("NFKC").toLowerCase();
   if (first === second) return true;
 
   const a = Array.from(first);
@@ -55,7 +55,7 @@ export function namesConflict(candidate: string, existing: string): boolean {
 }
 
 export function normalizeUserDisplayName(value: string) {
-  return value.normalize("NFKC").replace(/\s+/gu, " ").trim();
+  return value.normalize("NFC").replace(/\s+/gu, " ").trim();
 }
 
 export function validateUserDisplayNameStructure(value: string): UserDisplayNameValidation {

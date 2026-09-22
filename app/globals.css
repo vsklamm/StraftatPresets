@@ -1,3 +1,21 @@
+@font-face {
+  font-family: "Arimo Name Symbols";
+  src: url("/fonts/arimo-name-symbols.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400 700;
+  unicode-range: U+035B-035C, U+0361, U+2113, U+20B5, U+2E38;
+}
+
+@font-face {
+  font-family: "Noto Name Symbols";
+  src: url("/fonts/noto-name-symbols.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400 700;
+  unicode-range: U+2605;
+}
+
 :root {
   color-scheme: dark;
   --bg: #100f0c;

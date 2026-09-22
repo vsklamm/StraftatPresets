@@ -7,9 +7,10 @@ function assertRejected(value: string) {
   assert.equal("error" in validateUserDisplayName(value), true, value);
 }
 
-test("display names are normalized before storage", () => {
+test("display names keep visible glyphs while normalizing spacing", () => {
   assert.equal(normalizeUserDisplayName("  Mine\tHost  "), "Mine Host");
-  assert.equal(normalizeUserDisplayName("Ｅｘａｍｐｌｅ"), "Example");
+  assert.equal(normalizeUserDisplayName("Ｅｘａｍｐｌｅ"), "Ｅｘａｍｐｌｅ");
+  assert.equal(normalizeUserDisplayName("<#f0f>G͜͡ℓ¡⸸₵h͛★d͜"), "<#f0f>G͜͡ℓ¡⸸₵h͛★d͜");
 });
 
 test("display names accept ordinary player names", () => {
@@ -20,6 +21,8 @@ test("display names accept ordinary player names", () => {
 test("display names support TMPro colors and enforce visible and stored limits", () => {
   const colored = "<#FF5A36>Example <#F5D86E>Host</color>";
   assert.deepEqual(validateUserDisplayName(colored), { displayName: colored, visibleName: "Example Host" });
+  const symbols = "<#f0f>G͜͡ℓ¡⸸₵h͛★d͜";
+  assert.deepEqual(validateUserDisplayName(symbols), { displayName: symbols, visibleName: "G͜͡ℓ¡⸸₵h͛★d͜" });
   assertRejected("A".repeat(33));
   assertRejected("A".repeat(401));
   assertRejected("<b>Player</b>");
@@ -38,6 +41,7 @@ test("display names reject unsafe or unsuitable public values", () => {
 test("name conflicts ignore case, spacing, and TMPro colors", () => {
   assert.equal(namesConflict("  <#FF0000>Example</color> Host ", "example host"), true);
   assert.equal(namesConflict("Ｐｌａｙｅｒ", "player"), true);
+  assert.equal(namesConflict("ℓeader", "leader"), true);
   assert.equal(namesConflict("<color=red>Player</color>", "player"), true);
 });
 
