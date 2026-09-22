@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import sharp from "sharp";
 import { GUIDE_DEFINITIONS, type GuideTopic } from "../src/domain/import-guides";
 
 test("preset import guides are configured for randomizer, swapper, and playlist", () => {
@@ -63,4 +64,32 @@ test("how-to-import page renders Home and valid metadata", async () => {
   const vnode = HowToImportPage();
   assert.ok(vnode, "Page should render a valid React element");
   assert.equal(typeof vnode.type, "function");
+});
+
+test("how-to-import has a dedicated large link preview with a valid image", async () => {
+  const { metadata } = await import("../app/how-to-import/page");
+  const images = metadata.openGraph?.images;
+  assert.ok(Array.isArray(images));
+  assert.equal(images.length, 1);
+  const image = images[0];
+  assert.ok(typeof image === "object" && "url" in image);
+  assert.equal(image.url, "/guide/how-to-import-preview.jpg");
+  assert.ok(image.alt);
+  assert.equal(image.width, 1200);
+  assert.equal(image.height, 630);
+  assert.equal(metadata.openGraph?.url, "/how-to-import");
+  assert.equal(metadata.openGraph?.title, metadata.title);
+  assert.equal(metadata.openGraph?.description, metadata.description);
+  assert.ok(metadata.twitter && "card" in metadata.twitter);
+  assert.equal(metadata.twitter.card, "summary_large_image");
+  assert.deepEqual(metadata.twitter.images, images);
+  assert.equal(metadata.twitter.title, metadata.title);
+  assert.equal(metadata.twitter.description, metadata.description);
+
+  const file = path.join(process.cwd(), "public", String(image.url));
+  const actual = await sharp(file).metadata();
+  assert.equal(actual.format, "jpeg");
+  assert.equal(actual.width, image.width);
+  assert.equal(actual.height, image.height);
+  assert.ok(fs.statSync(file).size < 250_000, "Keep the link preview under 250 KB");
 });
