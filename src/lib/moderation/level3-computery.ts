@@ -1,4 +1,5 @@
-// Original source: https://github.com/C0mputery/ComputerysProfanityFilter/tree/main/ComputerysProfanityFilter
+// SPDX-License-Identifier: Apache-2.0
+// TypeScript adaptation of https://github.com/C0mputery/ComputerysProfanityFilter/tree/main/ComputerysProfanityFilter
 
 import type { ModeratableField, ModerationFlag, ModerationResult } from "./types";
 

@@ -167,6 +167,10 @@ tests/                unit and fresh-D1 integration tests
 
 `AGENTS.md` and `.agents/skills/develop-straftat-presets/SKILL.md` contain maintenance instructions for coding agents. Package versions are exact-pinned and `package-lock.json` is committed for reproducible installs.
 
+## License
+
+Code original to this project is licensed under the [MIT License](LICENSE). Third-party code, game-derived assets, fonts, and marks have separate terms. See [third-party notices](THIRD_PARTY_NOTICES.md) before reusing the full repository.
+
 ## Acknowledgments
 
 - **[STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public)** by **Lemaitre Logiciels**: reference for game logic, interface behavior, and animation details used by this project.
