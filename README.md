@@ -10,6 +10,12 @@ Made with <3 for the community. Find a setup for your next lobby, copy it into t
 
 ![509's FFA preset with its description, map playlist and Swapper settings](.github/images/preset.webp)
 
+## Stack & hosting
+
+Next.js, React and TypeScript. OpenNext on Cloudflare Workers, D1 with Drizzle ORM, and R2 for images. Auth.js with Discord login and Telegram moderation.
+
+Serverless, low-touch, managed storage, Telegram-based reviews.
+
 ## About the code
 
 100% vibe-coded: built and maintained with AI coding agents, with a human directing and testing. Not designed as a hand-maintained codebase. Provided as-is. Review before self-hosting.
@@ -19,8 +25,8 @@ Made with <3 for the community. Find a setup for your next lobby, copy it into t
 Node and npm versions are recorded in `.nvmrc` and `package.json`.
 
 ```bash
-git clone <repository-url>
-cd straftat_presets
+git clone https://github.com/vsklamm/StraftatPresets.git
+cd StraftatPresets
 nvm install
 nvm use
 npm install -g npm@12.0.2
@@ -82,8 +88,6 @@ Deployment builds the Worker, applies migrations and recalculates published-pres
 Enable Cloudflare [Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/) for your domain. Check redirects, HSTS and CSP after deployment. The CSP allows inline scripts and styles, so it is not a strict inline-XSS defense.
 
 ## Technical overview
-
-Next.js, React and TypeScript, deployed through OpenNext to Cloudflare Workers. D1 stores presets, private R2 stores thumbnails, Discord handles login, and Telegram supports moderation.
 
 - `app/`: UI and API routes
 - `src/domain/`: validation and product rules
