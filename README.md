@@ -1,19 +1,22 @@
 # StraftatPresets
 
-A full-stack Next.js application for sharing STRAFTAT map playlists and weapon configurations. The same application runs locally through Wrangler and deploys to Cloudflare Workers.
+Share Map Playlists, Randomizer and Swapper settings for [STRAFTAT](https://store.steampowered.com/app/2386720/STRAFTAT/) — The Best Game You've Never Heard Of.
 
-## Stack
+Made with <3 for the community. Find a setup for your next lobby, copy it into the game, or share your own.
 
-- Next.js 16, React 19, and TypeScript
-- OpenNext for Cloudflare Workers
-- Cloudflare D1 through Drizzle ORM
-- Private Cloudflare R2 thumbnail storage
-- Auth.js with Discord OAuth
-- Telegram-assisted preset and thumbnail review
+[Browse presets](https://straftatpresets.com/) · [How to import](https://straftatpresets.com/how-to-import)
 
-## Local development
+![The dashboard with community presets](.github/images/dashboard.webp)
 
-Install Node.js 24.19.0 LTS. The required Node and npm versions are recorded in `.nvmrc` and `package.json`.
+![509's FFA preset with its description, map playlist and Swapper settings](.github/images/preset.webp)
+
+## About the code
+
+100% vibe-coded: built and maintained with AI coding agents, with a human directing and testing. Not designed as a hand-maintained codebase. Provided as-is. Review before self-hosting.
+
+## Local setup
+
+Node and npm versions are recorded in `.nvmrc` and `package.json`.
 
 ```bash
 git clone <repository-url>
@@ -21,81 +24,40 @@ cd straftat_presets
 nvm install
 nvm use
 npm install -g npm@12.0.2
-npm install
+npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The development command initializes persistent local D1 and R2 state under `.wrangler/`; it does not use remote Cloudflare resources.
+Open [localhost:3000](http://localhost:3000). D1 and R2 run locally, with persistent state in `.wrangler/`. Browsing and local APIs need no integration credentials.
 
-The gallery and local APIs work without Cloudflare, Discord, or Telegram credentials. Copy `.env.example` to `.env.local` only when testing integrations.
-
-Direct dependencies are exact-pinned. `npm outdated` intentionally reports Node 26 types because this project targets Node 24 LTS, and ESLint 10 plus TypeScript 7 because the current Next.js lint stack does not yet accept those majors.
-
-### Discord OAuth
-
-Add this redirect URI to a Discord application:
+For Discord login, copy `.env.example` to `.env.local`, set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`, and register this redirect:
 
 ```text
 http://localhost:3000/api/auth/callback/discord
 ```
 
-Set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` in `.env.local`. Local setup creates `NEXTAUTH_SECRET` when it is missing. Sessions use encrypted JWT cookies and D1 stores only the Discord account ID, current display name, active state, and login timestamps.
+Local setup creates `NEXTAUTH_SECRET` if missing. Keep environment files untracked.
 
-## Common commands
+## Commands
 
-```bash
-npm run dev                 # initialize local state and start Next.js
-npm run preview             # build and run a local Worker preview
-npm run check               # catalogs, lint, types, tests, and Next.js build
-npm run db:schema           # generate a migration after changing db/schema.ts
-npm run db:migrate          # apply migrations to local D1
-npm run db:backup           # export D1 database to the ignored backups directory
-npm run game:sync           # mirror the reviewed game catalog into local D1
-npm run tags:sync           # mirror the reviewed tags into local D1
-npm run search:rebuild        # rebuild the local published-preset search index
-npm run search:rebuild:remote # rebuild the remote published-preset search index
-npm run stats               # inspect the cached ranking (read-only)
-npm run ranks:local         # local ranking table (read-only)
-npm run ranks:prod          # production ranking table (read-only)
-npm run stats -- local refresh-ranking # recalculate ranking without changing public counters
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run check` | Validate catalogs, lint, types, tests and Worker build |
+| `npm run preview` | Local Worker preview |
+| `npm run db:schema` | Generate a migration after editing `db/schema.ts` |
+| `npm run db:migrate` | Apply local migrations |
+| `npm run db:backup` | Export D1 to ignored backups |
+| `npm run game:sync` / `npm run tags:sync` | Sync reviewed catalogs to local D1 |
+| `npm run search:rebuild` | Rebuild local published-preset search |
+| `npm run search:rebuild:remote` | Rebuild production search |
+| `npm run ranks:local` / `npm run ranks:prod` | Read cached ranking totals and category scores |
+| `npm run stats -- local refresh-ranking` | Recalculate local ranking |
 
-The `ranks:*` commands print each preset's cached total and category scores:
-quality (completeness), engagement, freshness, surge, and lucky. The snapshot's
-calculation time is printed above the table. These commands only read the ranking
-cache, never recalculate scores or modify data. A missing cache is reported without
-creating one. Production requires Wrangler authentication.
+For a game update, run `npm run game:update`, `npm run weapons:normalize`, `npm run game:sync`, then `npm run check`. Review generated changes before committing.
 
-## Catalogs and assets
+## Self-hosting on Cloudflare
 
-[`game-data/catalog.json`](game-data/catalog.json) is the reviewed source for the supported STRAFTAT release, map IDs, and canonical weapons. [`game-data/tags.json`](game-data/tags.json) is the reviewed public tag list. Browser and server validation use these same files, while D1 mirrors the data for indexed lookups and foreign-key checks.
-
-Weapon images are metadata-free transparent WebP files in `public/weapons/`. To prepare a game update:
-
-```bash
-npm run game:update
-npm run weapons:normalize
-npm run game:sync
-npm run check
-```
-
-Review all generated catalog and image changes before committing. Runtime requests never scrape the wiki.
-
-Tag entries contain only `slug`, `label`, and `category`. Presets can use at most eight tags and gallery cards show at most five.
-
-## Presets and moderation
-
-Published presets require a name, a useful description, at least one version, at least one map playlist, and two to eight tags. Weapon settings are optional. Drafts are saved locally first and synchronized to D1 without replacing immutable submitted or published revisions.
-
-Uploaded thumbnails are limited to JPEG or PNG input of at most 2 MB. The browser and server validate the file, the server converts it to WebP, and only the processed image is stored in private R2. New or changed thumbnails require manual review before publication.
-
-Automatic profanity screening uses a secondary English library and reviewed high-confidence dictionaries for French, Spanish, German, Russian, Chinese, Arabic, Portuguese, Italian, Hindi, Japanese, and Korean. A small project dictionary also covers common transliterated Russian and Polish terms. English matches require review; non-English matches are rejected automatically.
-
-Moderators can approve, reject, or retract presets directly via the Telegram bot integration.
-
-## Cloudflare setup
-
-The committed `wrangler.jsonc` contains a placeholder D1 ID. Create fresh resources, then replace that placeholder with the ID returned by Wrangler:
+Create your own resources and update their bindings in `wrangler.jsonc`, including the D1 database ID. Do not use this project's production resources.
 
 ```bash
 npx wrangler d1 create straftat-presets
@@ -103,76 +65,45 @@ npx wrangler r2 bucket create straftat-presets-thumbnails
 npx wrangler r2 bucket create straftat-presets-thumbnails-preview
 ```
 
-Copy `.env.production.example` to `.env.production`, fill it locally, and keep it untracked. Add the production Discord redirect URI:
+Copy `.env.production.example` to `.env.production` and fill it locally. Register `https://your-domain.example/api/auth/callback/discord` with Discord.
 
-```text
-https://your-domain.example/api/auth/callback/discord
-```
-
-Initialize and validate the fresh remote database before the first deployment:
+Initialize your remote database, replacing the confirmation placeholders with the values in `game-data/catalog.json` and `game-data/tags.json`:
 
 ```bash
 npx wrangler d1 migrations apply DB --remote
 npm run game:sync -- remote --confirm <supported-release>
 npm run tags:sync -- remote --confirm <tag-count>
 npm run check
-```
-
-Deploy only after reviewing the Worker configuration and environment:
-
-```bash
 npm run deploy
 ```
 
-The v1.2.0 deploy command builds first, applies pending production D1 migrations,
-recalculates ranking for every published preset using the production analytics
-secret, and only then uploads the Worker. A failed migration or recalculation stops
-the deployment. Do not bypass these steps with a direct `wrangler deploy`.
-No event history, published content, thumbnails, or public counters are reset.
+Deployment builds the Worker, applies migrations and recalculates published-preset ranking before uploading. Do not bypass it with `wrangler deploy`. Remote commands modify production data unless explicitly read-only.
 
-### Transport and browser security
+Enable Cloudflare [Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/) for your domain. Check redirects, HSTS and CSP after deployment. The CSP allows inline scripts and styles, so it is not a strict inline-XSS defense.
 
-At the next authorized rollout, enable Cloudflare **SSL/TLS → Edge Certificates →
-Always Use HTTPS** for `straftatpresets.com`. HTTPS redirects belong at the edge,
-covering static assets as well as application routes. The previous conditional
-Next.js redirect produced a redirect loop on HTTPS in the deployed adapter despite
-passing Next.js routing tests. Keep this redirect at the edge and verify real HTTP
-and HTTPS responses after deployment.
-After deployment, verify HTTP redirects for both `/` and a real `/_next/static/`
-script URL, and check HTTPS pages for `Strict-Transport-Security` and
-`Content-Security-Policy`. The deploy script does not change zone settings.
-See [Cloudflare's HTTPS setup](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/).
+## Technical overview
 
-The application adds host-only, one-year HSTS (no subdomain or preload opt-in)
-and a CSP that restricts resource origins, framing, form targets, and inline event
-handlers. Inline scripts and styles remain allowed for Next.js static hydration
-and the existing UI, so this is **not a strict inline-XSS defense**. A nonce-based
-policy would require revisiting rendering and caching. Local HTTP previews remain
-usable, and development-only eval/WebSocket allowances are absent from builds.
+Next.js, React and TypeScript, deployed through OpenNext to Cloudflare Workers. D1 stores presets, private R2 stores thumbnails, Discord handles login, and Telegram supports moderation.
 
-## Project layout
+- `app/`: UI and API routes
+- `src/domain/`: validation and product rules
+- `src/application/`: interfaces
+- `src/infrastructure/`: persistence and notifications
+- `db/`: schema and migrations
+- `game-data/`: reviewed map, weapon and tag catalogs
+- `scripts/`: maintenance commands
+- `tests/`: unit and local D1 integration tests
 
-```text
-app/                  UI, pages, and route handlers
-db/                   Drizzle schema and D1 migrations
-game-data/            reviewed STRAFTAT and tag catalogs
-public/               static assets and normalized weapon images
-scripts/              local and remote administration commands
-src/application/      runtime-independent interfaces
-src/domain/           product rules and validation
-src/infrastructure/   D1, R2, and notification adapters
-src/lib/              authentication, moderation, and helpers
-tests/                unit and fresh-D1 integration tests
-```
+Drafts save locally first. Submitted and published revisions are immutable. Thumbnails are processed to WebP and reviewed before publication. Preset text is screened automatically, with Telegram moderation for review.
 
-`AGENTS.md` and `.agents/skills/develop-straftat-presets/SKILL.md` contain maintenance instructions for coding agents. Package versions are exact-pinned and `package-lock.json` is committed for reproducible installs.
+[AGENTS.md](AGENTS.md) contains the entry point for coding-agent maintenance instructions.
+
+## Acknowledgements
+
+- [STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public) by Lemaitre Logiciels — game logic and UI reference.
+- [STRAFTOOLS](https://straftools.vercel.app/) by clodcan — preset structure, map playlist encoding and tool UX.
+- [StraftatFX](https://matthewknorr.github.io/StraftatFX/) by Matthew Knorr — rich text colors and gradients.
 
 ## License
 
-Code original to this project is licensed under the [MIT License](LICENSE). Third-party code, game-derived assets, fonts, and marks have separate terms. See [third-party notices](THIRD_PARTY_NOTICES.md) before reusing the full repository.
-
-## Acknowledgments
-
-- **[STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public)** by **Lemaitre Logiciels**: reference for game logic, interface behavior, and animation details used by this project.
-- **[STRAFTOOLS](https://straftools.vercel.app/)** by **clodcan**: inspiration and reference for STRAFTAT preset structure, map playlist encoding, and tool UX.
-- **[StraftatFX](https://matthewknorr.github.io/StraftatFX/)** by **Matthew Knorr** (`matthewknorr`): rich text color formatting concepts and text gradient tooling for STRAFTAT.
+Original project code is [MIT-licensed](LICENSE). Game assets and other third-party material have separate terms. See [third-party notices](THIRD_PARTY_NOTICES.md).
