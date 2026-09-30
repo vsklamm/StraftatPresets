@@ -36,27 +36,27 @@
   },
   "dependencies": {
     "@2toad/profanity": "3.3.0",
-    "@opennextjs/cloudflare": "1.20.6",
-    "drizzle-orm": "0.45.2",
+    "@opennextjs/cloudflare": "1.20.7",
+    "drizzle-orm": "0.45.3",
     "franc-min": "6.2.0",
-    "next": "16.3.5",
+    "next": "16.3.7",
     "next-auth": "4.24.15",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260922.1",
-    "@types/node": "24.13.6",
+    "@cloudflare/workers-types": "5.20260930.1",
+    "@types/node": "24.19.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "drizzle-kit": "0.31.10",
+    "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.5",
-    "tsx": "4.23.13",
+    "eslint-config-next": "16.3.7",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "wrangler": "4.136.3"
+    "wrangler": "4.144.0"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
@@ -70,7 +70,6 @@
     "esbuild@0.28.1": true,
     "fsevents@2.3.3": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260831.1": true,
-    "workerd@1.20260918.1": true
+    "workerd@1.20260926.1": true
   }
 }
