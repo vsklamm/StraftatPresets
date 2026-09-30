@@ -146,6 +146,7 @@ function DisplayNameDialog({ initialName, isFirstChoice, onClose, onSaved }: {
           <input
             ref={inputRef}
             aria-label="Display name"
+            aria-describedby="display-name-color-hint"
             autoComplete="off"
             data-1p-ignore
             data-bwignore
@@ -155,6 +156,7 @@ function DisplayNameDialog({ initialName, isFirstChoice, onClose, onSaved }: {
             value={displayName}
             onChange={(event) => { setDisplayName(event.target.value); setError(""); }}
           />
+          <p id="display-name-color-hint" className="display-name-color-hint"><span>Color tags</span> work in display names too.</p>
           {error ? <small className="display-name-error" role="alert">{error}</small> : null}
           <button type="submit" disabled={isSaving}>{isSaving ? "Saving…" : "Save"}</button>
         </form>

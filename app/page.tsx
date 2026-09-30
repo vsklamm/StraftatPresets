@@ -313,6 +313,53 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [isAttentionBlinking, setIsAttentionBlinking] = useState(false);
+  const attentionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const attentionStopTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const clearAttentionTimers = useCallback(() => {
+    if (attentionTimerRef.current) {
+      clearTimeout(attentionTimerRef.current);
+      attentionTimerRef.current = null;
+    }
+    if (attentionStopTimerRef.current) {
+      clearTimeout(attentionStopTimerRef.current);
+      attentionStopTimerRef.current = null;
+    }
+    setIsAttentionBlinking(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (attentionTimerRef.current) clearTimeout(attentionTimerRef.current);
+      if (attentionStopTimerRef.current) clearTimeout(attentionStopTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selected || isEditing) return;
+
+    let isCancelled = false;
+
+    const scheduleNextBlink = (delayMs: number) => {
+      attentionTimerRef.current = setTimeout(() => {
+        if (isCancelled) return;
+        setIsAttentionBlinking(true);
+
+        attentionStopTimerRef.current = setTimeout(() => {
+          if (isCancelled) return;
+          setIsAttentionBlinking(false);
+          scheduleNextBlink(15000);
+        }, 9750);
+      }, delayMs);
+    };
+
+    scheduleNextBlink(15000);
+
+    return () => {
+      isCancelled = true;
+      clearAttentionTimers();
+    };
+  }, [selected, versionLabel, isEditing, clearAttentionTimers]);
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [copyCounts, setCopyCounts] = useState<Record<string, number>>({});
   const [weaponSort, setWeaponSort] = useState<WeaponSortKey>("name");
@@ -572,6 +619,7 @@ export default function Home() {
   }, []);
 
   const selectPreset = (preset: Preset, edit = false) => {
+    clearAttentionTimers();
     rememberPresetRevision(presetRevisionTokensRef.current, preset);
     openPresetIdRef.current = preset.id;
     setSelected(preset);
@@ -714,6 +762,7 @@ export default function Home() {
   }, [selected, draftContent]);
 
   const dismissPreset = useCallback((clearUrl = true) => {
+    clearAttentionTimers();
     if (revalidateTimerRef.current !== null) {
       window.clearTimeout(revalidateTimerRef.current);
       revalidateTimerRef.current = null;
@@ -733,7 +782,7 @@ export default function Home() {
       const url = new URL(window.location.href);
       window.history.replaceState({}, "", urlWithoutPreset(url));
     }
-  }, []);
+  }, [clearAttentionTimers]);
 
   const discardUnmodifiedDraft = useCallback(async (preset: Preset) => {
     try {
@@ -1649,15 +1698,31 @@ export default function Home() {
             <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {selected.state ? <PresetStateBadge state={selected.state} /> : null}
-                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {!isEditing && presetHasPublishedLink(selected) ? <button className={`copy-link-button icon-only ${copied === "link" ? "copied" : ""}`} type="button" title={copied === "link" ? "Copied!" : "Copy link"} aria-label="Copy link" onClick={() => { const url = new URL(presetUrlPath(selected), window.location.origin); void copyText("link", url.toString()).catch(() => undefined); }}>{copied === "link" ? <CheckIcon /> : <LinkIcon />}</button> : null}
-                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
+                {!isEditing && presetHasPublishedLink(selected) ? (
+                  <button
+                    className={`copy-link-button ${copied === "link" ? "copied" : ""} ${isAttentionBlinking && copied !== "link" ? "is-attention-blinking" : ""}`}
+                    type="button"
+                    title={copied === "link" ? "Link copied!" : "Share preset"}
+                    aria-label={copied === "link" ? "Link copied to clipboard" : "Share preset"}
+                    onClick={() => {
+                      const url = new URL(presetUrlPath(selected), window.location.origin);
+                      void copyText("link", url.toString()).catch(() => undefined);
+                    }}
+                  >
+                    <span className="copy-link-icon" aria-hidden="true">
+                      {copied === "link" ? <CheckIcon /> : <LinkIcon />}
+                    </span>
+                    <span className="copy-link-label">{copied === "link" ? "Link copied!" : "Share preset"}</span>
+                  </button>
+                ) : null}
                 {presetHasPublishedLink(selected) ? <PresetCounts views={viewCount(selected)} copies={copyCount(selected)} dialog /> : null}
+                {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
+                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
               </div>
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
             {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Saved on this device - sync failed" : "Changes autosave"}</p> : null}
-            {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { setVersionLabel(version.label); setActiveGuide(null); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
+            {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { clearAttentionTimers(); setVersionLabel(version.label); setActiveGuide(null); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
             {isEditing && draftContent ? (
               <div className="editable-field">
                 <textarea
@@ -1714,7 +1779,7 @@ export default function Home() {
                 onClick={(event) => setActiveGuide((curr) => (curr?.topic === "swapper" ? null : { topic: "swapper", anchorEl: event.currentTarget }))}
               />
             </div>}>
-              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.swapper.map((swapper, index) => <ExportRow key={`swapper-${index}-${swapper.name}`} title={swapper.name} description={swapper.description} code={swapper.code} copied={copied === `swapper-${index}`} onCopy={() => void copyText(`swapper-${index}`, swapper.code, swapper.copyKey).catch(() => undefined)} isAttentionBlinking={isAttentionBlinking} />)}</div>
             </PresetSection> : null}
 
             {!isEditing && selectedVersion.maps?.length ? <PresetSection title="Map Playlists" count={selectedVersion.maps.length} action={<div className="section-actions">
@@ -1725,7 +1790,7 @@ export default function Home() {
                 onClick={(event) => setActiveGuide((curr) => (curr?.topic === "playlist" ? null : { topic: "playlist", anchorEl: event.currentTarget }))}
               />
             </div>}>
-              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} />)}</div>
+              <div className="export-list">{selectedVersion.maps.map((playlist, index) => <PlaylistRow key={`playlist-${index}-${playlist.name}`} playlist={playlist} copied={copied === `map-${index}`} onCopy={() => void copyText(`map-${index}`, playlist.code, playlist.copyKey).catch(() => undefined)} isAttentionBlinking={isAttentionBlinking} />)}</div>
             </PresetSection> : null}
             <p className="catalog-support"><span>Validated for STRAFTAT {supportedGameRelease.version}</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedMapCount} maps</span><span className="catalog-separator" aria-hidden="true" /><span>{supportedWeaponCount} weapons</span></p>
           </ScrollingContent>
@@ -1760,7 +1825,14 @@ export default function Home() {
 }
 
 function PresetSection({ title, count, action, children }: { title: string; count: number; action?: React.ReactNode; children: React.ReactNode }) {
-  return <section className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
+  const sectionId = title.toLowerCase().includes("randomizer")
+    ? "randomizer-settings"
+    : title.toLowerCase().includes("swapper")
+      ? "swapper-settings"
+      : title.toLowerCase().includes("playlist")
+        ? "map-playlists"
+        : undefined;
+  return <section id={sectionId} data-section={sectionId} className="preset-section"><header><h3>{title}<span>{count}</span></h3>{action}</header>{children}</section>;
 }
 function PresetCounts({ views, copies, dialog = false }: { views: number; copies: number; dialog?: boolean }) {
 
@@ -1803,7 +1875,7 @@ function ExpandableName({ text }: { text: string }) {
   );
 }
 
-function ExportRow({ title, description, code, copied, onCopy }: { title: string; description: string; code: string; copied: boolean; onCopy: () => void }) {
+function ExportRow({ title, description, code, copied, onCopy, isAttentionBlinking }: { title: string; description: string; code: string; copied: boolean; onCopy: () => void; isAttentionBlinking?: boolean }) {
   return (
     <div className="export-item playlist-item">
       <div className="export-copy">
@@ -1813,11 +1885,11 @@ function ExportRow({ title, description, code, copied, onCopy }: { title: string
         {description ? <p>{description}</p> : null}
         <code>{code}</code>
       </div>
-      <ExportActions kind="swapper" code={code} copied={copied} onCopy={onCopy} />
+      <ExportActions kind="swapper" code={code} copied={copied} onCopy={onCopy} isAttentionBlinking={isAttentionBlinking} />
     </div>
   );
 }
-function PlaylistRow({ playlist, copied, onCopy }: { playlist: MapPlaylist; copied: boolean; onCopy: () => void }) {
+function PlaylistRow({ playlist, copied, onCopy, isAttentionBlinking }: { playlist: MapPlaylist; copied: boolean; onCopy: () => void; isAttentionBlinking?: boolean }) {
   return (
     <div className="export-item playlist-item">
       <div className="export-copy">
@@ -1828,11 +1900,11 @@ function PlaylistRow({ playlist, copied, onCopy }: { playlist: MapPlaylist; copi
         <p>{playlist.description}</p>
         <code>{playlist.code}</code>
       </div>
-      <ExportActions kind="playlist" code={playlist.code} copied={copied} onCopy={onCopy} />
+      <ExportActions kind="playlist" code={playlist.code} copied={copied} onCopy={onCopy} isAttentionBlinking={isAttentionBlinking} />
     </div>
   );
 }
-function ExportActions({ kind, code, copied, onCopy }: { kind: "playlist" | "swapper"; code: string; copied: boolean; onCopy: () => void }) {
+function ExportActions({ kind, code, copied, onCopy, isAttentionBlinking }: { kind: "playlist" | "swapper"; code: string; copied: boolean; onCopy: () => void; isAttentionBlinking?: boolean }) {
   const builderName = kind === "playlist" ? "Playlist Builder" : "Swapper Builder";
   return (
     <div className="export-actions">
@@ -1847,7 +1919,7 @@ function ExportActions({ kind, code, copied, onCopy }: { kind: "playlist" | "swa
         View
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
       </a>
-      <button className="export-action export-action-copy" type="button" onClick={onCopy}>
+      <button className={`export-action export-action-copy ${copied ? "copied" : ""} ${isAttentionBlinking && !copied ? "is-attention-blinking" : ""}`} type="button" onClick={onCopy}>
         {copied ? <><CheckIcon /> Copied</> : <><CopyCountIcon /> Copy</>}
       </button>
     </div>
