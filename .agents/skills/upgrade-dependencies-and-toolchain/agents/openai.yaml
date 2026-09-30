@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upgrade Dependencies and Toolchain"
+  short_description: "One-shot dependency, toolchain, and security upgrade"
+  default_prompt: "Use $upgrade-dependencies-and-toolchain to audit and upgrade project dependencies and toolchain in one shot."

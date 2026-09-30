@@ -11,6 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # StraftatPresets
 
 For implementation, debugging, review, or maintenance, read `.agents/skills/develop-straftat-presets/SKILL.md`. It defines the project workflow, architecture seams, state invariants, local/remote boundary, and completion checks.
+For upgrading dependencies, Wrangler, runtime/build tooling, or auditing CVEs, read `.agents/skills/upgrade-dependencies-and-toolchain/SKILL.md`.
 
 - Work locally unless a production action is explicitly requested. Deployment, `--remote`, and scripts ending in `:remote` require separate authorization.
 - Keep environment files, `.dev.vars`, `.wrangler/`, backups, credentials, tokens, logs, and user data outside commits and tool output.
