@@ -1,28 +1,22 @@
 # StraftatPresets
 
-Share Map Playlists, Randomizer and Swapper settings for [STRAFTAT](https://store.steampowered.com/app/2386720/STRAFTAT/) — The Best Game You've Never Heard Of.
+Collection of community made Map Playlists, Randomizer and Swapper settings for [STRAFTAT](https://store.steampowered.com/app/2386720/STRAFTAT/) - The Best Game You've Never Heard Of.
 
-Made with <3 for the community. Find a setup for your next lobby, copy it into the game, or share your own.
+Serverless, low-touch, managed storage, Telegram-based moderation.
 
-[Browse presets](https://straftatpresets.com/) · [How to import](https://straftatpresets.com/how-to-import)
+Made with <3 for the community.
 
-![The dashboard with community presets](.github/images/dashboard.webp)
+[Browse presets](https://straftatpresets.com/) | [How to import](https://straftatpresets.com/how-to-import)
 
-![509's FFA preset with its description, map playlist and Swapper settings](.github/images/preset.webp)
-
-## Stack & hosting
-
-Next.js, React and TypeScript. OpenNext on Cloudflare Workers, D1 with Drizzle ORM, and R2 for images. Auth.js with Discord login and Telegram moderation.
-
-Serverless, low-touch, managed storage, Telegram-based reviews.
+<div align="center">
+	<img src=".github/images/dashboard.webp" alt="The dashboard with community presets" width="56.12%"><img src=".github/images/preset.webp" alt="509's FFA preset with its description, map playlist and Swapper settings" width="43.88%">
+</div>
 
 ## About the code
 
-100% vibe-coded: built and maintained with AI coding agents, with a human directing and testing. Not designed as a hand-maintained codebase. Provided as-is. Review before self-hosting.
+Built and maintained with AI coding agents. Review the code before self-hosting.
 
 ## Local setup
-
-Node and npm versions are recorded in `.nvmrc` and `package.json`.
 
 ```bash
 git clone https://github.com/vsklamm/StraftatPresets.git
@@ -34,7 +28,7 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). D1 and R2 run locally, with persistent state in `.wrangler/`. Browsing and local APIs need no integration credentials.
+Open [localhost:3000](http://localhost:3000). D1 and R2 run locally, with persistent state in `.wrangler/`.
 
 For Discord login, copy `.env.example` to `.env.local`, set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`, and register this redirect:
 
@@ -53,13 +47,6 @@ Local setup creates `NEXTAUTH_SECRET` if missing. Keep environment files untrack
 | `npm run db:schema` | Generate a migration after editing `db/schema.ts` |
 | `npm run db:migrate` | Apply local migrations |
 | `npm run db:backup` | Export D1 to ignored backups |
-| `npm run game:sync` / `npm run tags:sync` | Sync reviewed catalogs to local D1 |
-| `npm run search:rebuild` | Rebuild local published-preset search |
-| `npm run search:rebuild:remote` | Rebuild production search |
-| `npm run ranks:local` / `npm run ranks:prod` | Read cached ranking totals and category scores |
-| `npm run stats -- local refresh-ranking` | Recalculate local ranking |
-
-For a game update, run `npm run game:update`, `npm run weapons:normalize`, `npm run game:sync`, then `npm run check`. Review generated changes before committing.
 
 ## Self-hosting on Cloudflare
 
@@ -87,26 +74,13 @@ Deployment builds the Worker, applies migrations and recalculates published-pres
 
 Enable Cloudflare [Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/) for your domain. Check redirects, HSTS and CSP after deployment. The CSP allows inline scripts and styles, so it is not a strict inline-XSS defense.
 
-## Technical overview
-
-- `app/`: UI and API routes
-- `src/domain/`: validation and product rules
-- `src/application/`: interfaces
-- `src/infrastructure/`: persistence and notifications
-- `db/`: schema and migrations
-- `game-data/`: reviewed map, weapon and tag catalogs
-- `scripts/`: maintenance commands
-- `tests/`: unit and local D1 integration tests
-
-Drafts save locally first. Submitted and published revisions are immutable. Thumbnails are processed to WebP and reviewed before publication. Preset text is screened automatically, with Telegram moderation for review.
-
-[AGENTS.md](AGENTS.md) contains the entry point for coding-agent maintenance instructions.
+Drafts save locally first. Submitted and published revisions are immutable. Thumbnails are converted to WebP and reviewed before publication. Preset text is screened before Telegram moderation.
 
 ## Acknowledgements
 
-- [STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public) by Lemaitre Logiciels — game logic and UI reference.
-- [STRAFTOOLS](https://straftools.vercel.app/) by clodcan — preset structure, map playlist encoding and tool UX.
-- [StraftatFX](https://matthewknorr.github.io/StraftatFX/) by Matthew Knorr — rich text colors and gradients.
+- [STRAFTAT-Public](https://github.com/Lemaitre-Logiciels/STRAFTAT-Public) by Lemaitre Logiciels: game logic and UI reference.
+- [STRAFTOOLS](https://straftools.vercel.app/) by clodcan: preset structure, map playlist encoding and tool UX.
+- [StraftatFX](https://matthewknorr.github.io/StraftatFX/) by Matthew Knorr: rich text colors and gradients.
 
 ## License
 

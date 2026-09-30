@@ -170,3 +170,45 @@ test("backend parsing accepts only integer weapon weights from 1 through 100", (
     assert.throws(() => parsePresetRevisionContent(contentWithWeight(invalidWeight)));
   }
 });
+
+test("compareWeaponsInGameOrder sorts randomized weapons by in-game prefab gameId matching STRAFTAT WeaponRandomizationMenu", async () => {
+  const { compareWeaponsInGameOrder } = await import("../src/domain/game-weapons");
+  const sample = [
+    "Yangtse",
+    "Torrent",       // gameId: DF_Torrent
+    "Serac",         // gameId: Nugget
+    "Pistol",        // gameId: Gun
+    "Oklahoma",      // gameId: BigFattyBro
+    "God Sword",     // gameId: DF_GodSword
+    "Dispenser",     // gameId: Dispenser
+    "Cyst",          // gameId: DF_Cyst
+    "Curved Knife",  // gameId: CurvedKnife
+    "Blister",       // gameId: DF_Blister
+    "Blank State",   // gameId: BlankState
+    "Bender",        // gameId: Bender
+    "Glock",         // gameId: Glock
+    "Gust",          // gameId: Gust
+    "Nizeh",         // gameId: Nizeh
+    "Phoenix",       // gameId: Phoenix
+  ];
+
+  const sorted = [...sample].sort(compareWeaponsInGameOrder);
+  assert.deepEqual(sorted, [
+    "Bender",
+    "Oklahoma",      // BigFattyBro
+    "Blank State",
+    "Curved Knife",
+    "Blister",       // DF_Blister
+    "Cyst",          // DF_Cyst
+    "God Sword",     // DF_GodSword
+    "Torrent",       // DF_Torrent
+    "Dispenser",
+    "Glock",
+    "Pistol",        // Gun
+    "Gust",
+    "Nizeh",
+    "Serac",         // Nugget
+    "Phoenix",
+    "Yangtse",
+  ]);
+});

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { WeaponImage } from "@/app/weapon-image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
 import { decodeSwapperExport } from "@/src/domain/swapper-export";
-import { catalogWeapons, getWeaponImage, weaponAssetUrl } from "@/src/domain/game-weapons";
+import { catalogWeapons, compareWeaponsInGameOrder, getWeaponImage, weaponAssetUrl } from "@/src/domain/game-weapons";
 import { calculateRelativeWeaponBarWidth, calculateWeaponChances, clampWeaponWeight, formatWeaponPercent, MIN_WEAPON_WEIGHT, MAX_WEAPON_WEIGHT } from "@/src/domain/weapon-weights";
 import { createEmptyMapPlaylist, createPresetVersionFromPrevious, findPreviousPresetVersion, MAX_MAP_PLAYLIST_DESCRIPTION_CHARACTERS, MAX_MAP_PLAYLISTS, MAX_PRESET_VERSIONS, MAX_RANDOMIZED_WEAPONS, MAX_SWAPPER_CONFIGURATIONS, type PresetMapPlaylistContent, type PresetRevisionContent, type PresetVersionContent, type PresetWeaponConfigurationContent } from "@/src/domain/preset-content";
 import { formatPresetVersionLabel, isPresetVersionInRange, isPresetVersionInputCandidate, nextPresetVersionLabel, sortPresetVersionsNewestFirst } from "@/src/domain/preset-version";
@@ -292,7 +292,8 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
     const term = query.trim().toLocaleLowerCase("en-US");
     return catalogWeapons
       .filter((weapon) => !selectedNames.has(weapon.name))
-      .filter((weapon) => !term || weapon.name.toLocaleLowerCase("en-US").includes(term));
+      .filter((weapon) => !term || weapon.name.toLocaleLowerCase("en-US").includes(term))
+      .sort((left, right) => compareWeaponsInGameOrder(left.name, right.name));
   }, [query, selectedNames]);
 
   const updateConfiguration = (
@@ -313,7 +314,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
     if (!configuration || selectedNames.has(name) || configuration.weapons.length >= MAX_RANDOMIZED_WEAPONS) return;
     updateConfiguration((current) => current.weapons.some((weapon) => weapon.name === name)
       ? current
-      : { ...current, weapons: [...current.weapons, { name, weight: 100 }].sort((left, right) => left.name.localeCompare(right.name)) });
+      : { ...current, weapons: [...current.weapons, { name, weight: 100 }].sort((left, right) => compareWeaponsInGameOrder(left.name, right.name)) });
     setQuery("");
     setPickerOpen(false);
     setHighlightedIndex(0);
@@ -330,7 +331,7 @@ function RandomizedWeaponsEditor({ version, onChange }: { version: PresetVersion
 
   if (!configuration) return null;
 
-  const weaponsWithChance = calculateWeaponChances(configuration.weapons).sort((left, right) => left.name.localeCompare(right.name));
+  const weaponsWithChance = calculateWeaponChances(configuration.weapons).sort((left, right) => compareWeaponsInGameOrder(left.name, right.name));
   const maximumWeaponWeight = Math.max(...weaponsWithChance.map((weapon) => weapon.weight), 0);
   return <section className="editor-block randomized-editor">
     <header>

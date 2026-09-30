@@ -80,10 +80,34 @@ const presetVersionSchema = z.object({
   weaponConfigurations: z.array(z.discriminatedUnion("kind", [randomizedConfigurationSchema, swapperConfigurationSchema])).max(MAX_SWAPPER_CONFIGURATIONS),
 }).strict();
 
+export const thumbnailPositionSchema = z.object({
+  x: z.number().min(0).max(100),
+  y: z.number().min(0).max(100),
+}).strict();
+
+// Lenient variant for stored/user-submitted data: accepts any object and
+// coerces out-of-range or non-numeric fields to 50 rather than failing.
+const thumbnailPositionInputSchema = z
+  .unknown()
+  .transform((raw): { x: number; y: number } | undefined => {
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const rec = raw as Record<string, unknown>;
+    const coerce = (v: unknown): number => {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 100) return 50;
+      return Math.round(n * 10) / 10;
+    };
+    return { x: coerce(rec.x), y: coerce(rec.y) };
+  });
+
+export type ThumbnailPosition = z.infer<typeof thumbnailPositionSchema>;
+
 const presetRevisionContentInputSchema = z.object({
   title: shortText(MAX_PRESET_TITLE_CHARACTERS),
   description: shortText(MAX_PRESET_DESCRIPTION_CHARACTERS),
   thumbnailKey: z.string().max(500).nullable(),
+  thumbnailPosition: thumbnailPositionInputSchema.optional(),
   tags: z.array(shortText(80)).max(MAX_PRESET_TAGS),
   versioningEnabled: z.boolean().optional(),
   versions: z.array(presetVersionSchema).max(MAX_PRESET_VERSIONS),

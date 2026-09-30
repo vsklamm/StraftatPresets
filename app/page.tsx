@@ -23,7 +23,7 @@ import {
   getPresetLimitMessage,
   PRESET_LIMIT_UPGRADE_THRESHOLD,
 } from "@/src/domain/preset-policy";
-import { catalogWeapons, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount } from "@/src/domain/game-weapons";
+import { catalogWeapons, compareWeaponsInGameOrder, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
 import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
 import { calculateRelativeWeaponBarWidth, calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
@@ -179,6 +179,7 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
     title: content.title,
     author: item.authorName,
     image: content.thumbnailKey ? mediaUrl(content.thumbnailKey) : undefined,
+    thumbnailPosition: content.thumbnailPosition ?? { x: 50, y: 50 },
     description: content.description,
     tags: content.tags.map((tag) => labelFromSlug(tag, tagLabels)),
     views: item.views,
@@ -295,6 +296,14 @@ export default function Home() {
   const handleThumbnailError = (presetId: string) => {
     setFailedThumbnailIds((prev) => (prev.has(presetId) ? prev : new Set(prev).add(presetId)));
   };
+  const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
+  const heroContainerRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{
+    startPointerX: number;
+    startPosX: number;
+    overflowX: number;
+    lastX: number;
+  } | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [showSubmissionIssues, setShowSubmissionIssues] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -447,8 +456,8 @@ export default function Home() {
   const sortedWeapons = useMemo(() => {
     const direction = sortDirection === "asc" ? 1 : -1;
     return [...weightedWeapons].sort((a, b) => {
-      if (weaponSort === "name") return a.name.localeCompare(b.name) * direction;
-      return (a[weaponSort] - b[weaponSort]) * direction;
+      if (weaponSort === "name") return compareWeaponsInGameOrder(a.name, b.name) * direction;
+      return (a[weaponSort] - b[weaponSort] || compareWeaponsInGameOrder(a.name, b.name)) * direction;
     });
   }, [weightedWeapons, weaponSort, sortDirection]);
 
@@ -716,6 +725,8 @@ export default function Home() {
     setSelected(null);
     setActiveGuide(null);
     setIsEditing(false);
+    setIsDraggingThumbnail(false);
+    dragStartRef.current = null;
     setDraftContent(null);
     setShowSubmissionIssues(false);
     if (clearUrl) {
@@ -996,7 +1007,7 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, [draftContent, isEditing, persistDraft, selected]);
 
-  const updateDraftContent = (update: PresetContentUpdate) => {
+  const updateDraftContent = useCallback((update: PresetContentUpdate) => {
     const currentContent = draftContentRef.current;
     const content = typeof update === "function"
       ? (currentContent ? update(currentContent) : null)
@@ -1021,7 +1032,98 @@ export default function Home() {
         setSaveStatus("idle");
       }
     }
-  };
+  }, [selected]);
+
+  const handleHeroPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isEditing) return;
+    if ((event.target as HTMLElement).closest("button, input, a, label")) return;
+    if (event.button !== 0) return;
+
+    const heroEl = heroContainerRef.current;
+    const imgEl = heroEl?.querySelector("img");
+    if (!heroEl || !imgEl) return;
+
+    const rect = heroEl.getBoundingClientRect();
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
+
+    const naturalWidth = imgEl.naturalWidth || 16;
+    const naturalHeight = imgEl.naturalHeight || 9;
+    const imageAspect = naturalWidth / naturalHeight;
+    const containerAspect = containerWidth / Math.max(1, containerHeight);
+
+    const overflowX = imageAspect > containerAspect
+      ? Math.max(0, containerHeight * imageAspect - containerWidth)
+      : 0;
+
+    const currentPos = draftContent?.thumbnailPosition ?? selected?.thumbnailPosition ?? { x: 50, y: 50 };
+
+    dragStartRef.current = {
+      startPointerX: event.clientX,
+      startPosX: currentPos.x,
+      overflowX,
+      lastX: currentPos.x,
+    };
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture fallback
+    }
+
+    setIsDraggingThumbnail(true);
+  }, [draftContent?.thumbnailPosition, isEditing, selected?.thumbnailPosition]);
+
+  const handleHeroPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStartRef.current;
+    if (!drag) return;
+
+    const deltaX = event.clientX - drag.startPointerX;
+
+    let nextX = drag.startPosX;
+    if (drag.overflowX > 1) {
+      nextX = drag.startPosX - (deltaX / drag.overflowX) * 100;
+    } else if (drag.overflowX === 0) {
+      nextX = drag.startPosX - (deltaX / 300) * 100;
+    }
+    nextX = Math.max(0, Math.min(100, Math.round(nextX * 10) / 10));
+
+    drag.lastX = nextX;
+
+    const heroEl = heroContainerRef.current;
+    const imgEl = heroEl?.querySelector("img");
+    if (imgEl) {
+      imgEl.style.objectPosition = `${nextX}% 50%`;
+    }
+  }, []);
+
+  const handleHeroPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStartRef.current;
+    if (!drag) return;
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore
+    }
+
+    const finalX = drag.lastX;
+    const changed = drag.startPosX !== finalX;
+    dragStartRef.current = null;
+    setIsDraggingThumbnail(false);
+
+    if (changed) {
+      updateDraftContent((content) => ({
+        ...content,
+        thumbnailPosition: { x: finalX, y: 50 },
+      }));
+      setSelected((current) => current ? {
+        ...current,
+        thumbnailPosition: { x: finalX, y: 50 },
+      } : current);
+    }
+  }, [updateDraftContent]);
+
   const changeWeaponSort = (key: WeaponSortKey) => { if (weaponSort === key) setSortDirection((current) => current === "asc" ? "desc" : "asc"); else { setWeaponSort(key); setSortDirection("asc"); } };
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
   const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
@@ -1057,7 +1159,8 @@ export default function Home() {
   };
   const copyWeapons = (weapons: WeightedWeapon[], targetKey?: string) => {
     setWeaponCopyBurst((burst) => burst + 1);
-    void copyText("weapons", calculateWeaponChances(weapons).map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), targetKey).catch(() => undefined);
+    const ordered = [...calculateWeaponChances(weapons)].sort((left, right) => compareWeaponsInGameOrder(left.name, right.name));
+    void copyText("weapons", ordered.map((weapon) => `${weapon.name} - ${weapon.weight} (${formatWeaponPercent(weapon.percent)})`).join("\n"), targetKey).catch(() => undefined);
   };
   const submitPreset = () => {
     if (authStatus !== "authenticated") {
@@ -1213,7 +1316,7 @@ export default function Home() {
     setThumbnailStatus("uploading");
     setThumbnailError("");
     try {
-      const optimizedBlob = await optimizeThumbnailForUpload(file);
+      const { blob: optimizedBlob, position: focalPoint } = await optimizeThumbnailForUpload(file);
       const body = new FormData();
       body.set("image", optimizedBlob, file.name.replace(/\.[^.]+$/, ".webp"));
       const response = await fetch(`/api/presets/${encodeURIComponent(selected.id)}/thumbnail`, { method: "POST", credentials: "same-origin", body });
@@ -1225,8 +1328,8 @@ export default function Home() {
         next.delete(selected.id);
         return next;
       });
-      setSelected((current) => current ? { ...current, image: result.url } : current);
-      updateDraftContent((content) => ({ ...content, thumbnailKey: result.key! }));
+      setSelected((current) => current ? { ...current, image: result.url, thumbnailPosition: focalPoint } : current);
+      updateDraftContent((content) => ({ ...content, thumbnailKey: result.key!, thumbnailPosition: focalPoint }));
       setThumbnailStatus("idle");
     } catch (error) {
       setThumbnailStatus("error");
@@ -1238,11 +1341,11 @@ export default function Home() {
   const removeThumbnail = () => {
     if (!selected || thumbnailStatus === "uploading") return;
     if (!draftContent?.thumbnailKey && !selected.image) return;
-    const nextContent = draftContent ? { ...draftContent, thumbnailKey: null } : null;
+    const nextContent = draftContent ? { ...draftContent, thumbnailKey: null, thumbnailPosition: undefined } : null;
     if (nextContent) {
       updateDraftContent(nextContent);
     }
-    setSelected((current) => current ? { ...current, image: undefined } : current);
+    setSelected((current) => current ? { ...current, image: undefined, thumbnailPosition: undefined } : current);
     setFailedThumbnailIds((current) => {
       if (!current.has(selected.id)) return current;
       const next = new Set(current);
@@ -1454,11 +1557,31 @@ export default function Home() {
             <button className="dialog-close" type="button" aria-label="Close preset" disabled={isSubmitting} onClick={closePreset}>×</button>
           {(() => {
             const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
+            const isHeroEditable = Boolean(isEditing && selectedHasValidImage);
+            const heroPos = isEditing && draftContent?.thumbnailPosition
+              ? draftContent.thumbnailPosition
+              : (selected.thumbnailPosition ?? { x: 50, y: 50 });
             return (
-              <div className={`dialog-hero ${selectedHasValidImage ? "" : "no-image"}`}>
+              <div
+                ref={heroContainerRef}
+                className={`dialog-hero ${selectedHasValidImage ? "" : "no-image"} ${isHeroEditable ? "is-editable" : ""} ${isDraggingThumbnail ? "is-dragging" : ""}`}
+                onPointerDown={isHeroEditable ? handleHeroPointerDown : undefined}
+                onPointerMove={isHeroEditable ? handleHeroPointerMove : undefined}
+                onPointerUp={isHeroEditable ? handleHeroPointerUp : undefined}
+                onPointerCancel={isHeroEditable ? handleHeroPointerUp : undefined}
+              >
                 {selectedHasValidImage ? (
                   <div className="dialog-hero-image">
-                    <Image src={selected.image!} alt="" fill loading="eager" sizes="290px" onError={() => handleThumbnailError(selected.id)} />
+                    <Image
+                      src={selected.image!}
+                      alt=""
+                      fill
+                      loading="eager"
+                      sizes="290px"
+                      draggable={false}
+                      style={{ objectPosition: `${heroPos.x}% 50%` }}
+                      onError={() => handleThumbnailError(selected.id)}
+                    />
                   </div>
                 ) : (
                   <ThumbnailPlaceholder title={selected.title} mode="hero" />
@@ -1503,6 +1626,9 @@ export default function Home() {
                       <p className="thumbnail-error field-error-message">{thumbnailError}</p>
                     ) : (
                       <div className="thumbnail-hint">
+                        {selectedHasValidImage ? (
+                          <span className="thumbnail-drag-note">Drag picture horizontally to adjust view</span>
+                        ) : null}
                         <span className="thumbnail-theme-rule">STRAFTAT-themed only</span>
                         <span>No NSFW, gore, or graphic violence</span>
                         <span>JPEG/PNG/WebP, 2 MB max</span>

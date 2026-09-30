@@ -20,6 +20,7 @@ export type Preset = {
   title: string;
   author: string;
   image?: string;
+  thumbnailPosition?: { x: number; y: number };
   description: string;
   tags: string[];
   views: number;
