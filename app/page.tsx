@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import { ScrollingContent } from "@/app/scrolling-content";
 import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
 import { useBodyScrollLock } from "@/src/lib/body-scroll-lock";
 import { StraftatText } from "./straftat-text";
+import { PresetContentLabel } from "./preset-content-label";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@/src/domain/preset-policy";
 import { catalogWeapons, compareWeaponsInGameOrder, getWeaponImage, supportedGameRelease, supportedMapCount, supportedWeaponCount } from "@/src/domain/game-weapons";
 import { tagCatalogEntries } from "@/src/domain/tag-catalog";
-import { RadialWeaponPicker, SearchTagPicker } from "@/app/search-tools";
+import { RadialWeaponPicker, SearchTagPicker, TagPickerList } from "@/app/search-tools";
 import { calculateRelativeWeaponBarWidth, calculateWeaponChances, formatWeaponPercent, type WeightedWeapon } from "@/src/domain/weapon-weights";
 import { recordPresetCopy, recordPresetInteraction, retryPendingPresetCopies } from "@/src/lib/preset-interactions-client";
 import type { PresetDashboardItem, PresetDashboardView } from "@/src/application/ports";
@@ -42,14 +43,14 @@ import {
   type PresetRevisionContent,
 } from "@/src/domain/preset-content";
 import { formatPresetVersionLabel, sortPresetVersionsNewestFirst } from "@/src/domain/preset-version";
-import type { PresetIssue, UserPresetState } from "@/src/domain/preset-workflow";
+import type { PresetIssue } from "@/src/domain/preset-workflow";
 import { MAX_THUMBNAIL_UPLOAD_BYTES } from "@/src/domain/thumbnail-policy";
 import { optimizeThumbnailForUpload } from "@/src/lib/client-image-optimization";
 import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { configLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { configLabels, presetStatusLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetIsReadyToSubmit, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 import { GuideTriggerButton, PresetImportGuideModal, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
 
@@ -288,6 +289,8 @@ export default function Home() {
   }, []);
   const [versionLabel, setVersionLabel] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [submissionReminderRequested, setSubmissionReminderRequested] = useState(false);
+  const editStartContentRef = useRef("");
   const [draftContent, setDraftContent] = useState<PresetRevisionContent | null>(null);
   const [editorVersionIndex, setEditorVersionIndex] = useState(0);
   const [thumbnailStatus, setThumbnailStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -307,6 +310,8 @@ export default function Home() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [showSubmissionIssues, setShowSubmissionIssues] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const editorTagPickerRef = useRef<HTMLDivElement>(null);
+  const editorTagPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const [tagQuery, setTagQuery] = useState("");
   const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -497,6 +502,13 @@ export default function Home() {
   const visiblePresets = dashboardPresets;
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
+  const hasLocalPresetChanges = Boolean(selected?.canEdit && isEditing && draftContent && JSON.stringify(draftContent) !== JSON.stringify(selected.content));
+  const displayedPresetState = hasLocalPresetChanges ? "draft" : selected?.state;
+  const remindSubmission = useMemo(() => Boolean(
+    submissionReminderRequested && !isEditing && !isSubmitting
+    && saveStatus !== "saving" && saveStatus !== "error" && thumbnailStatus !== "uploading"
+    && selected && presetIsReadyToSubmit(selected)
+  ), [submissionReminderRequested, isEditing, isSubmitting, saveStatus, thumbnailStatus, selected]);
   const weightedWeapons = useMemo(() => calculateWeaponChances(selectedVersion?.randomizedWeapons ?? []), [selectedVersion]);
   const maximumWeaponWeight = useMemo(() => Math.max(...weightedWeapons.map((weapon) => weapon.weight), 0), [weightedWeapons]);
   const selectedSwapperCodes = useMemo(() => selectedVersion?.swapper?.map((swapper) => swapper.code) ?? [], [selectedVersion]);
@@ -629,6 +641,8 @@ export default function Home() {
     setSortDirection("asc");
     setWeaponCopyBurst(0);
     setIsEditing(edit && Boolean(preset.canEdit));
+    setSubmissionReminderRequested(false);
+    editStartContentRef.current = JSON.stringify(preset.content);
     setDraftContent(preset.content ?? null);
     setEditorVersionIndex(0);
     setThumbnailStatus("idle");
@@ -754,6 +768,8 @@ export default function Home() {
 
   const enterEditMode = useCallback(() => {
     if (!selected?.canEdit) return;
+    editStartContentRef.current = JSON.stringify(draftContentRef.current ?? selected.content);
+    setSubmissionReminderRequested(false);
     setActiveGuide(null);
     setIsEditing(true);
     if (!draftContent) {
@@ -774,6 +790,7 @@ export default function Home() {
     setSelected(null);
     setActiveGuide(null);
     setIsEditing(false);
+    setSubmissionReminderRequested(false);
     setIsDraggingThumbnail(false);
     dragStartRef.current = null;
     setDraftContent(null);
@@ -805,6 +822,8 @@ export default function Home() {
       return;
     }
     if (await flushSelectedDraft()) {
+      const savedContent = draftContentRef.current ?? content;
+      setSubmissionReminderRequested(Boolean(savedContent && JSON.stringify(savedContent) !== editStartContentRef.current));
       setIsEditing(false);
     } else {
       setActionError("Changes are safe on this device, but could not be synced. Try again.");
@@ -908,6 +927,18 @@ export default function Home() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selected, isEditing, tagPickerOpen, authPrompt, activeGuide, isGuideModalOpen, closeGuideModal, exitEditMode, closePreset]);
+
+  useEffect(() => {
+    if (!tagPickerOpen) return;
+    function closeTagPickerOutside(event: PointerEvent) {
+      const target = event.target as Node;
+      if (!editorTagPickerRef.current?.contains(target) && !editorTagPickerTriggerRef.current?.contains(target)) {
+        setTagPickerOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", closeTagPickerOutside);
+    return () => document.removeEventListener("pointerdown", closeTagPickerOutside);
+  }, [tagPickerOpen]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -1278,6 +1309,7 @@ export default function Home() {
 
   const submitSelectedPreset = async () => {
     if (!selected?.revisionId || selected.editVersion === undefined || isSubmitting) return;
+    setSubmissionReminderRequested(false);
     setIsSubmitting(true);
 
     try {
@@ -1411,7 +1443,7 @@ export default function Home() {
       void persistDraft(selected, nextContent, JSON.stringify(nextContent)).catch(() => undefined);
     }
   };
-  const matchingTags = tagCatalog.filter((tag) => !draftContent?.tags.includes(tag.slug) && tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase()));
+  const matchingTags = tagCatalogEntries.filter((tag) => tagLabels.has(tag.slug) && !draftContent?.tags.includes(tag.slug) && tag.label.toLowerCase().includes(tagQuery.trim().toLowerCase()));
   const revalidationIssues: PresetIssue[] = revalidationFailedId === selected?.id ? [
     { source: "validation", field: "revalidation", code: "outdated", message: "Update failed - showing cached version that may be outdated." }
   ] : [];
@@ -1461,14 +1493,12 @@ export default function Home() {
             </div>
             <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
               <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
-              <span className="tab-author">by clodcan</span>
             </a>
             <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
               <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
-              <span className="tab-author">by Matthew Knorr</span>
             </a>
           </nav>
-          <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span><span className="credit-separator" aria-hidden="true" /><span className="credit-inspired"><span>inspired by</span><span className="inspired-stack"><a href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">STRAFTOOLS</a><span className="inspired-author">by clodcan</span></span></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
+          <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
         </header>
           <div className="dashboard-toolbar">
             <div className="dashboard-views" role="group" aria-label="Preset order">
@@ -1532,7 +1562,7 @@ export default function Home() {
             let i = 0;
             while (i < visiblePresets.length) {
               const p1 = visiblePresets[i];
-              if (!p1.image && i + 1 < visiblePresets.length && !visiblePresets[i + 1].image) {
+              if (activeDashboardView !== "mine" && !p1.image && i + 1 < visiblePresets.length && !visiblePresets[i + 1].image) {
                 items.push({ type: "group", presets: [p1, visiblePresets[i + 1]], indices: [i, i + 1] });
                 i += 2;
               } else {
@@ -1544,7 +1574,8 @@ export default function Home() {
             const renderCard = (preset: typeof visiblePresets[0], presetIndex: number, compact: boolean) => {
               const version = latestVersion(preset); const labels = configLabels(version);
               const isOwner = Boolean(preset.canEdit);
-              const showStateBadge = activeDashboardView === "mine" && Boolean(preset.state);
+              const showStatus = activeDashboardView === "mine" && Boolean(preset.state);
+              const thumbnailStatus = showStatus ? <span className="preset-thumbnail-status"><PresetStatus preset={preset} /></span> : null;
               const hasValidImage = Boolean(preset.image && !failedThumbnailIds.has(preset.id));
               const cleanTitle = stripColorAndFormattingTags(preset.title);
               const cardLabel = preset.versioningEnabled
@@ -1552,11 +1583,11 @@ export default function Home() {
                 : cleanTitle;
               return <article className={`preset-card ${compact ? "compact" : ""} ${isOwner ? "is-owner" : ""}`} key={preset.id}>
                 <button className="card-open" type="button" onClick={() => openPreset(preset)} aria-label={cardLabel}>
-                  {!compact ? (hasValidImage ? <CardThumbnail title={preset.title} src={preset.image!} priority={presetIndex < 4} onError={() => handleThumbnailError(preset.id)} /> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" /></div>) : null}
+                  {!compact ? (hasValidImage ? <CardThumbnail title={preset.title} src={preset.image!} priority={presetIndex < 4} onError={() => handleThumbnailError(preset.id)}>{thumbnailStatus}</CardThumbnail> : <div className="preset-image no-image"><ThumbnailPlaceholder title={preset.title} mode="card" />{thumbnailStatus}</div>) : null}
                   <div className="preset-card-body">
-                    <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{showStateBadge && preset.state ? <PresetStateBadge state={preset.state} /> : null}{preset.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(version.label)}</span> : null}</div></div>
+                    <div className="preset-title-row"><h2><StraftatText text={preset.title} /></h2><div className="card-badges">{preset.versioningEnabled ? <span className="version-badge">{formatPresetVersionLabel(version.label)}</span> : null}</div></div>
                     <p>{formatCardDescriptionPreview(preset.description)}</p>
-                    <div className="content-labels">{labels.map((label, index) => <span key={index}><StraftatText text={label} /></span>)}</div>
+                    <div className="content-labels">{labels.map((label, index) => <PresetContentLabel key={index} text={label} />)}</div>
                     <div className="tag-row">{preset.tags.slice(0, compact ? 3 : MAX_VISIBLE_PRESET_TAGS).map((tag) => <span key={tag}>{tag}</span>)}</div>
                     <div className="preset-author"><span>by <StraftatText text={preset.author} /></span></div>
                   </div>
@@ -1697,9 +1728,8 @@ export default function Home() {
               : !isEditing && selectedVersion.swapper?.length
                 ? <SwapperWeaponMix key={`${selected.id}-${selectedVersion.label}`} encodedValues={selectedSwapperCodes} />
                 : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{displayedPresetState ? <><span className="byline-separator" aria-hidden="true" /><PresetStatus preset={selected} hasLocalChanges={hasLocalPresetChanges} /></> : selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
-                {selected.state ? <PresetStateBadge state={selected.state} /> : null}
                 {!isEditing && presetHasPublishedLink(selected) ? (
                   <button
                     className={`copy-link-button ${copied === "link" ? "copied" : ""} ${isAttentionBlinking && copied !== "link" ? "is-attention-blinking" : ""}`}
@@ -1717,9 +1747,9 @@ export default function Home() {
                     <span className="copy-link-label">{copied === "link" ? "Link copied!" : "Share preset"}</span>
                   </button>
                 ) : null}
-                {presetHasPublishedLink(selected) ? <PresetCounts views={viewCount(selected)} copies={copyCount(selected)} dialog /> : null}
                 {selected.canEdit ? <button className="edit-preset-button icon-only" type="button" title={isEditing ? "View" : "Edit"} aria-label={isEditing ? "View" : "Edit"} disabled={isSubmitting} onClick={() => { if (isEditing) { void exitEditMode(); } else { enterEditMode(); } }}>{isEditing ? <ViewIcon /> : <EditIcon />}</button> : null}
-                {selected.state === "draft" ? <button className="submit-review-button" type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
+                {displayedPresetState === "draft" ? <button className={`submit-review-button${remindSubmission ? " is-submit-reminder" : ""}`} type="button" disabled={isSubmitting || saveStatus === "saving" || thumbnailStatus === "uploading"} onClick={() => void submitSelectedPreset()}>{isSubmitting ? "Submitting…" : "Submit"}</button> : null}
+                {presetHasPublishedLink(selected) ? <PresetCounts views={viewCount(selected)} copies={copyCount(selected)} dialog /> : null}
               </div>
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
@@ -1752,8 +1782,8 @@ export default function Home() {
             )}
 
             {isEditing && draftContent ? <div className="editable-tags"><small>{draftContent.tags.length}/8 tags</small>
-              <div className="tag-row">{draftContent.tags.map((slug) => <button key={slug} type="button" title="Remove tag" onClick={() => removeTag(slug)}>{labelFromSlug(slug, tagLabels)}<span aria-hidden="true">×</span></button>)}{draftContent.tags.length < 8 ? <button className="add-tag" type="button" aria-label="Add tag" aria-expanded={tagPickerOpen} onClick={() => setTagPickerOpen((open) => !open)}><PlusIcon /></button> : null}</div>
-              {tagPickerOpen ? <div className="tag-picker"><input autoFocus aria-label="Search tags" placeholder="Search tags" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} /> <div>{matchingTags.map((tag) => <button key={tag.slug} type="button" onClick={() => addTag(tag.slug)}>{tag.label}</button>)}</div></div> : null}
+              <div className="tag-row">{draftContent.tags.map((slug) => <button key={slug} type="button" title="Remove tag" onClick={() => removeTag(slug)}>{labelFromSlug(slug, tagLabels)}<span aria-hidden="true">×</span></button>)}{draftContent.tags.length < 8 ? <button ref={editorTagPickerTriggerRef} className="add-tag" type="button" aria-label="Add tag" aria-expanded={tagPickerOpen} onClick={() => setTagPickerOpen((open) => !open)}><PlusIcon /></button> : null}</div>
+              {tagPickerOpen ? <div ref={editorTagPickerRef} className="search-tag-picker tag-picker"><input autoFocus aria-label="Search tags" placeholder="Search tags" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} /><TagPickerList tags={matchingTags} onSelect={(tag) => addTag(tag.slug)} /></div> : null}
             </div> : <div className="tag-row">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
 
             {isEditing && draftContent ? <PresetContentEditor content={draftContent} activeVersionIndex={editorVersionIndex} onActiveVersionChange={setEditorVersionIndex} onChange={updateDraftContent} onPendingChange={trackPendingEditorChange} /> : null}
@@ -1992,7 +2022,7 @@ function ThumbnailPlaceholder({ title, mode = "card" }: { title: string; mode?: 
   );
 }
 
-function CardThumbnail({ title, src, priority, onError }: { title: string; src: string; priority: boolean; onError: () => void }) {
+function CardThumbnail({ title, src, priority, onError, children }: { title: string; src: string; priority: boolean; onError: () => void; children?: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [loadState, setLoadState] = useState<ThumbnailLoadState>(() => ({
     src,
@@ -2058,6 +2088,7 @@ function CardThumbnail({ title, src, priority, onError }: { title: string; src: 
         }}
         onError={onError}
       />
+      {children}
     </div>
   );
 }
@@ -2082,8 +2113,11 @@ function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: 
     document.body
   );
 }
-function PresetStateBadge({ state }: { state: UserPresetState }) {
-  return <span className={`preset-state ${state}`}>{state[0].toUpperCase() + state.slice(1)}</span>;
+function PresetStatus({ preset, hasLocalChanges = false }: { preset: Preset; hasLocalChanges?: boolean }) {
+  const labels = presetStatusLabels(preset, hasLocalChanges);
+  const explanations = { published: "The published preset is visible to players.", pending: "Submitted changes are awaiting review.", draft: "Draft changes have not been submitted." };
+  const title = labels.map(({ state, label }) => label === "New edits" ? "New edits are saved on this device. Saving them replaces the pending revision." : label === "Needs changes" ? "The reviewed revision needs changes before resubmission." : explanations[state]).join(" ");
+  return <span className="preset-status" title={title}>{labels.map(({ state, label }, index) => <span className="preset-status-part" key={label}>{index > 0 ? <span className="preset-status-separator" aria-hidden="true"> / </span> : null}<span className={`preset-state ${state}`}>{label}</span></span>)}</span>;
 }
 function EditIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;

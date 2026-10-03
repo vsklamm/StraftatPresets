@@ -374,6 +374,8 @@ export function WeaponMix({
         }
       }
 
+      if (opacity > .52) opacity = .52 + (opacity - .52) * .82;
+
       const floatRangeX = 12 + seededRandom(hash + 2) * 18;
       const floatRangeY = 6 + seededRandom(hash + 3) * 10;
       const floatRotation = 4 + seededRandom(hash + 4) * 8;

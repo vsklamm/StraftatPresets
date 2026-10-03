@@ -57,15 +57,15 @@ export function detectOptimalThumbnailFocalPoint(
 
   // Moving average smoothing window (~8% of width)
   const smoothRadius = Math.max(2, Math.floor(width * 0.08));
+  const cumulativeEnergy = new Float64Array(width + 1);
+  for (let x = 0; x < width; x++) {
+    cumulativeEnergy[x + 1] = cumulativeEnergy[x] + energyX[x];
+  }
   const smoothedX = new Float32Array(width);
   for (let x = 0; x < width; x++) {
-    let sum = 0;
-    let count = 0;
-    for (let k = Math.max(0, x - smoothRadius); k <= Math.min(width - 1, x + smoothRadius); k++) {
-      sum += energyX[k];
-      count++;
-    }
-    smoothedX[x] = count > 0 ? sum / count : 0;
+    const start = Math.max(0, x - smoothRadius);
+    const end = Math.min(width, x + smoothRadius + 1);
+    smoothedX[x] = (cumulativeEnergy[end] - cumulativeEnergy[start]) / (end - start);
   }
 
   // Analyze Left (0-40%), Center (35-65%), and Right (60-100%) zones
@@ -107,29 +107,17 @@ export function detectOptimalThumbnailFocalPoint(
   const significanceThreshold = avgEnergyPerColumn * 1.30;
   const isLeftSignificant = leftPeakVal >= significanceThreshold && leftEnergy > centerEnergy * 0.85;
   const isRightSignificant = rightPeakVal >= significanceThreshold && rightEnergy > centerEnergy * 0.85;
+  const leftCandidate = isLeftSignificant && leftPeakVal > centerPeakVal * 1.15;
+  const rightCandidate = isRightSignificant && rightPeakVal > centerPeakVal * 1.15;
 
   let chosenFocalXPercent = 50;
 
-  if (isLeftSignificant && isRightSignificant) {
-    // 2 prominent focal points: pick a random one
-    const pickLeft = Math.random() < 0.5;
-    if (pickLeft) {
-      const peakPercent = (leftPeakX / width) * 100;
-      chosenFocalXPercent = Math.max(15, Math.min(32, peakPercent));
-    } else {
-      const peakPercent = (rightPeakX / width) * 100;
-      chosenFocalXPercent = Math.min(85, Math.max(68, peakPercent));
-    }
-  } else if (isLeftSignificant && !isRightSignificant && leftPeakVal > centerPeakVal * 1.15) {
-    // 1 prominent left-shifted focal point
+  if (leftCandidate && (!rightCandidate || leftEnergy >= rightEnergy)) {
     const peakPercent = (leftPeakX / width) * 100;
     chosenFocalXPercent = Math.max(15, Math.min(32, peakPercent));
-  } else if (isRightSignificant && !isLeftSignificant && rightPeakVal > centerPeakVal * 1.15) {
-    // 1 prominent right-shifted focal point
+  } else if (rightCandidate) {
     const peakPercent = (rightPeakX / width) * 100;
     chosenFocalXPercent = Math.min(85, Math.max(68, peakPercent));
-  } else {
-    chosenFocalXPercent = 50;
   }
 
   return {
@@ -149,7 +137,7 @@ export type OptimizedThumbnailResult = {
 /**
  * Optimizes an image file locally in the browser:
  * - Proportionally scales down to fit within MAX_THUMBNAIL_TARGET_WIDTH x MAX_THUMBNAIL_TARGET_HEIGHT.
- * - Detects optimal focal position using Sobel energy.
+ * - Detects off-center subjects from local image contrast, defaulting to center.
  * - Converts to WebP format (falling back to JPEG if WebP canvas export fails).
  * - Compresses with THUMBNAIL_TARGET_QUALITY.
  */

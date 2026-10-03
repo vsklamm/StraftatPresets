@@ -284,6 +284,13 @@ export function SearchTagPicker({
 
   return (
     <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">
+      <TagPickerList tags={tags} onSelect={onSelect} />
+    </div>
+  );
+}
+
+export function TagPickerList({ tags, onSelect }: { tags: readonly TagCatalogEntry[]; onSelect: (tag: TagCatalogEntry) => void }) {
+  return (
       <div className="search-tag-categories">
         {TAG_CATEGORIES.map((category) => {
           const categoryTags = tags.filter((tag) => tag.category === category);
@@ -309,6 +316,5 @@ export function SearchTagPicker({
           );
         })}
       </div>
-    </div>
   );
 }

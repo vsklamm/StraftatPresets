@@ -41,6 +41,26 @@ export type Preset = {
 
 type LinkablePreset = Pick<Preset, "id" | "slug" | "state" | "canEdit" | "hasPublishedRevision">;
 
+export function presetStatusLabels(preset: Pick<Preset, "state" | "workingStatus" | "hasPublishedRevision">, hasLocalChanges = false): Array<{ state: UserPresetState; label: string }> {
+  if (!preset.state) return [];
+  const published = Boolean(preset.hasPublishedRevision || preset.state === "published");
+  const labels: Array<{ state: UserPresetState; label: string }> = published ? [{ state: "published", label: "Published" }] : [];
+  const working = preset.workingStatus ?? (preset.state === "published" ? null : preset.state);
+  if (working === "pending") {
+    labels.push({ state: "pending", label: "Pending" });
+    if (hasLocalChanges) labels.push({ state: "draft", label: "New edits" });
+  } else if (working === "rejected" && !hasLocalChanges) {
+    labels.push({ state: "draft", label: "Needs changes" });
+  } else if (working === "draft" || working === "rejected" || hasLocalChanges) {
+    labels.push({ state: "draft", label: "Drafted" });
+  }
+  return labels;
+}
+
+export function presetIsReadyToSubmit(preset: Pick<Preset, "canEdit" | "state" | "workingStatus" | "issues" | "content">): boolean {
+  return Boolean(preset.canEdit && preset.state === "draft" && preset.workingStatus === "draft"
+    && preset.content && preset.issues?.length === 0);
+}
 export function presetHasPublishedLink(preset: LinkablePreset): boolean {
   return !preset.canEdit || preset.state === "published" || Boolean(preset.hasPublishedRevision);
 }
@@ -72,23 +92,22 @@ export function urlWithoutPreset(url: URL): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export const RANDOMIZER_SETTINGS_LABEL_TMPRO =
-  "<#C6A89B>R<#C4A899>a<#C2A997>n<#BFAA96>d<#BCAB95>o<#B9AC95>m<#B6AE95>i<#B2AF95>z<#AFB096>e<#ABB197>r <#A4B29B>S<#A0B39D>e<#9DB4A0>t<#99B4A3>t<#96B5A6>i<#94B5A9>n<#91B5AC>g<#8FB5B0>s";
+const RANDOMIZER_LABEL_TMPRO =
+  "<#CCAB9D>R<#C6AEA1>a<#C0AFA3>n<#BBB1A6>d<#B4B2A7>o<#AEB4AA>m<#A7B5AD>i<#A0B6AF>z<#99B8B2>e<#90BAB4>r";
 
-export const SWAPPER_SETTING_LABEL_TMPRO =
-  "<#94B2C4>S<#91B3C2>w<#8FB4BF>a<#8DB5BC>p<#8DB5B8>p<#8EB5B4>e<#8FB5B0>r <#8FB5B0>S<#8EB5B4>e<#8DB5B8>t<#8DB5BC>t<#8FB4BF>i<#91B3C2>n<#94B2C4>g";
+const SWAPPER_LABEL_TMPRO =
+  "<#94B2C4>S<#8FB4BF>w<#8DB5B8>a<#8FB5B0>p<#8DB5B8>p<#8FB4BF>e<#94B2C4>r";
 
-export const SWAPPER_SETTINGS_LABEL_TMPRO =
-  "<#94B2C4>S<#91B3C2>w<#8FB4C0>a<#8DB4BD>p<#8DB5B9>p<#8DB5B5>e<#8FB5B1>r <#91B5AD>S<#8FB5B1>e<#8DB5B5>t<#8DB5B9>t<#8DB4BD>i<#8FB4C0>n<#91B3C2>g<#94B2C4>s";
+const SWAPPERS_LABEL_TMPRO =
+  "<#94B2C4>S<#8FB4C0>w<#8DB5B9>a<#91B5AD>p<#91B5AD>p<#8DB5B9>e<#8FB4C0>r<#94B2C4>s";
 
 
 export function configLabels(version: PresetVersion): string[] {
   return [
     version.maps?.length ? `${version.maps.length} Map Playlist${version.maps.length === 1 ? "" : "s"}` : null,
-    version.randomizedWeapons ? RANDOMIZER_SETTINGS_LABEL_TMPRO : null,
+    version.randomizedWeapons ? RANDOMIZER_LABEL_TMPRO : null,
     version.swapper?.length
-      ? `${version.swapper.length} ${version.swapper.length === 1 ? SWAPPER_SETTING_LABEL_TMPRO : SWAPPER_SETTINGS_LABEL_TMPRO}`
+      ? `${version.swapper.length} ${version.swapper.length === 1 ? SWAPPER_LABEL_TMPRO : SWAPPERS_LABEL_TMPRO}`
       : null,
   ].filter(Boolean) as string[];
 }
-
