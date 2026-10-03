@@ -161,17 +161,29 @@ button { color: inherit; }
   flex: 0 0 auto;
   display: inline-block;
   font-size: 19px;
-  font-weight: 560;
+  font-weight: 615;
   font-style: italic;
-  letter-spacing: -0.012em;
+  letter-spacing: 0;
   line-height: 1;
-  transform: scale(0.98, 1.10);
+  white-space: nowrap;
+  transform: scale(.998, 1.10) skewX(1.16deg);
   transform-origin: left center;
   color: var(--text);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  transition: transform .46s cubic-bezier(.2, .82, .2, 1), letter-spacing .34s ease;
+  transition: transform .46s cubic-bezier(.2, .82, .2, 1);
 }
+.wordmark-game,
+.wordmark-presets { display: inline-block; }
+.wordmark-game { letter-spacing: .03em; }
+.wordmark-a {
+  display: inline-block;
+  clip-path: inset(.165em -.15em -.15em);
+  transform: scaleY(1.03);
+  transform-origin: center .845em;
+}
+.wordmark-a:last-child { margin-left: -.1em; margin-right: -.07em; }
+.wordmark-presets { font-weight: 580; letter-spacing: .01em; margin-right: .33em; transform: scale(1.10, 1.06); transform-origin: left .845em; }
 .tool-tabs { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; max-width: 620px; overflow: hidden; opacity: 1; clip-path: inset(-8px); white-space: nowrap; transform: translateX(0) scaleX(1); transform-origin: left center; transition: max-width .42s cubic-bezier(.2, .82, .2, 1), opacity .2s ease, clip-path .42s cubic-bezier(.2, .82, .2, 1), transform .42s cubic-bezier(.2, .82, .2, 1), visibility 0s; }
 .tool-tabs a, .tool-tabs button { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: transparent; padding: 6px 10px; font-size: 13.5px; font-weight: 550; color: var(--ui-text-bright); cursor: pointer; transition: color .15s ease, background .15s ease; }
 .tool-tabs a.tool-tab-link { display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 2px 9px; line-height: 1; }
@@ -284,7 +296,7 @@ button { color: inherit; }
 }
 
 .site-header.is-compact .topbar { pointer-events: none; }
-.site-header.is-compact .wordmark { letter-spacing: -.018em; transform: scale(.96, 1.06); pointer-events: auto; }
+.site-header.is-compact .wordmark { transform: scale(.962, 1.06) skewX(1.16deg); pointer-events: auto; }
 .site-header.is-compact .tool-tabs {
   max-width: 0;
   opacity: 0;

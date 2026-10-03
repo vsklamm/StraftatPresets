@@ -1,4 +1,4 @@
 interface:
-  display_name: "Develop StraftatPresets"
+  display_name: "Develop STRAFTATpresets"
   short_description: "Make focused, verified project changes"
   default_prompt: "Use $develop-straftat-presets to make a focused, verified change to this project."

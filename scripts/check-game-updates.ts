@@ -33,7 +33,7 @@ type UpdateCheckResult = {
 async function checkSteamReleases(): Promise<{ latestVersion: string | null; title: string | null; url: string | null }> {
   try {
     const res = await fetch(STEAM_NEWS_API, {
-      headers: { "User-Agent": "StraftatPresets Release Auditor (https://straftatpresets.com)" },
+      headers: { "User-Agent": "STRAFTATpresets Release Auditor (https://straftatpresets.com)" },
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return { latestVersion: null, title: null, url: null };

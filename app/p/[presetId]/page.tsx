@@ -30,24 +30,24 @@ export async function generateMetadata({ params }: PresetPageProps): Promise<Met
   const preset = await getPublishedPreview(presetId);
   if (!preset) {
     return {
-      title: "StraftatPresets",
+      title: "STRAFTATpresets",
       robots: { index: false, follow: false },
     };
   }
 
   const presetName = stripColorAndFormattingTags(preset.title);
   const authorName = stripColorAndFormattingTags(preset.authorName);
-  const previewTitle = `${presetName} | StraftatPresets`;
+  const previewTitle = `${presetName} | STRAFTATpresets`;
   const description = `Preset by ${authorName}`;
   const image = preset.thumbnailKey ? thumbnailUrl(preset.thumbnailKey) : "/android-chrome-512x512.png";
 
   return {
-    title: "StraftatPresets",
+    title: "STRAFTATpresets",
     description,
     alternates: { canonical: `/p/${encodeURIComponent(preset.slug)}` },
     openGraph: {
       type: "website",
-      siteName: "StraftatPresets",
+      siteName: "STRAFTATpresets",
       title: previewTitle,
       description,
       url: `/p/${encodeURIComponent(preset.slug)}`,
@@ -81,7 +81,7 @@ export default async function PresetPage({ params }: PresetPageProps) {
     image: preset.thumbnailKey ? new URL(thumbnailUrl(preset.thumbnailKey), baseUrl).toString() : undefined,
     isPartOf: {
       "@type": "WebSite",
-      name: "StraftatPresets",
+      name: "STRAFTATpresets",
       url: baseUrl.toString(),
     },
   };

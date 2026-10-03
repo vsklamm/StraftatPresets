@@ -17,7 +17,7 @@ function slug(value) {
 }
 
 async function getJson(url) {
-  const response = await fetch(url, { headers: { "User-Agent": "StraftatPresets catalog updater (https://github.com/vsklamm)" } });
+  const response = await fetch(url, { headers: { "User-Agent": "STRAFTATpresets catalog updater (https://github.com/vsklamm)" } });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${url}`);
   return response.json();
 }

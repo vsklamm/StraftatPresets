@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# StraftatPresets
+# STRAFTATpresets
 
 For implementation, debugging, review, or maintenance, read `.agents/skills/develop-straftat-presets/SKILL.md`. It defines the project workflow, architecture seams, state invariants, local/remote boundary, and completion checks.
 For upgrading dependencies, Wrangler, runtime/build tooling, or auditing CVEs, read `.agents/skills/upgrade-dependencies-and-toolchain/SKILL.md`.

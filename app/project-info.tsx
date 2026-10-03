@@ -51,7 +51,7 @@ export function ProjectInfo() {
         <span>???</span>
       </button>
       <div id="project-info-panel" className="project-info-panel" aria-hidden={!isOpen}>
-        <nav aria-label="StraftatPresets source and license">
+        <nav aria-label="STRAFTATpresets source and license">
           <a href={repositoryUrl} target="_blank" rel="noreferrer" tabIndex={isOpen ? 0 : -1}>
             <GitHubIcon />
             <span>Source code</span>

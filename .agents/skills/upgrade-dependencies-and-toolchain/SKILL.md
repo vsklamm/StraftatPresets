@@ -1,7 +1,7 @@
 ---
 name: upgrade-dependencies-and-toolchain
 description: >-
-  Perform a complete, one-shot upgrade of StraftatPresets dependencies and toolchain
+  Perform a complete, one-shot upgrade of STRAFTATpresets dependencies and toolchain
   (Node, npm, Wrangler, workerd, OpenNext Cloudflare, Next.js, React, Drizzle, Zod,
   Sharp, ESLint, TypeScript, and transitive packages). Use when asked to upgrade,
   update dependencies or tooling, audit CVEs/vulnerabilities, or adopt new library

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Home from "@/app/page";
 
-const title = "How to import presets into STRAFTAT | StraftatPresets";
+const title = "How to import presets into STRAFTAT | STRAFTATpresets";
 const description =
   "Import map playlists and weapon swaps (Swapper), and set up weapon chances (Randomizer) in STRAFTAT. Step-by-step instructions with screenshots.";
 const previewImage = {
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/how-to-import" },
   openGraph: {
     type: "website",
-    siteName: "StraftatPresets",
+    siteName: "STRAFTATpresets",
     title,
     description,
     url: "/how-to-import",

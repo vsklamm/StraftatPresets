@@ -1,4 +1,4 @@
-# StraftatPresets
+# STRAFTATpresets
 
 Collection of community made Map Playlists, Randomizer and Swapper settings for [STRAFTAT](https://store.steampowered.com/app/2386720/STRAFTAT/) - The Best Game You've Never Heard Of.
 

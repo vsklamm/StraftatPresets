@@ -7,11 +7,14 @@ import "./weapon-animations.css";
 const geist = Geist({ subsets: ["latin"], display: "swap", fallback: ["Arimo Name Symbols", "Noto Name Symbols", "sans-serif"] });
 const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost", style: ["normal", "italic"] });
 
+const previewTitle = "STRAFTATpresets - Community presets for STRAFTAT";
+const previewDescription = "A collection of map playlists, Swapper settings and Randomizer presets made by STRAFTAT players.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
-  title: "StraftatPresets",
-  description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
-  applicationName: "StraftatPresets",
+  title: "STRAFTATpresets",
+  description: previewDescription,
+  applicationName: "STRAFTATpresets",
   keywords: [
     "STRAFTAT",
     "STRAFTAT presets",
@@ -28,9 +31,9 @@ export const metadata: Metadata = {
     "STRAFTAT community",
     "STRAFTAT base64",
   ],
-  authors: [{ name: "StraftatPresets Community" }],
-  creator: "StraftatPresets",
-  publisher: "StraftatPresets",
+  authors: [{ name: "STRAFTATpresets Community" }],
+  creator: "STRAFTATpresets",
+  publisher: "STRAFTATpresets",
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -44,22 +47,22 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://straftatpresets.com",
-    siteName: "StraftatPresets",
-    title: "StraftatPresets — STRAFTAT Randomizer Settings, Map Playlists & Swapper Settings",
-    description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT. One-click copy codes for in-game duel match setups.",
+    siteName: "STRAFTATpresets",
+    title: previewTitle,
+    description: previewDescription,
     images: [
       {
         url: "/android-chrome-512x512.png",
         width: 512,
         height: 512,
-        alt: "StraftatPresets",
+        alt: "STRAFTATpresets",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "StraftatPresets — STRAFTAT Randomizer Settings, Map Playlists & Swapper Settings",
-    description: "Browse, create, and share custom Randomizer Settings, 369-map playlists, and Swapper Settings for STRAFTAT.",
+    title: previewTitle,
+    description: previewDescription,
     images: ["/android-chrome-512x512.png"],
   },
   robots: {
@@ -85,7 +88,7 @@ const jsonLd = {
     {
       "@type": "WebApplication",
       "@id": "https://straftatpresets.com/#app",
-      "name": "StraftatPresets",
+      "name": "STRAFTATpresets",
       "url": "https://straftatpresets.com",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Windows, Linux",
@@ -106,11 +109,11 @@ const jsonLd = {
       "@type": "WebSite",
       "@id": "https://straftatpresets.com/#website",
       "url": "https://straftatpresets.com",
-      "name": "StraftatPresets",
+      "name": "STRAFTATpresets",
       "description": "Browse and share custom Randomizer Settings, Map Playlists, and Swapper Settings for STRAFTAT.",
       "publisher": {
         "@type": "Organization",
-        "name": "StraftatPresets",
+        "name": "STRAFTATpresets",
       },
     },
   ],

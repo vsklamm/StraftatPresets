@@ -1,9 +1,9 @@
 ---
 name: develop-straftat-presets
-description: Implement, debug, review, or maintain the StraftatPresets web app across its Next.js UI, local-first drafts, D1 and R2 persistence, catalogs, moderation, and Cloudflare Worker. Use for project code changes; remote mutations still require explicit authorization.
+description: Implement, debug, review, or maintain the STRAFTATpresets web app across its Next.js UI, local-first drafts, D1 and R2 persistence, catalogs, moderation, and Cloudflare Worker. Use for project code changes; remote mutations still require explicit authorization.
 ---
 
-# Develop StraftatPresets
+# Develop STRAFTATpresets
 
 Make the smallest complete change that preserves product behavior, data safety, and the local/remote development boundary.
 
