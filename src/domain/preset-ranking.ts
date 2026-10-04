@@ -16,7 +16,7 @@ import {
 import { MAX_PRESET_TAGS } from "./tag-policy";
 import { stripColorAndFormattingTags } from "./straftat-markup";
 
-export const PRESET_RANKING_VERSION = 4;
+export const PRESET_RANKING_VERSION = 5;
 export const RANKING_DAY_MS = 86_400_000;
 
 export const PRESET_RANKING_LIMITS = {
@@ -59,6 +59,7 @@ export type PresetContentSignals = {
   mapPlaylistDescriptionLength: number;
   tagCount: number;
   weaponConfigurationCount: number;
+  isSimple: boolean;
 };
 
 export type InteractionSignals = {
@@ -145,8 +146,9 @@ export function calculateQualityScore(content: PresetContentSignals) {
 
   const versionCount = Math.min(10, boundedCount(content.versionCount));
   const versionScore = versionCount >= 2 ? 1.5 + 0.05 * Math.log2(versionCount - 1) : 0;
+  const simpleScore = publication.publishable && content.isSimple ? 1 : 0;
 
-  const totalQuality = baseScore + thumbnailScore + tagScore + descScore + playlistScore + weaponScore + versionScore;
+  const totalQuality = baseScore + thumbnailScore + tagScore + descScore + playlistScore + weaponScore + versionScore + simpleScore;
   return roundScore(clamp(totalQuality, 0, PRESET_RANKING_LIMITS.quality));
 }
 

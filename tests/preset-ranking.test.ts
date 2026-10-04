@@ -22,6 +22,7 @@ const minimumPreset: PresetContentSignals = {
   mapPlaylistCount: 1,
   tagCount: 2,
   weaponConfigurationCount: 0,
+  isSimple: false,
 };
 
 const noEngagement: PresetEngagementSignals = {
@@ -57,6 +58,7 @@ test("quality is below 37 points and rewards polish over quantity", () => {
     mapPlaylistDescriptionLength: 40,
     tagCount: 8,
     weaponConfigurationCount: 2,
+    isSimple: false,
   };
   const fullQuality = calculateQualityScore(fullPreset);
   const minQuality = calculateQualityScore(minimumPreset);

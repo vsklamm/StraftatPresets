@@ -1,7 +1,7 @@
 import { parsePresetRevisionContent, type PresetRevisionContent } from "./preset-content";
 import { sortPresetVersionsNewestFirst } from "./preset-version";
 import { stripColorAndFormattingTags } from "./straftat-markup";
-import { calculatePresetRanking, RANKING_DAY_MS, type PresetContentSignals, type PresetEngagementSignals, type RankingBreakdown } from "./preset-ranking";
+import { calculatePresetRanking, PRESET_RANKING_LIMITS, RANKING_DAY_MS, scoreToMilli, type PresetContentSignals, type PresetEngagementSignals, type RankingBreakdown } from "./preset-ranking";
 
 export type RankingPreset = {
   id: string;
@@ -29,6 +29,7 @@ export function rankingContentSignals(content: PresetRevisionContent, canonicalT
   const descriptionLength = Math.max(0, ...playlists.map((playlist) =>
     normalizePlaylistText(playlist.description) === normalizePlaylistText(playlist.name)
       ? 0 : stripColorAndFormattingTags(playlist.description).trim().length));
+  const mapCount = new Set(playlists[0]?.mapNames).size;
   return {
     title: stripColorAndFormattingTags(content.title),
     description: stripColorAndFormattingTags(content.description),
@@ -39,6 +40,8 @@ export function rankingContentSignals(content: PresetRevisionContent, canonicalT
     tagCount: new Set(content.tags.filter((tag) => canonicalTags.has(tag))).size,
     weaponConfigurationCount: latest?.weaponConfigurations.filter((configuration) => configuration.kind === "randomized"
       ? configuration.weapons.length > 0 : configuration.encodedValue.trim().length > 0).length ?? 0,
+    isSimple: content.versions.length === 1 && latest.mapPlaylists.length === 1
+      && playlists.length === 1 && mapCount >= 1 && mapCount <= 4,
   };
 }
 
@@ -75,15 +78,7 @@ export function buildRankingProjection(
       days.set(day, dayPresets);
     }
   }
-  const surges = new Map<string, number>();
-  for (const [day, dayPresets] of days) {
-    const maximum = Math.max(3, ...[...dayPresets.values()].map((actors) => actors.size));
-    const decay = 2 ** (-Math.max(0, now - (day + 1) * RANKING_DAY_MS) / RANKING_DAY_MS);
-    for (const [id, actors] of dayPresets) {
-      surges.set(id, Math.max(surges.get(id) ?? 0, dailySurgePoints(actors.size, maximum) * decay));
-    }
-  }
-  return presets.map((preset) => {
+  const ranked = presets.map((preset) => {
     const effective = (key: keyof PresetEngagementSignals) => {
       let sum = 0;
       for (const actor of metrics.get(preset.id)?.[key].values() ?? []) {
@@ -95,9 +90,27 @@ export function buildRankingProjection(
       rankingContentSignals(parsePresetRevisionContent(JSON.parse(preset.contentJson)), canonicalTags),
       { opens: effective("opens"), linkOpens: effective("linkOpens"), copies: effective("copies") },
       preset.firstPublishedAt, now,
-      { surge: surges.get(preset.id) ?? 0, lucky: (winners.first === preset.id ? 16 : 0) + (winners.second === preset.id ? 8 : 0) },
     );
     return { id: preset.id, slug: preset.slug, authorId: preset.authorId, firstPublishedAt: preset.firstPublishedAt, ...ranking, score: ranking.total };
+  });
+  const leaders = new Set([...ranked].sort(compareRankedPresets).slice(0, 4).map((preset) => preset.id));
+  const surges = new Map<string, number>();
+  for (const [day, dayPresets] of days) {
+    const maximum = Math.max(3, ...[...dayPresets.values()].map((actors) => actors.size));
+    const ageDays = Math.max(0, now - (day + 1) * RANKING_DAY_MS) / RANKING_DAY_MS;
+    for (const [id, actors] of dayPresets) {
+      const leader = leaders.has(id);
+      const decay = 2 ** (-ageDays / (leader ? 1 : 1.5));
+      const points = dailySurgePoints(actors.size, maximum) * decay * (leader ? 0.5 : 1.1);
+      surges.set(id, Math.max(surges.get(id) ?? 0, points));
+    }
+  }
+  return ranked.map((preset) => {
+    const raw = surges.get(preset.id) ?? 0;
+    const surge = raw < 0.05 ? 0 : Math.round(Math.min(PRESET_RANKING_LIMITS.surge, raw) * 1_000) / 1_000;
+    const lucky = (winners.first === preset.id ? 16 : 0) + (winners.second === preset.id ? 8 : 0);
+    const total = scoreToMilli(preset.total + surge + lucky) / 1_000;
+    return { ...preset, surge, lucky, total, score: total };
   }).sort(compareRankedPresets);
 }
 

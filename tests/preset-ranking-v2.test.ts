@@ -59,6 +59,50 @@ function fixture(upgrade = false) {
   return { db, query, statements, add, addEvent, repository: new D1Repository(createDatabase(binding)), store: new PresetRankingStore(query, hash) };
 }
 
+test("a publishable single-version preset with one small playlist earns one extra quality point", () => {
+  const quality = (mapNames: string[]) => calculateQualityScore(rankingContentSignals({
+    ...content, description: "x".repeat(250), versions: [{
+      ...content.versions[0], mapPlaylists: [{ ...content.versions[0].mapPlaylists[0], mapNames }],
+    }],
+  }, tags));
+  assert.equal(quality(["A"]), 20);
+  assert.equal(quality(["A", "B", "C", "D"]), 20);
+  assert.equal(quality(["A", "B", "C", "D", "E"]), 19);
+});
+
+test("simple eligibility uses actual versions and playlists, distinct maps and existing publication checks", () => {
+  const version = content.versions[0];
+  const playlist = version.mapPlaylists[0];
+  const signals = (candidate: PresetRevisionContent) => rankingContentSignals(candidate, tags);
+  assert.equal(signals(content).isSimple, true);
+  assert.equal(signals({ ...content, versioningEnabled: true }).isSimple, true);
+  assert.equal(signals({ ...content, versions: [{ ...version, label: "v9.4" }] }).isSimple, true);
+  assert.equal(signals({ ...content, versions: [{ ...version, mapPlaylists: [{ ...playlist, mapNames: ["A", "B", "C", "D", "A"] }] }] }).isSimple, true);
+  for (const versioningEnabled of [false, true]) {
+    assert.equal(signals({ ...content, versioningEnabled, versions: [version, { ...version, label: "v2.0" }] }).isSimple, false);
+  }
+  assert.equal(signals({ ...content, versions: [] }).isSimple, false);
+  assert.equal(signals({ ...content, versions: [{ ...version, mapPlaylists: [playlist, playlist] }] }).isSimple, false);
+  for (const invalidPlaylist of [{ ...playlist, encodedValue: " " }, { ...playlist, mapNames: [] }]) {
+    assert.equal(signals({ ...content, versions: [{ ...version, mapPlaylists: [invalidPlaylist] }] }).isSimple, false);
+  }
+  for (const weaponConfigurations of [
+    [],
+    [{ kind: "randomized" as const, name: "Weapons", weapons: [{ name: "Katana", weight: 100 }] }],
+    [{ kind: "swapper" as const, name: "Weapons", encodedValue: "code" }],
+  ]) {
+    assert.equal(signals({ ...content, versions: [{ ...version, weaponConfigurations }] }).isSimple, true);
+  }
+  const invalid = signals({ ...content, description: "<b>short</b>" });
+  assert.equal(calculateQualityScore(invalid), calculateQualityScore({ ...invalid, isSimple: false }));
+  const maximum = signals({
+    ...content, description: "x".repeat(250), tags: [...tags], thumbnailKey: "image",
+    versions: [{ ...version, mapPlaylists: [{ ...playlist, description: "x".repeat(40) }],
+      weaponConfigurations: [{ kind: "swapper", name: "Weapons", encodedValue: "code" }] }],
+  });
+  assert.equal(calculateQualityScore(maximum), 33.938);
+});
+
 test("tag gains diminish after four and extra weapon configurations give no credit", () => {
   const base = rankingContentSignals({ ...content, description: "x".repeat(250) }, tags);
   const points = Array.from({ length: 7 }, (_, i) => calculateQualityScore({ ...base, tagCount: i + 2 }));
@@ -157,6 +201,70 @@ test("surge handles sparse days, relative leaders, midnight continuity and a one
   assert.equal(projection([...events, ...events.map((e) => ({ ...e, createdAt: e.createdAt - DAY }))]).surge, projection(events).surge);
 });
 
+test("surge halves the frozen top four and boosts others independently of luck and input order", () => {
+  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
+  const events = presets.flatMap(({ id }) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
+  const winners = { first: "f", second: "f" };
+  const ranked = buildRankingProjection(presets, events, tags, winners, now);
+  assert.equal(ranked[0].id, "f");
+  for (const id of ["a", "b", "c", "d"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 1.852);
+  for (const id of ["e", "f"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 4.074);
+  assert.deepEqual(buildRankingProjection([...presets].reverse(), [...events].reverse(), tags, winners, now), ranked);
+  const withoutLuck = buildRankingProjection(presets, events, tags, { first: null, second: null }, now);
+  assert.equal(withoutLuck[0].id, "e");
+  assert.deepEqual(withoutLuck.map((p) => [p.id, p.surge]).sort(), ranked.map((p) => [p.id, p.surge]).sort());
+});
+
+test("leader selection includes simple credit, engagement and freshness and breaks base-score ties by quality", () => {
+  const ids = ["a", "b", "c", "d", "e"];
+  const presets = ids.map((id) => preset(id));
+  const events = ids.flatMap((id) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
+  const run = (rows: RankingPreset[], activity = events) => buildRankingProjection(rows, activity, tags, { first: null, second: null }, now);
+  const simple = run(presets.map((p) => ({ ...p, contentJson: JSON.stringify({
+    ...content, versions: [{ ...content.versions[0], mapPlaylists: [{
+      ...content.versions[0].mapPlaylists[0], mapNames: p.id === "e" ? ["A"] : ["A", "B", "C", "D", "E"],
+    }] }],
+  }) })));
+  assert.equal(simple.find((p) => p.id === "e")!.surge, 1.852);
+  assert.equal(simple.find((p) => p.id === "d")!.surge, 4.074);
+  const engaged = run(presets, [...events, { ...event("visitor", "view"), presetId: "e" }]);
+  assert.equal(engaged.find((p) => p.id === "e")!.surge, 1.852);
+  const fresh = run(presets.map((p) => ({ ...p, firstPublishedAt: p.id === "e" ? now : now - DAY })));
+  assert.equal(fresh.find((p) => p.id === "e")!.surge, 1.852);
+  const tied = run(presets.map((p) => ({
+    ...p, firstPublishedAt: now - 3 * DAY * Math.log2(12 / (p.id === "e" ? 9 : 10)),
+    contentJson: JSON.stringify({ ...content, tags: p.id === "e" ? ["a", "b", "c"] : ["a", "b"] }),
+  })));
+  assert.equal(tied.find((p) => p.id === "e")!.surge, 1.852);
+  assert.equal(tied.find((p) => p.id === "d")!.surge, 4.074);
+});
+
+test("surge retains midnight continuity, a 36-hour nonleader half-life and cuts tiny tails before rounding", () => {
+  const presets = ["a", "b", "c", "d", "e"].map((id) => preset(id));
+  const events = presets.flatMap(({ id }) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
+  const midnight = Math.floor(now / DAY) * DAY + DAY;
+  const run = (time: number) => buildRankingProjection(presets, events, tags, { first: null, second: null }, time);
+  const surge = (time: number, id: string) => run(time).find((p) => p.id === id)!.surge;
+  assert.equal(surge(midnight - 1, "e"), 4.074);
+  assert.equal(surge(midnight, "e"), 4.074);
+  assert.equal(surge(midnight + DAY, "a"), 0.926);
+  assert.equal(surge(midnight + DAY, "e"), 2.566);
+  assert.equal(surge(midnight + 1.5 * DAY, "e"), 2.037);
+  assert.equal(surge(midnight + 5.21 * DAY, "a"), 0.05);
+  assert.equal(surge(midnight + 5.22 * DAY, "a"), 0);
+  assert.equal(surge(midnight + 30 * DAY, "e"), 0);
+});
+
+test("surge stays capped at sixteen and a single copier earns zero outside the leaders", () => {
+  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
+  const events = presets.flatMap(({ id }) => Array.from({ length: id === "f" ? 1 : 100 }, (_, i) => ({ ...event(String(i)), presetId: id })));
+  const ranked = buildRankingProjection(presets, events, tags, { first: null, second: null }, now);
+  assert.equal(ranked.find((p) => p.id === "a")!.surge, 8);
+  assert.equal(ranked.find((p) => p.id === "e")!.surge, 16);
+  assert.equal(ranked.find((p) => p.id === "f")!.surge, 0);
+  for (const p of ranked) assert.equal(p.total, Math.round((p.quality + p.engagement + p.freshness + p.surge + p.lucky) * 1000) / 1000);
+});
+
 test("scores may exceed 100, never 133, and future timestamps do not amplify freshness", () => {
   const full = { ...preset(), firstPublishedAt: now, contentJson: JSON.stringify({ ...content, thumbnailKey: "image", description: "x".repeat(300), tags: [...tags] }) };
   const events = Array.from({ length: 100 }, (_, i) => [event(String(i)), event(String(i), "link_open")]).flat();
@@ -225,7 +333,7 @@ test("store excludes invalid and owner events, caches globally, invalidates imme
     assert.equal(f.statements.length, reads + 1);
     f.db.exec("UPDATE preset_events SET is_invalidated = 1 WHERE actor_hash = 'reader'");
     assert.equal((await f.store.get(now + 2000)).items[0].engagement, 0);
-    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 3");
+    f.db.exec("UPDATE preset_ranking_cache SET formula_version = 4");
     assert.equal((await f.store.get(now + 3000)).version, PRESET_RANKING_VERSION);
     f.db.exec("UPDATE presets SET status = 'hidden' WHERE id = 'p'");
     assert.equal((await f.store.get(now + 4000)).items.length, 0);
@@ -249,7 +357,7 @@ test("lottery persists across concurrent refreshes and hiding a winner does not 
   } finally { f.db.close(); }
 });
 
-test("formula revision 4 replaces a revision 3 cache without changing content, counters or lucky winners", async () => {
+test("formula revision 5 replaces a revision 4 cache without changing content, counters or lucky winners", async () => {
   const f = fixture();
   try {
     const published: PresetRevisionContent = {
@@ -264,11 +372,11 @@ test("formula revision 4 replaces a revision 3 cache without changing content, c
     f.db.exec("INSERT INTO preset_statistics (preset_id, views_total, copies_total) VALUES ('p', 20, 10)");
     const first = await f.store.get(now);
     const winners = f.db.prepare("SELECT * FROM preset_ranking_lottery").all();
-    const stale = { ...first, version: 3, items: first.items.map((p) => ({ ...p, quality: 999, score: 999 })) };
-    f.db.prepare("UPDATE preset_ranking_cache SET formula_version = 3, payload = ?").run(JSON.stringify(stale));
+    const stale = { ...first, version: 4, items: first.items.map((p) => ({ ...p, quality: 999, score: 999 })) };
+    f.db.prepare("UPDATE preset_ranking_cache SET formula_version = 4, payload = ?").run(JSON.stringify(stale));
     const refreshed = await f.store.get(now + 1000);
-    assert.equal(PRESET_RANKING_VERSION, 4);
-    assert.equal(refreshed.version, 4);
+    assert.equal(PRESET_RANKING_VERSION, 5);
+    assert.equal(refreshed.version, 5);
     assert.equal(refreshed.items[0].quality, 35.3);
     assert.equal(refreshed.items[0].lucky, first.items[0].lucky);
     assert.deepEqual(f.db.prepare("SELECT * FROM preset_ranking_lottery").all(), winners);
@@ -319,6 +427,27 @@ test("dashboard and order endpoint share projection before pagination and ignore
     assert.equal(dashboard.items.find((p) => p.id === "a")?.content.title, content.title);
     const page = await f.repository.listDashboardPresets("popular", undefined, 1, 1);
     assert.equal(page.items[0].id, order.items[1].id);
+  } finally { f.db.close(); }
+});
+
+test("simple credit follows the published snapshot, never a pending or draft revision", async () => {
+  const f = fixture();
+  try {
+    const expanded: PresetRevisionContent = {
+      ...content, versions: [{ ...content.versions[0], mapPlaylists: [{
+        ...content.versions[0].mapPlaylists[0], mapNames: ["A", "B", "C", "D", "E"],
+      }] }],
+    };
+    f.add("simple", now - DAY, content);
+    f.add("expanded", now - DAY, expanded);
+    for (const [id, revision, status] of [["simple", expanded, "draft"], ["expanded", content, "pending"]] as const) {
+      f.db.prepare("INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES (?, ?, 2, ?, ?, 'hash')")
+        .run(`${id}-${status}`, id, status, JSON.stringify(revision));
+    }
+    const rows = (await f.store.get(now)).items;
+    const simple = rows.find((p) => p.id === "simple")!;
+    const expandedRow = rows.find((p) => p.id === "expanded")!;
+    assert.equal(simple.quality, Math.round((expandedRow.quality + 1) * 1000) / 1000);
   } finally { f.db.close(); }
 });
 
