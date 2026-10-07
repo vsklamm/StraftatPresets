@@ -27,6 +27,7 @@ Before editing `package.json`, inspect candidate `peerDependencies`, `dependenci
 
 - **Next.js, OpenNext Cloudflare, and ESLint Config Next**:
   - Check `npm view @opennextjs/cloudflare@latest peerDependencies` first. Upgrade `next` and `eslint-config-next` to the same exact version supported by `@opennextjs/cloudflare`.
+  - Peer ranges alone do not prove runtime compatibility. Check released adapter support and known upstream regressions before lifting compatibility pins. An unmerged fix is not available in the installed release.
   - Keep `--webpack` on `next dev` and `next build` unless `@opennextjs/cloudflare` explicitly supports Turbopack production builds for all configured bindings.
 - **React and DOM types**:
   - Upgrade `react`, `react-dom`, `@types/react`, and `@types/react-dom` in lockstep, verifying compatibility with the target `next` peer range.
@@ -75,6 +76,11 @@ Before editing `package.json`, inspect candidate `peerDependencies`, `dependenci
 2. If `wrangler`, `@cloudflare/workers-types`, or `wrangler.jsonc` changed, run `npm run cf:types` to synchronize `cloudflare-env.d.ts`.
 3. Run the full verification suite:
    - `npm audit` (must report `0 vulnerabilities`).
-   - `npm run check` (runs `check-game-catalog.ts`, `check-tag-catalog.ts`, `npm run lint` with 0 errors and 0 warnings, `npm run typecheck`, `npm test`, and `npm run worker:build` including the compressed Worker bundle budget check in `scripts/check-worker-bundle.ts`).
+   - `npm run check` (catalogs, lint with 0 errors and 0 warnings, types, tests, Worker build, compressed bundle budget and `npm run worker:smoke`). The smoke test runs the built Worker in workerd with isolated local bindings and checks database health, homepage version, sign-in error UI and Discord provider configuration.
    - `git diff --check`.
-4. Summarize the completed upgrade concisely: packages upgraded, major versions intentionally held back (with exact peer/compatibility reasons), CVEs resolved, and any code/config improvements applied.
+4. A successful build or dev server is insufficient. Require the freshly built Worker smoke test to pass, and exercise affected flows locally when the upgrade touches behavior outside its coverage. Keep production bindings and user data out of local tests. If runtime checks fail, fix or hold back the upgrade, never bypass the gate.
+5. Summarize the completed upgrade concisely: packages upgraded, versions intentionally held back (with compatibility reasons), CVEs resolved, checks passed, and flows not verified.
+
+## 6. Verify deployment when separately authorized
+
+Record the healthy deployed Worker version before deployment. Use `npm run deploy`, which repeats the runtime gate before remote changes. Immediately check live health, homepage version and auth routes. If the release breaks production, restore the known-good Worker and verify recovery. Worker rollback does not undo database or storage changes.
