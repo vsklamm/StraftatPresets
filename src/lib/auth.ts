@@ -8,7 +8,9 @@ export const authOptions: NextAuthOptions = {
   secret: env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: AUTH_SESSION_MAX_AGE_SECONDS },
   jwt: { maxAge: AUTH_SESSION_MAX_AGE_SECONDS },
+  pages: { signIn: "/auth/signin", error: "/auth/signin" },
   providers: [DiscordProvider({
+    issuer: "https://discord.com",
     clientId: env.DISCORD_CLIENT_ID ?? "discord-not-configured",
     clientSecret: env.DISCORD_CLIENT_SECRET ?? "discord-not-configured",
     authorization: { params: { scope: "identify" } },
