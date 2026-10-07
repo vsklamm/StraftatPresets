@@ -44,6 +44,7 @@ Local setup creates `NEXTAUTH_SECRET` if missing. Keep environment files untrack
 | --- | --- |
 | `npm run check` | Validate catalogs, lint, types, tests and Worker build |
 | `npm run preview` | Local Worker preview |
+| `npm run worker:smoke` | Check the built Worker with isolated local bindings |
 | `npm run db:schema` | Generate a migration after editing `db/schema.ts` |
 | `npm run db:migrate` | Apply local migrations |
 | `npm run db:backup` | Export D1 to ignored backups |
@@ -70,7 +71,9 @@ npm run check
 npm run deploy
 ```
 
-Deployment builds the Worker, applies migrations and recalculates published-preset ranking before uploading. Do not bypass it with `wrangler deploy`. Remote commands modify production data unless explicitly read-only.
+Deployment builds and smoke-tests the Worker, applies migrations and recalculates published-preset ranking before uploading. Do not bypass it with `wrangler deploy`. Remote commands modify production data unless explicitly read-only.
+
+Next.js stays pinned to 16.3.8 until OpenNext releases its [Next.js 16.4 manifest compatibility fix](https://github.com/opennextjs/opennextjs-cloudflare/pull/1356).
 
 Enable Cloudflare [Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/) for your domain. Check redirects, HSTS and CSP after deployment. The CSP allows inline scripts and styles, so it is not a strict inline-XSS defense.
 
