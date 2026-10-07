@@ -1466,7 +1466,11 @@ export default function Home() {
           <Link className="wordmark" href="/" aria-label="STRAFTATpresets">
             <span className="wordmark-game">STR<span className="wordmark-a">A</span>FT<span className="wordmark-a">A</span>T</span><span className="wordmark-presets">presets</span>
           </Link>
-          <nav className="tool-tabs" aria-label="STRAFTATpresets sections">
+          <nav className="tool-tabs" aria-label="STRAFTATpresets sections" onFocus={(event) => {
+            if (event.currentTarget.scrollWidth > event.currentTarget.clientWidth) {
+              event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
+            }
+          }}>
             <div className="community-presets-tab-wrap">
               <button
                 className="active"
@@ -1496,6 +1500,12 @@ export default function Home() {
             </a>
             <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
               <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+            </a>
+            <a className="tool-tab-link community-discord-link" href="https://discord.gg/qeMEaMEkDa" target="_blank" rel="noreferrer" aria-label="Official STRAFTAT Discord" title="Official STRAFTAT Discord (opens in a new tab)">
+              <span>Official</span><span className="tab-title-row">Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+            </a>
+            <a className="tool-tab-link community-discord-link" href="https://discord.gg/KN53t2R2BJ" target="_blank" rel="noreferrer" aria-label="Competitive STRAFTAT Discord" title="Competitive STRAFTAT Discord (opens in a new tab)">
+              <span>Competitive</span><span className="tab-title-row">Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
             </a>
           </nav>
           <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
@@ -1753,7 +1763,7 @@ export default function Home() {
               </div>
               {selected.canEdit ? <button className="remove-preset-button icon-only" type="button" title="Remove preset" aria-label="Remove preset" disabled={isSubmitting} onClick={() => void deleteSelectedPreset()}><RemoveIcon /></button> : null}
             </div></div>
-            {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Saved on this device - sync failed" : "Changes autosave"}</p> : null}
+            {isEditing ? <p className={`autosave-status ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Saved on this device - sync failed" : "Changes autosave locally. Submit when ready."}</p> : null}
             {!isEditing && selected.versioningEnabled && selected.versions.length > 1 && <div className="version-picker"><span>Version</span>{sortPresetVersionsNewestFirst(selected.versions).map((version) => <button className={version.label === selectedVersion.label ? "active" : ""} key={version.label} type="button" onClick={() => { clearAttentionTimers(); setVersionLabel(version.label); setActiveGuide(null); setCopied(null); setWeaponSort("name"); setSortDirection("asc"); setWeaponCopyBurst(0); }}>{formatPresetVersionLabel(version.label)}</button>)}</div>}
             {isEditing && draftContent ? (
               <div className="editable-field">
