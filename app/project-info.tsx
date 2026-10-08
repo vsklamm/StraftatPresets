@@ -25,7 +25,7 @@ export function ProjectInfo() {
 
   return (
     <aside
-      className={`project-info-widget${isOpen ? " is-open" : ""}`}
+      className={`corner-control project-info-widget${isOpen ? " is-open" : ""}`}
       aria-label="Project information"
       onMouseLeave={() => setIsOpen(false)}
       onBlur={(event) => {

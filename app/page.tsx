@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { AuthControl } from "@/app/auth-control";
+import { SeasonalEffects } from "@/src/seasonal/seasonal-effects";
 import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
 import { WeaponImage } from "@/app/weapon-image";
@@ -1454,6 +1455,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <SeasonalEffects ready={isViewLoaded && !(searchActive ? searchLoading : dashboardLoading)} />
       <section className="sr-only" aria-label="About STRAFTATpresets">
         <h1>STRAFTATpresets - Community Presets, Weapon Randomizer & Map Playlists for STRAFTAT</h1>
         <p>

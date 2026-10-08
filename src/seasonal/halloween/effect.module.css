@@ -1,0 +1,51 @@
+/* Clip the shake without creating a scroll container for the sticky header. */
+:global(.app-shell):has(> .backdrop) { overflow-x: clip; }
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  opacity: .92;
+  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 30px), transparent);
+}
+.backdrop canvas { display: block; width: 100%; height: 100%; opacity: 0; }
+.backdrop[data-rendering] canvas { opacity: 1; }
+.backdrop[data-rendering] .still { display: none; }
+.backdrop[data-cinematic] {
+  opacity: 1;
+  mask-image: none;
+}
+.backdrop canvas { position: relative; }
+.still {
+  position: absolute;
+  inset: 0;
+  background: url("/halloween/gland-pumpkin.webp") 96% 78% / 140px auto no-repeat;
+  opacity: .65;
+}
+.toggle {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--ui-text-bright);
+  cursor: pointer;
+}
+.toggle:hover { color: #fff; }
+.toggle:focus-visible { outline: 1.5px solid var(--control-frame-strong); outline-offset: -5px; }
+.toggle > svg { width: 20px; height: 20px; }
+/* Cancel visible movement immediately, including before the modal observer runs. */
+:global(html.modal-open) :global(.app-shell):has(> .backdrop) > :global(:is(.site-header, .workspace)) { translate: none !important; }
+@media (max-width: 700px) {
+  .backdrop { opacity: .85; }
+  .toggle { left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :global(.app-shell):has(> .backdrop) > :global(:is(.site-header, .workspace)) { translate: none !important; }
+  .backdrop canvas, .toggle { display: none; }
+  .backdrop[data-rendering] .still { display: block; }
+}

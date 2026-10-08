@@ -2118,12 +2118,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   border-width: 0;
 }
 
-/* Project info */
-.project-info-widget {
-  position: fixed;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 24;
+/* Shared frame for the project information and seasonal playback controls. */
+.corner-control {
   width: 49px;
   height: 46px;
   opacity: .72;
@@ -2135,15 +2131,8 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   border-radius: 25px 18px 26px 20px / 20px 26px 18px 24px;
   background: var(--bg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, .34);
-  transition:
-    width .22s cubic-bezier(.55, 0, .8, .45),
-    height .2s cubic-bezier(.55, 0, .8, .45),
-    border-radius .2s ease,
-    border-color .16s ease,
-    box-shadow .2s ease,
-    opacity .16s ease;
 }
-.project-info-widget::before {
+.corner-control::before {
   content: "";
   position: absolute;
   inset: 1px;
@@ -2151,6 +2140,21 @@ button.icon-only { padding: 6px; width: 34px; justify-content: center; }
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M5,2C24,.5,49,2.6,73,1C89,.3,97,2.4,98,6C99,29,97,54,99,78C99.5,91,97,98,93,98C70,100,47,97.5,23,99C10,99.7,2.5,97,1.5,93C.3,71,2.3,45,.8,22C.2,10,1.2,3.6,5,2Z' fill='none' stroke='%239a7a50' stroke-opacity='.43' stroke-width='1.05' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   pointer-events: none;
   transform: rotate(-.16deg) skewX(-.2deg);
+}
+
+/* Project info */
+.project-info-widget {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 24;
+  transition:
+    width .22s cubic-bezier(.55, 0, .8, .45),
+    height .2s cubic-bezier(.55, 0, .8, .45),
+    border-radius .2s ease,
+    border-color .16s ease,
+    box-shadow .2s ease,
+    opacity .16s ease;
 }
 .project-info-widget.is-open {
   width: min(248px, calc(100vw - 28px));
