@@ -108,3 +108,18 @@ test("detectOptimalThumbnailFocalPoint preserves a strong centered subject despi
   });
   assert.deepEqual(detectOptimalThumbnailFocalPoint(image), { x: 50, y: 50 });
 });
+
+test("detectOptimalThumbnailFocalPoint stays centered when side detail is only moderately stronger", () => {
+  for (const side of ["left", "right"] as const) {
+    const image = createMockImageData(160, 90, (x, y) => {
+      if (y < 15 || y > 75) return 100;
+      const light = (Math.floor(x / 2) + Math.floor(y / 2)) % 2 === 0;
+      if (x >= 60 && x <= 100) return light ? 200 : 60;
+      if (side === "left" ? x >= 15 && x <= 45 : x >= 115 && x <= 145) {
+        return light ? 220 : 40;
+      }
+      return 100;
+    });
+    assert.deepEqual(detectOptimalThumbnailFocalPoint(image), { x: 50, y: 50 });
+  }
+});

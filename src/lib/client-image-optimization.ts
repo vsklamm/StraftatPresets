@@ -107,8 +107,8 @@ export function detectOptimalThumbnailFocalPoint(
   const significanceThreshold = avgEnergyPerColumn * 1.30;
   const isLeftSignificant = leftPeakVal >= significanceThreshold && leftEnergy > centerEnergy * 0.85;
   const isRightSignificant = rightPeakVal >= significanceThreshold && rightEnergy > centerEnergy * 0.85;
-  const leftCandidate = isLeftSignificant && leftPeakVal > centerPeakVal * 1.15;
-  const rightCandidate = isRightSignificant && rightPeakVal > centerPeakVal * 1.15;
+  const leftCandidate = isLeftSignificant && leftPeakVal > centerPeakVal * 1.6;
+  const rightCandidate = isRightSignificant && rightPeakVal > centerPeakVal * 1.6;
 
   let chosenFocalXPercent = 50;
 
