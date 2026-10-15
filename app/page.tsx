@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLinkIcon, CloseIcon, TagIcon, WeaponFilterIcon, EditIcon, ViewIcon, RemoveIcon, LinkIcon, CopyCountIcon, PlusIcon, CheckIcon, PictureIcon as ReplacePicIcon, HelpQuestionIcon, ArrowUpIcon, ArrowDownIcon, SortIcon } from "@/app/icons";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -1198,7 +1199,7 @@ export default function Home() {
 
   const changeWeaponSort = (key: WeaponSortKey) => { if (weaponSort === key) setSortDirection((current) => current === "asc" ? "desc" : "asc"); else { setWeaponSort(key); setSortDirection("asc"); } };
   const sortState = (key: WeaponSortKey): "ascending" | "descending" | "none" => key === weaponSort ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
-  const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
+  const sortArrow = (key: WeaponSortKey) => key === weaponSort ? (sortDirection === "asc" ? <ArrowUpIcon /> : <ArrowDownIcon />) : <SortIcon />;
   const viewCount = (preset: Preset) => viewCounts[preset.id] ?? preset.views;
   const copyCount = (preset: Preset) => copyCounts[preset.id] ?? preset.copies;
   const effectivePresetLimit = Math.max(
@@ -1487,16 +1488,16 @@ export default function Home() {
               </Link>
             </div>
             <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
-              <span className="tool-tab-label">Preset<span className="tool-tab-break"> </span>Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Preset<span className="tool-tab-break"> </span>Builder<ExternalLinkIcon className="external-link-icon" /></span>
             </a>
             <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
-              <span className="tool-tab-label"><span className="fx-link-text">Text<span className="tool-tab-break"> </span>Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label"><span className="fx-link-text">Text<span className="tool-tab-break"> </span>Colors</span><ExternalLinkIcon className="external-link-icon" /></span>
             </a>
             <a className="tool-tab-link community-discord-link" href="https://discord.gg/qeMEaMEkDa" target="_blank" rel="noreferrer" aria-label="Official STRAFTAT Discord" title="Official STRAFTAT Discord (opens in a new tab)">
-              <span className="tool-tab-label">Official<span className="tool-tab-break"> </span>Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Official<span className="tool-tab-break"> </span>Discord<ExternalLinkIcon className="external-link-icon" /></span>
             </a>
             <a className="tool-tab-link community-discord-link" href="https://discord.gg/KN53t2R2BJ" target="_blank" rel="noreferrer" aria-label="Competitive STRAFTAT Discord" title="Competitive STRAFTAT Discord (opens in a new tab)">
-              <span className="tool-tab-label">Competitive<span className="tool-tab-break"> </span>Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Competitive<span className="tool-tab-break"> </span>Discord<ExternalLinkIcon className="external-link-icon" /></span>
             </a>
           </nav>
           <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span>{isLoggedIn ? <span className="credit-separator" aria-hidden="true" /> : null}</p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
@@ -1525,12 +1526,12 @@ export default function Home() {
                   }}
                 />
                 <div className="search-tools-right">
-                  {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button> : null}
+                  {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><CloseIcon width={16} height={16} /></button> : null}
                   <button ref={tagPickerTriggerRef} className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    <TagIcon width={15} height={15} />
                   </button>
                   <button ref={weaponPickerTriggerRef} className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
-                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="15" width="15" xmlns="http://www.w3.org/2000/svg"><path d="M11 5.07089C7.93431 5.5094 5.5094 7.93431 5.07089 11H7V13H5.07089C5.5094 16.0657 7.93431 18.4906 11 18.9291V17H13V18.9291C16.0657 18.4906 18.4906 16.0657 18.9291 13H17V11H18.9291C18.4906 7.93431 16.0657 5.5094 13 5.07089V7H11V5.07089ZM3.05493 11C3.51608 6.82838 6.82838 3.51608 11 3.05493V1H13V3.05493C17.1716 3.51608 20.4839 6.82838 20.9451 11H23V13H20.9451C20.4839 17.1716 17.1716 20.4839 13 20.9451V23H11V20.9451C6.82838 20.4839 3.51608 17.1716 3.05493 13H1V11H3.05493ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" /></svg>
+                    <WeaponFilterIcon width={15} height={15} />
                   </button>
                 </div>
                 {searchTagPickerOpen ? <SearchTagPicker triggerRef={tagPickerTriggerRef} tags={tagCatalogEntries} onSelect={(tag) => {
@@ -1637,7 +1638,7 @@ export default function Home() {
         <div className="dialog-backdrop" role="presentation" onMouseDown={closePreset}>
         <div className={`dialog-stage ${visibleSubmissionIssues.length ? "has-submission-issues" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
           <section ref={dialogSectionRef} tabIndex={-1} className={`preset-dialog ${isRevalidating ? "is-revalidating" : ""}`} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-            <button className="dialog-close" type="button" aria-label="Close preset" disabled={isSubmitting} onClick={closePreset}>×</button>
+            <button className="dialog-close" type="button" aria-label="Close preset" disabled={isSubmitting} onClick={closePreset}><CloseIcon /></button>
           {(() => {
             const selectedHasValidImage = Boolean(selected.image && !failedThumbnailIds.has(selected.id));
             const isHeroEditable = Boolean(isEditing && selectedHasValidImage);
@@ -1783,7 +1784,7 @@ export default function Home() {
             )}
 
             {isEditing && draftContent ? <div className="editable-tags"><small>{draftContent.tags.length}/8 tags</small>
-              <div className="tag-row">{draftContent.tags.map((slug) => <button key={slug} type="button" title="Remove tag" onClick={() => removeTag(slug)}>{labelFromSlug(slug, tagLabels)}<span aria-hidden="true">×</span></button>)}{draftContent.tags.length < 8 ? <button ref={editorTagPickerTriggerRef} className="add-tag" type="button" aria-label="Add tag" aria-expanded={tagPickerOpen} onClick={() => setTagPickerOpen((open) => !open)}><PlusIcon /></button> : null}</div>
+              <div className="tag-row">{draftContent.tags.map((slug) => <button key={slug} type="button" title="Remove tag" onClick={() => removeTag(slug)}>{labelFromSlug(slug, tagLabels)}<span aria-hidden="true"><CloseIcon /></span></button>)}{draftContent.tags.length < 8 ? <button ref={editorTagPickerTriggerRef} className="add-tag" type="button" aria-label="Add tag" aria-expanded={tagPickerOpen} onClick={() => setTagPickerOpen((open) => !open)}><PlusIcon /></button> : null}</div>
               {tagPickerOpen ? <div ref={editorTagPickerRef} className="search-tag-picker tag-picker"><input autoFocus aria-label="Search tags" placeholder="Search tags" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} /><TagPickerList tags={matchingTags} onSelect={(tag) => addTag(tag.slug)} /></div> : null}
             </div> : <div className="tag-row">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
 
@@ -1852,7 +1853,7 @@ export default function Home() {
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
       }} /> : null}
       <ProjectInfo />
-      {actionError ? <div className="action-toast" role="status"><Image src="/barrel.webp" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}>×</button></div> : null}
+      {actionError ? <div className="action-toast" role="status"><Image src="/barrel.webp" alt="" width={26} height={26} className="toast-barrel-icon" /><div>{actionError}</div><button type="button" aria-label="Dismiss" onClick={() => setActionError("")}><CloseIcon /></button></div> : null}
     </main>
   );
 }
@@ -2102,7 +2103,7 @@ function AuthDialog({ onClose, onContinue }: { onClose: () => void; onContinue: 
   return createPortal(
     <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
-        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
+        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}><CloseIcon /></button>
         <h2 id="auth-title">Quick sign-in</h2>
         <p>Discord keeps accounts unique. We only keep your ID and username; choose any public display name after signing in.</p>
         <button className="discord-signin" type="button" onClick={onContinue}>
@@ -2119,51 +2120,4 @@ function PresetStatus({ preset, hasLocalChanges = false }: { preset: Preset; has
   const explanations = { published: "The published preset is visible to players.", pending: "Submitted changes are awaiting review.", draft: "Draft changes have not been submitted." };
   const title = labels.map(({ state, label }) => label === "New edits" ? "New edits are saved on this device. Saving them replaces the pending revision." : label === "Needs changes" ? "The reviewed revision needs changes before resubmission." : explanations[state]).join(" ");
   return <span className="preset-status" title={title}>{labels.map(({ state, label }, index) => <span className="preset-status-part" key={label}>{index > 0 ? <span className="preset-status-separator" aria-hidden="true"> / </span> : null}<span className={`preset-state ${state}`}>{label}</span></span>)}</span>;
-}
-function EditIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
-}
-function ViewIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
-}
-function RemoveIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-}
-function LinkIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
-}
-function CopyCountIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>;
-}
-function PlusIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-}
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-function ReplacePicIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path d="m21 15-4-4a2 2 0 0 0-2.83 0L6 19" />
-      <path d="M14 7h3a1.5 1.5 0 0 1 1.5 1.5V10" />
-      <path d="m15.5 5.5 1.5 1.5-1.5 1.5" />
-      <path d="M18 13h-3a1.5 1.5 0 0 1-1.5-1.5V10" />
-      <path d="m16.5 14.5-1.5-1.5 1.5-1.5" />
-    </svg>
-  );
-}
-
-function HelpQuestionIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M5.6 5.4a2.4 2.4 0 0 1 4.8 0c0 1.6-2.4 2.3-2.4 4.1" />
-      <line x1="8" y1="12.75" x2="8.01" y2="12.75" strokeWidth="2.6" />
-    </svg>
-  );
 }

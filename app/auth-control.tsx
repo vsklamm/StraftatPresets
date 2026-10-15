@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseIcon } from "@/app/icons";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -151,7 +152,7 @@ function DisplayNameDialog({ initialName, isFirstChoice, onClose, onSaved }: {
   return createPortal(
     <div className="auth-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="auth-dialog display-name-dialog" role="dialog" aria-modal="true" aria-labelledby="display-name-title" onMouseDown={(event) => event.stopPropagation()}>
-        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}>×</button>
+        <button className="auth-dialog-close" type="button" aria-label="Close" onClick={onClose}><CloseIcon /></button>
         <h2 id="display-name-title">{isFirstChoice ? "Choose a display name" : "Change display name"}</h2>
         <p>This name appears on your presets. Change it anytime from the top-right menu.</p>
         <form autoComplete="off" onSubmit={submit}>

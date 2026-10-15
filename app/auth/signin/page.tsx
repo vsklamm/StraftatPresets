@@ -1,3 +1,4 @@
+import { CloseIcon } from "@/app/icons";
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -20,7 +21,7 @@ export default async function SignInPage({ searchParams }: {
 
   return <main className="auth-backdrop">
     <section className="auth-dialog" aria-labelledby="signin-title">
-      <Link className="auth-dialog-close" href="/" aria-label="Return to presets">×</Link>
+      <Link className="auth-dialog-close" href="/" aria-label="Return to presets"><CloseIcon /></Link>
       <h2 id="signin-title">Sign in with Discord</h2>
       <p role={error ? "alert" : undefined}>{message}</p>
       <DiscordSignInButton callbackUrl={callbackUrl} />

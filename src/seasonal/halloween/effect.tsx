@@ -1,5 +1,6 @@
 "use client";
 
+import { PlayIcon, PauseIcon } from "@/app/icons";
 import { useEffect, useRef, useState } from "react";
 import type { SeasonalEffectProps } from "../registry";
 import styles from "./effect.module.css";
@@ -143,9 +144,7 @@ export default function HalloweenEffect({ content }: SeasonalEffectProps) {
       </div>
       {available && !reducedMotion ? (
         <button className={`corner-control ${styles.toggle}`} type="button" onClick={toggle} aria-pressed={paused} aria-label={toggleLabel} title={toggleLabel}>
-          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false">
-            {paused ? <path d="M6 3.5 16 10 6 16.5Z" /> : <><rect x="5" y="4" width="3" height="12" rx=".5" /><rect x="12" y="4" width="3" height="12" rx=".5" /></>}
-          </svg>
+          {paused ? <PlayIcon /> : <PauseIcon />}
         </button>
       ) : null}
     </>

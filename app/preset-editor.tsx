@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon, CloseIcon as CrossIcon, DiceIcon, SwapIcon, PlusIcon } from "@/app/icons";
 import { useMemo, useRef, useState } from "react";
 import { WeaponImage } from "@/app/weapon-image";
 import { decodeMapPlaylistExport } from "@/src/domain/map-playlist-export";
@@ -104,7 +105,7 @@ export function PresetContentEditor({ content, activeVersionIndex, onActiveVersi
   };
 
   if (!version) {
-    return <section className="editor-empty"><p>Add a version to start entering Map Playlists and weapons.</p><button type="button" onClick={() => addVersion("v1.0.0")}>＋ Add version</button></section>;
+    return <section className="editor-empty"><p>Add a version to start entering Map Playlists and weapons.</p><button type="button" onClick={() => addVersion("v1.0.0")}><PlusIcon /> Add version</button></section>;
   }
 
   return (
@@ -423,7 +424,7 @@ function MapPlaylistsEditor({
   };
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Map Playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange((current) => current.mapPlaylists.length >= MAX_MAP_PLAYLISTS ? current : { ...current, mapPlaylists: [...current.mapPlaylists, createEmptyMapPlaylist()] })}>＋ Add Map Playlist</button></header>
+    <header><h3>Map Playlists <span>{version.mapPlaylists.length}</span></h3><button className="editor-add-button" type="button" disabled={version.mapPlaylists.length >= MAX_MAP_PLAYLISTS} onClick={() => onChange((current) => current.mapPlaylists.length >= MAX_MAP_PLAYLISTS ? current : { ...current, mapPlaylists: [...current.mapPlaylists, createEmptyMapPlaylist()] })}><PlusIcon /> Add Map Playlist</button></header>
     <div className="playlist-editor-list">{version.mapPlaylists.map((playlist, index) => <article className="playlist-editor-item" key={index}>
       <header><div><strong><StraftatText text={playlist.name || `Map Playlist ${index + 1}`} /></strong>{playlist.mapNames.length ? <span>{playlist.mapNames.length} {playlist.mapNames.length === 1 ? "map" : "maps"}</span> : null}</div><ConfirmDeleteButton label={`Remove Map Playlist ${index + 1}`} onConfirm={() => onChange((current) => ({ ...current, mapPlaylists: current.mapPlaylists.filter((_, itemIndex) => itemIndex !== index) }))} /></header>
       <label><textarea spellCheck={false} maxLength={500000} placeholder="Paste the base64 Map Playlist code" value={playlist.encodedValue} onChange={(event) => onPendingChange(handlePlaylistCodeChange(index, event.target.value))} /></label>
@@ -504,7 +505,7 @@ function SwapperSettingsEditor({
   if (swapperIndices.length === 0) return null;
 
   return <section className="editor-block playlist-editor">
-    <header><h3>Swapper Settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}>＋ Add Swapper</button></header>
+    <header><h3>Swapper Settings <span>{swapperIndices.length}</span></h3><button className="editor-add-button" type="button" disabled={version.weaponConfigurations.length >= MAX_SWAPPER_CONFIGURATIONS} onClick={addSwapper}><PlusIcon /> Add Swapper</button></header>
     <div className="playlist-editor-list">{swapperIndices.map((index, renderIndex) => {
       const configuration = version.weaponConfigurations[index];
       if (configuration.kind !== "swapper") return null;
@@ -543,55 +544,7 @@ function ConfirmDeleteButton({ label, onConfirm, className }: { label: string; o
         if (blurTimer.current) clearTimeout(blurTimer.current);
       }}
     >
-      {confirming ? "Sure?" : "×"}
+      {confirming ? "Sure?" : <CrossIcon />}
     </button>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function CrossIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function DiceIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function SwapIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M16 3l4 4-4 4" />
-      <path d="M20 7H4" />
-      <path d="M8 21l-4-4 4-4" />
-      <path d="M4 17h16" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
   );
 }
