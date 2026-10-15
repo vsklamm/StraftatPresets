@@ -237,7 +237,6 @@ button { color: inherit; }
   outline: none;
 }
 .header-guide-trigger svg { width: 13.5px; height: 13.5px; display: block; flex-shrink: 0; }
-.tab-title-row { display: inline-flex; align-items: center; gap: 4px; font-size: inherit; font-weight: inherit; line-height: inherit; }
 .fx-link-text { background: linear-gradient(135deg, #f55671, #b269f8, #5391f7); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 600; }
 .external-link-icon { width: 11px; height: 11px; flex: 0 0 auto; color: #f8f4ed; opacity: 0.8; }
 .topbar-meta { display: flex; align-items: center; gap: 0; max-width: 460px; margin-left: auto; overflow: visible; opacity: 1; transition: opacity .18s ease, visibility 0s; }

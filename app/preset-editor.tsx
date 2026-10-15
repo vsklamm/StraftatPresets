@@ -22,7 +22,12 @@ export type PresetContentUpdate = PresetRevisionContent | ((content: PresetRevis
 type PresetVersionUpdate = PresetVersionContent | ((version: PresetVersionContent) => PresetVersionContent);
 type RandomizedWeaponConfiguration = Extract<PresetWeaponConfigurationContent, { kind: "randomized" }>;
 
-export { normalizePresetContent as starterPresetContent } from "@/src/domain/preset-content";
+function removeDecodeError(errors: Record<number, string>, index: number) {
+  if (!errors[index]) return errors;
+  const next = { ...errors };
+  delete next[index];
+  return next;
+}
 
 export function PresetContentEditor({ content, activeVersionIndex, onActiveVersionChange, onChange, onPendingChange }: EditorProps) {
   const [newVersionLabel, setNewVersionLabel] = useState<string | null>(null);
@@ -401,12 +406,7 @@ function MapPlaylistsEditor({
     updatePlaylist(index, (playlist) => ({ ...playlist, encodedValue, name: "", mapNames: [] }));
     const trimmed = encodedValue.trim();
     if (!trimmed) {
-      setDecodeErrors((current) => {
-        if (!current[index]) return current;
-        const next = { ...current };
-        delete next[index];
-        return next;
-      });
+      setDecodeErrors((current) => removeDecodeError(current, index));
       return;
     }
     try {
@@ -415,12 +415,7 @@ function MapPlaylistsEditor({
       updatePlaylist(index, (playlist) => playlist.encodedValue === encodedValue
         ? { ...playlist, encodedValue: trimmed, name: decoded.name, mapNames: decoded.mapNames }
         : playlist);
-      setDecodeErrors((current) => {
-        if (!current[index]) return current;
-        const next = { ...current };
-        delete next[index];
-        return next;
-      });
+      setDecodeErrors((current) => removeDecodeError(current, index));
     } catch (error) {
       if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode this Map Playlist." }));
@@ -490,12 +485,7 @@ function SwapperSettingsEditor({
       : current);
     const trimmed = encodedValue.trim();
     if (!trimmed) {
-      setDecodeErrors((current) => {
-        if (!current[index]) return current;
-        const next = { ...current };
-        delete next[index];
-        return next;
-      });
+      setDecodeErrors((current) => removeDecodeError(current, index));
       return;
     }
     try {
@@ -504,12 +494,7 @@ function SwapperSettingsEditor({
       updateSwapper(index, (current) => current.kind === "swapper" && current.encodedValue === encodedValue
         ? { ...current, encodedValue: trimmed, name: decoded.name }
         : current);
-      setDecodeErrors((current) => {
-        if (!current[index]) return current;
-        const next = { ...current };
-        delete next[index];
-        return next;
-      });
+      setDecodeErrors((current) => removeDecodeError(current, index));
     } catch (error) {
       if (latestEncodedValuesRef.current.get(index) !== encodedValue) return;
       setDecodeErrors((current) => ({ ...current, [index]: error instanceof Error ? error.message : "Could not decode Swapper." }));

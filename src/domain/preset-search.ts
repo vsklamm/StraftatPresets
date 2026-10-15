@@ -111,7 +111,8 @@ function closestUnique<T>(query: string, candidates: readonly T[], keys: (candid
 export function resolveSearchEntities(value: string): ResolvedSearchEntities {
   const exactWeapon = resolveWeapon(value);
   const weapon = exactWeapon ?? closestUnique(value, gameCatalog.weapons, (candidate) => [candidate.name, candidate.gameId]);
-  const exactMap = gameCatalog.maps.find((map) => normalizeEntityKey(map.name) === normalizeEntityKey(value));
+  const queryKey = normalizeEntityKey(value);
+  const exactMap = gameCatalog.maps.find((map) => normalizeEntityKey(map.name) === queryKey);
   const map = exactMap ?? closestUnique(value, gameCatalog.maps, (candidate) => [candidate.name]);
   return {
     weaponGameIds: weapon ? [weapon.gameId] : [],

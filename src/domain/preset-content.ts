@@ -80,11 +80,6 @@ const presetVersionSchema = z.object({
   weaponConfigurations: z.array(z.discriminatedUnion("kind", [randomizedConfigurationSchema, swapperConfigurationSchema])).max(MAX_SWAPPER_CONFIGURATIONS),
 }).strict();
 
-export const thumbnailPositionSchema = z.object({
-  x: z.number().min(0).max(100),
-  y: z.number().min(0).max(100),
-}).strict();
-
 // Lenient variant for stored/user-submitted data: accepts any object and
 // coerces out-of-range or non-numeric fields to 50 rather than failing.
 const thumbnailPositionInputSchema = z
@@ -100,8 +95,6 @@ const thumbnailPositionInputSchema = z
     };
     return { x: coerce(rec.x), y: coerce(rec.y) };
   });
-
-export type ThumbnailPosition = z.infer<typeof thumbnailPositionSchema>;
 
 const presetRevisionContentInputSchema = z.object({
   title: shortText(MAX_PRESET_TITLE_CHARACTERS),

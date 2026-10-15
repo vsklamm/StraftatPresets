@@ -65,6 +65,7 @@ import {
 import { applyLaunchPlacement } from "@/src/domain/preset-ranking-projection";
 import { PresetRankingStore } from "@/src/infrastructure/preset-ranking-store";
 import { analyticsHash } from "@/src/lib/analytics-hash";
+import { sha256Hex } from "@/src/lib/crypto-utils";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { DisplayNameAlreadyUsedError, namesConflict } from "@/src/domain/user-profile";
@@ -159,7 +160,6 @@ type DashboardRow = {
   slug: string;
   authorId: string;
   authorName: string;
-  workingRevisionId: string | null;
   publishedRevisionId: string | null;
   revisionId: string;
   revisionNumber: number;
@@ -170,8 +170,6 @@ type DashboardRow = {
   editVersion: number;
   views: number | null;
   copies: number | null;
-  qualityScoreMilli: number | null;
-  engagementScoreMilli: number | null;
   updatedAt: Date;
   publishedAt: Date | null;
 };
@@ -181,17 +179,11 @@ function parseIssues(value: string): PresetIssue[] {
   return Array.isArray(parsed) ? parsed as PresetIssue[] : [];
 }
 
-import { sha256Hex } from "@/src/lib/crypto-utils";
-async function hashRevisionContent(contentJson: string) {
-  return sha256Hex(contentJson);
-}
-
 const dashboardColumns = {
   id: presets.id,
   slug: presets.slug,
   authorId: presets.authorId,
   authorName: effectiveUserName,
-  workingRevisionId: presets.workingRevisionId,
   publishedRevisionId: presets.publishedRevisionId,
   revisionId: dashboardRevision.id,
   revisionNumber: dashboardRevision.revisionNumber,
@@ -202,8 +194,6 @@ const dashboardColumns = {
   editVersion: dashboardRevision.editVersion,
   views: presetStatistics.viewsTotal,
   copies: presetStatistics.copiesTotal,
-  qualityScoreMilli: presetStatistics.qualityScoreMilli,
-  engagementScoreMilli: presetStatistics.engagementScoreMilli,
   updatedAt: dashboardRevision.updatedAt,
   publishedAt: presets.publishedAt,
 };
@@ -498,7 +488,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         revisionNumber: 1,
         status: "draft",
         contentJson,
-        contentHash: await hashRevisionContent(contentJson),
+        contentHash: await sha256Hex(contentJson),
         validationIssuesJson: JSON.stringify(validationIssues),
         createdAt: now,
         updatedAt: now,
@@ -772,7 +762,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     if (input.content.thumbnailKey !== null && input.content.thumbnailKey !== envelope.thumbnailKey) return { result: "conflict" };
     const content = parsePresetRevisionContent(input.content);
     const contentJson = JSON.stringify(content);
-    const contentHash = await hashRevisionContent(contentJson);
+    const contentHash = await sha256Hex(contentJson);
     const validationIssues = validatePresetRevision(content, { isInitialPublication: !envelope.publishedRevisionId });
     const thumbnailKeysToDelete = thumbnailKeysToDeleteAfterDraftSave(envelope.thumbnailKey, publishedThumbnailKey, content.thumbnailKey);
     const thumbnailUpdate = content.thumbnailKey === null ? {
@@ -973,7 +963,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const update = await this.database.update(presetRevisions).set({
       status: "pending",
       contentJson,
-      contentHash: await hashRevisionContent(contentJson),
+      contentHash: await sha256Hex(contentJson),
       validationIssuesJson: "[]",
       reviewIssuesJson: "[]",
       submittedAt: now,
@@ -1231,7 +1221,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     now?: Date;
   }): Promise<PresetRetractResult> {
     const now = input.now ?? new Date();
-    const cleanId = input.identifier.trim().replace(/^https?:\/\/[^/]+\/(?:\?p=|\/p\/|\/api\/presets\/)?/i, "").replace(/^\?p=/, "").trim();
+    const cleanId = input.identifier.trim().replace(/^https?:\/\/[^/]+\/(?:\?p=|p\/|api\/presets\/)?/i, "").replace(/^\?p=/, "").trim();
 
     const preset = await this.database.select({
       id: presets.id,
@@ -1241,6 +1231,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       status: presets.status,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
+      revisionCounter: presets.revisionCounter,
       authorName: effectiveUserName,
     }).from(presets)
       .innerJoin(users, eq(users.id, presets.authorId))
@@ -1248,7 +1239,14 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .get();
 
     if (!preset) return { result: "not_found" };
-    if (preset.status !== "published" && !preset.publishedRevisionId) return { result: "not_published" };
+    if (!preset.publishedRevisionId) return { result: "not_published" };
+
+    const workingRevisionId = preset.workingRevisionId && preset.workingRevisionId !== preset.publishedRevisionId
+      ? preset.workingRevisionId : null;
+    const source = await this.database.select().from(presetRevisions)
+      .where(eq(presetRevisions.id, workingRevisionId ?? preset.publishedRevisionId)).get();
+    if (!source) return { result: "not_published" };
+    const unresolvedMessages = await this.listUnresolvedTelegramMessages(preset.id, preset.publishedRevisionId);
 
     const days = input.suspensionDays ?? 7;
     const suspendedUntil = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
@@ -1263,53 +1261,68 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
 
     const statements: BatchItem<"sqlite">[] = [
       this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, preset.id)),
-      this.database.update(presets).set({
-        status: "draft",
-        publishedRevisionId: null,
-        publishedAt: null,
-        resubmissionBlockedUntil: suspendedUntil,
-        retractedAt: now,
-        retractedReason: reasonText,
-        updatedAt: now,
-      }).where(eq(presets.id, preset.id)),
-
+      this.database.update(presetRevisions).set({ status: "archived", updatedAt: now })
+        .where(eq(presetRevisions.id, preset.publishedRevisionId)),
       this.database.update(users).set({
         suspendedUntil,
         updatedAt: now,
       }).where(eq(users.id, preset.authorId)),
     ];
 
-    if (preset.publishedRevisionId) {
+    const revisionId = workingRevisionId ?? crypto.randomUUID();
+    if (!workingRevisionId) {
+      statements.push(
+        this.database.insert(presetRevisions).values({
+          id: revisionId,
+          presetId: preset.id,
+          revisionNumber: preset.revisionCounter + 1,
+          sourceRevisionId: source.id,
+          status: "rejected",
+          contentJson: source.contentJson,
+          contentHash: source.contentHash,
+          validationIssuesJson: source.validationIssuesJson,
+          reviewIssuesJson: JSON.stringify([retractionIssue]),
+          reviewedAt: now,
+          reviewerId: input.reviewerId ?? null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    } else {
       statements.push(
         this.database.update(presetRevisions).set({
-          status: "rejected",
+          status: source.status === "draft" ? "draft" : "rejected",
           reviewIssuesJson: JSON.stringify([retractionIssue]),
           reviewedAt: now,
           reviewerId: input.reviewerId ?? null,
           updatedAt: now,
-        }).where(eq(presetRevisions.id, preset.publishedRevisionId)),
+        }).where(eq(presetRevisions.id, workingRevisionId)),
       );
     }
 
-    if (preset.workingRevisionId && preset.workingRevisionId !== preset.publishedRevisionId) {
-      statements.push(
-        this.database.update(presetRevisions).set({
-          status: "rejected",
-          reviewIssuesJson: JSON.stringify([retractionIssue]),
-          reviewedAt: now,
-          reviewerId: input.reviewerId ?? null,
-          updatedAt: now,
-        }).where(eq(presetRevisions.id, preset.workingRevisionId)),
-      );
-    }
+    statements.push(this.database.update(presets).set({
+      status: "draft",
+      workingRevisionId: revisionId,
+      ...(!workingRevisionId ? { revisionCounter: sql`${presets.revisionCounter} + 1` } : {}),
+      publishedRevisionId: null,
+      publishedAt: null,
+      resubmissionBlockedUntil: suspendedUntil,
+      retractedAt: now,
+      retractedReason: reasonText,
+      updatedAt: now,
+    }).where(eq(presets.id, preset.id)));
 
     await this.database.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
     await this.recalculatePresetStatistics(preset.id, now);
+    await this.deleteUnresolvedTelegramMessages(unresolvedMessages).catch(() => {
+      console.error("Failed to remove retracted preset moderation messages.");
+    });
 
     const updated = await this.getPresetForViewer(preset.id, preset.authorId);
+    if (!updated) throw new Error("Retracted preset could not be read back.");
     return {
       result: "retracted",
-      preset: updated!,
+      preset: updated,
       authorName: preset.authorName,
       title: preset.title,
       suspendedUntil,

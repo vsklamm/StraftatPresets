@@ -19,7 +19,7 @@ import { useBodyScrollLock } from "@/src/lib/body-scroll-lock";
 import { StraftatText } from "./straftat-text";
 import { PresetContentLabel } from "./preset-content-label";
 import { PresetUpdatedAt } from "./preset-updated-at";
-import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
+import { PresetContentEditor, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
 import {
   DEFAULT_PRESET_LIMIT,
@@ -53,7 +53,7 @@ import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { configLabels, presetStatusLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetIsReadyToSubmit, presetUrlPath, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { configLabels, presetStatusLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetIsReadyToSubmit, presetUrlPath, replaceOrPrependPreset, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 import { GuideTriggerButton, PresetImportGuideModal, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
 
@@ -67,7 +67,6 @@ import {
   shouldQueueDraftSave,
 } from "@/src/domain/preset-local-draft";
 
-type AuthPrompt = { action: "submit" };
 type PresetRevisionToken = { revisionId: string; editVersion: number };
 type QueuedPresetSave = { signature: string; promise: Promise<PresetDashboardItem | undefined> };
 type ThumbnailLoadState = { src: string; phase: "loading" | "arriving" | "ready" };
@@ -322,7 +321,7 @@ export default function Home() {
   const editorTagPickerRef = useRef<HTMLDivElement>(null);
   const editorTagPickerTriggerRef = useRef<HTMLButtonElement>(null);
   const [tagQuery, setTagQuery] = useState("");
-  const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null);
+  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -506,9 +505,7 @@ export default function Home() {
   const dashboardItems = itemsByView[activeDashboardView];
   const effectiveDashboardItems = searchActive ? (searchResultKey === currentSearchKey ? searchItems : undefined) : dashboardItems;
   const isViewLoaded = effectiveDashboardItems !== undefined;
-  const storedPresets = useMemo(() => (effectiveDashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [effectiveDashboardItems, tagLabels]);
-  const dashboardPresets = storedPresets;
-  const visiblePresets = dashboardPresets;
+  const dashboardPresets = useMemo(() => (effectiveDashboardItems ?? []).map((item) => dashboardItemToPreset(item, tagLabels)), [effectiveDashboardItems, tagLabels]);
 
   const selectedVersion = selected?.versions.find((version) => version.label === versionLabel) ?? (selected ? latestVersion(selected) : null);
   const hasLocalPresetChanges = Boolean(selected?.canEdit && isEditing && draftContent && JSON.stringify(draftContent) !== JSON.stringify(selected.content));
@@ -529,7 +526,7 @@ export default function Home() {
     });
   }, [weightedWeapons, weaponSort, sortDirection]);
 
-  const isModalOpen = Boolean((selected && selectedVersion) || isGuideModalOpen || authPrompt || isProfileEditorRequested);
+  const isModalOpen = Boolean((selected && selectedVersion) || isGuideModalOpen || isAuthPromptOpen || isProfileEditorRequested);
   useEffect(() => {
     isModalOpenRef.current = isModalOpen;
   }, [isModalOpen]);
@@ -596,10 +593,7 @@ export default function Home() {
       const updated = dashboardItemToPreset(effectiveItem, tagLabels);
       const savedSignature = JSON.stringify(data.preset.content);
       serverContentByPresetRef.current.set(data.preset.id, savedSignature);
-      updateDashboardItems((current) => {
-        const exists = current.some((item) => item.id === data.preset!.id);
-        return exists ? current.map((item) => item.id === data.preset!.id ? effectiveItem : item) : [effectiveItem, ...current];
-      });
+      updateDashboardItems((current) => replaceOrPrependPreset(current, effectiveItem));
 
       if (openPresetIdRef.current === presetId) {
         setSelected((current) => {
@@ -711,10 +705,7 @@ export default function Home() {
           window.history.replaceState(null, "", path);
         }
       }
-      updateDashboardItems((current) => {
-        const exists = current.some((item) => item.id === savedPreset.id);
-        return exists ? current.map((item) => item.id === savedPreset.id ? savedPreset : item) : [savedPreset, ...current];
-      });
+      updateDashboardItems((current) => replaceOrPrependPreset(current, savedPreset));
       clearMatchingLocalDraft(savedPreset.id, signature);
       if (openPresetIdRef.current === preset.id) {
         savedContentRef.current = savedSignature;
@@ -885,8 +876,8 @@ export default function Home() {
       }
 
       if (event.key === "Escape") {
-        if (authPrompt) {
-          setAuthPrompt(null);
+        if (isAuthPromptOpen) {
+          setIsAuthPromptOpen(false);
           return;
         }
 
@@ -930,7 +921,7 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selected, isEditing, tagPickerOpen, authPrompt, activeGuide, isGuideModalOpen, closeGuideModal, exitEditMode, closePreset]);
+  }, [selected, isEditing, tagPickerOpen, isAuthPromptOpen, activeGuide, isGuideModalOpen, closeGuideModal, exitEditMode, closePreset]);
 
   useEffect(() => {
     if (!tagPickerOpen) return;
@@ -995,10 +986,7 @@ export default function Home() {
               const effectiveItem = localContent ? { ...data.preset, content: localContent } : data.preset;
               linked = dashboardItemToPreset(effectiveItem, tagLabels);
               openPresetIdRef.current = linked.id;
-              updateDashboardItems((current) => {
-                const exists = current.some((item) => item.id === data.preset!.id);
-                return exists ? current.map((item) => item.id === data.preset!.id ? effectiveItem : item) : [effectiveItem, ...current];
-              });
+              updateDashboardItems((current) => replaceOrPrependPreset(current, effectiveItem));
               setSelected(linked);
               setVersionLabel(latestVersion(linked).label);
               setDraftContent(linked.content ?? null);
@@ -1248,7 +1236,7 @@ export default function Home() {
   };
   const submitPreset = () => {
     if (authStatus !== "authenticated") {
-      if (authStatus !== "loading") setAuthPrompt({ action: "submit" });
+      if (authStatus !== "loading") setIsAuthPromptOpen(true);
       return;
     }
     if (accountProfile?.userId !== authSession?.user.id || !accountProfile.profile.hasConfiguredDisplayName) {
@@ -1293,7 +1281,7 @@ export default function Home() {
       if (typeof window !== "undefined") window.sessionStorage.setItem("dashboardView", "mine");
       setDashboardView("mine");
       selectPreset(created, true);
-      setDraftContent(starterPresetContent(result.preset.content));
+      setDraftContent(normalizePresetContent(result.preset.content));
       window.history.pushState(null, "", presetUrlPath(created));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The preset could not be created.");
@@ -1345,10 +1333,7 @@ export default function Home() {
       const submitted = dashboardItemToPreset(result.preset, tagLabels);
       clearLocalDraft(result.preset.id);
       serverContentByPresetRef.current.set(result.preset.id, JSON.stringify(result.preset.content));
-      updateDashboardItems((current) => {
-        const exists = current.some((item) => item.id === result.preset!.id);
-        return exists ? current.map((item) => item.id === result.preset!.id ? result.preset! : item) : [result.preset!, ...current];
-      });
+      updateDashboardItems((current) => replaceOrPrependPreset(current, result.preset!));
       setShowSubmissionIssues(false);
       selectPreset(submitted, false);
     } catch (error) {
@@ -1531,7 +1516,7 @@ export default function Home() {
                   data-lpignore="true"
                   data-form-type="other"
                   aria-label="Search community presets"
-                  placeholder={isViewLoaded ? `Search ${visiblePresets.length} preset${visiblePresets.length === 1 ? "" : "s"}…` : "Search presets…"}
+                  placeholder={isViewLoaded ? `Search ${dashboardPresets.length} preset${dashboardPresets.length === 1 ? "" : "s"}…` : "Search presets…"}
                   value={query}
                   onChange={(event) => {
                     setSelectedSearchTags([]);
@@ -1572,14 +1557,14 @@ export default function Home() {
       <div className="workspace">
         <section className="preset-browser" aria-label="Community presets">
 
-          {visiblePresets.length ? <div className="preset-grid">{(() => {
-            type GridItem = { type: "single"; preset: typeof visiblePresets[0]; index: number } | { type: "group"; presets: [typeof visiblePresets[0], typeof visiblePresets[0]]; indices: [number, number] };
+          {dashboardPresets.length ? <div className="preset-grid">{(() => {
+            type GridItem = { type: "single"; preset: typeof dashboardPresets[0]; index: number } | { type: "group"; presets: [typeof dashboardPresets[0], typeof dashboardPresets[0]]; indices: [number, number] };
             const items: GridItem[] = [];
             let i = 0;
-            while (i < visiblePresets.length) {
-              const p1 = visiblePresets[i];
-              if (activeDashboardView !== "mine" && !p1.image && i + 1 < visiblePresets.length && !visiblePresets[i + 1].image) {
-                items.push({ type: "group", presets: [p1, visiblePresets[i + 1]], indices: [i, i + 1] });
+            while (i < dashboardPresets.length) {
+              const p1 = dashboardPresets[i];
+              if (activeDashboardView !== "mine" && !p1.image && i + 1 < dashboardPresets.length && !dashboardPresets[i + 1].image) {
+                items.push({ type: "group", presets: [p1, dashboardPresets[i + 1]], indices: [i, i + 1] });
                 i += 2;
               } else {
                 items.push({ type: "single", preset: p1, index: i });
@@ -1587,7 +1572,7 @@ export default function Home() {
               }
             }
 
-            const renderCard = (preset: typeof visiblePresets[0], presetIndex: number, compact: boolean) => {
+            const renderCard = (preset: typeof dashboardPresets[0], presetIndex: number, compact: boolean) => {
               const version = latestVersion(preset); const labels = configLabels(version);
               const isOwner = Boolean(preset.canEdit);
               const showStatus = activeDashboardView === "mine" && Boolean(preset.state);
@@ -1612,7 +1597,7 @@ export default function Home() {
               </article>;
             };
 
-            const showCreateSlot = activeDashboardView === "mine" && authStatus === "authenticated" && !query && storedPresets.length < effectivePresetLimit;
+            const showCreateSlot = activeDashboardView === "mine" && authStatus === "authenticated" && !query && dashboardPresets.length < effectivePresetLimit;
 
             return (
               <>
@@ -1860,7 +1845,7 @@ export default function Home() {
         isOpen={isGuideModalOpen}
         onClose={closeGuideModal}
       />
-      {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
+      {isAuthPromptOpen ? <AuthDialog onClose={() => setIsAuthPromptOpen(false)} onContinue={() => {
         const callbackUrl = new URL("/", window.location.origin);
         callbackUrl.searchParams.set("create", "1");
         window.sessionStorage.setItem("justLoggedIn", "true");

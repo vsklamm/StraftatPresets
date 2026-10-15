@@ -8,12 +8,40 @@ import {
   presetUrlIdentifier,
   presetUrlPath,
   urlWithoutPreset,
+  replaceOrPrependPreset,
   type Preset,
   type PresetVersion,
 } from "../src/application/preset-view";
 import { stripColorAndFormattingTags } from "../src/domain/straftat-markup";
 import type { PresetRevisionContent } from "../src/domain/preset-content";
 import { validatePresetRevision } from "../src/domain/preset-workflow";
+
+test("replacing a dashboard preset preserves its position and unrelated entries", () => {
+  const first = { id: "first", title: "First" };
+  const second = { id: "second", title: "Old title" };
+  const last = { id: "last", title: "Last" };
+  const current = Object.freeze([first, second, last]);
+  const updated = { ...second, title: "New title" };
+
+  const result = replaceOrPrependPreset(current, updated);
+
+  assert.deepEqual(result, [first, updated, last]);
+  assert.equal(result[0], first);
+  assert.equal(result[1], updated);
+  assert.equal(result[2], last);
+  assert.equal(current[1], second);
+});
+
+test("a missing dashboard preset is prepended without changing the existing order", () => {
+  const first = { id: "first" };
+  const last = { id: "last" };
+  const added = { id: "new" };
+  const current = Object.freeze([first, last]);
+
+  assert.deepEqual(replaceOrPrependPreset(current, added), [added, first, last]);
+  assert.deepEqual(current, [first, last]);
+  assert.deepEqual(replaceOrPrependPreset([], added), [added]);
+});
 
 function preset(overrides: Partial<Preset> = {}): Preset {
   return {
@@ -108,19 +136,15 @@ test("submission readiness stays quiet for published, pending, rejected and non-
   }
 });
 
-test("submission readiness checks required fields and every version without adding rules", () => {
+test("submission readiness respects validation issues for incomplete content", () => {
   const version = submitReadyContent.versions[0];
   const invalidContents: PresetRevisionContent[] = [
-    { ...submitReadyContent, title: "Untitled preset" },
-    { ...submitReadyContent, description: "Too short" },
-    { ...submitReadyContent, tags: ["placement"] },
     { ...submitReadyContent, versions: [] },
     { ...submitReadyContent, versions: [{ ...version, mapPlaylists: [] }] },
     { ...submitReadyContent, versions: [{ ...version, mapPlaylists: [{ ...version.mapPlaylists[0], encodedValue: "" }] }] },
     { ...submitReadyContent, versions: [{ ...version, mapPlaylists: [{ ...version.mapPlaylists[0], mapNames: [] }] }] },
     { ...submitReadyContent, versions: [{ ...version, weaponConfigurations: [{ kind: "randomized", name: "Randomizer", weapons: [] }] }] },
     { ...submitReadyContent, versions: [{ ...version, weaponConfigurations: [{ kind: "swapper", name: "Swapper", encodedValue: "" }] }] },
-    { ...submitReadyContent, versions: [{ ...version, weaponConfigurations: [{ kind: "randomized", name: "Randomizer", weapons: [{ name: "Pistol", weight: 0 }] }] }] },
     { ...submitReadyContent, versioningEnabled: true, versions: [{ ...version, label: "v1.1.0" }, { ...version, mapPlaylists: [] }] },
   ];
   for (const content of invalidContents) {

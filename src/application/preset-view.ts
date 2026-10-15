@@ -42,6 +42,12 @@ export type Preset = {
 
 type LinkablePreset = Pick<Preset, "id" | "slug" | "state" | "canEdit" | "hasPublishedRevision">;
 
+export function replaceOrPrependPreset<T extends { id: string }>(items: readonly T[], preset: T): T[] {
+  return items.some((item) => item.id === preset.id)
+    ? items.map((item) => item.id === preset.id ? preset : item)
+    : [preset, ...items];
+}
+
 export function presetStatusLabels(preset: Pick<Preset, "state" | "workingStatus" | "hasPublishedRevision">, hasLocalChanges = false): Array<{ state: UserPresetState; label: string }> {
   if (!preset.state) return [];
   const published = Boolean(preset.hasPublishedRevision || preset.state === "published");

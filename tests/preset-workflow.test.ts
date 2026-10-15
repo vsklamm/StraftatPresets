@@ -107,6 +107,18 @@ test("preset versions use ordered semantic labels and cap the initial version", 
   assert.throws(() => parsePresetRevisionContent(tooManyVersions));
 });
 
+test("submission accepts weapon aliases and rejects unsupported game data", () => {
+  const content = structuredClone(completePreset);
+  content.versions[0].weaponConfigurations = [{ kind: "randomized", name: "Weapons", weapons: [{ name: "ak", weight: 10 }] }];
+  assert.deepEqual(validatePresetRevision(content), []);
+
+  content.versions[0].mapPlaylists[0].mapNames = ["Definitely_Not_A_Map"];
+  content.versions[0].weaponConfigurations = [{ kind: "randomized", name: "Weapons", weapons: [{ name: "Barrel", weight: 10 }] }];
+  const issues = validatePresetRevision(content);
+  assert.ok(issues.some((issue) => issue.code === "unsupported_map" && issue.field === "versions.0.mapPlaylists.0.mapNames.0"));
+  assert.ok(issues.some((issue) => issue.code === "unsupported_weapon" && issue.field === "versions.0.weaponConfigurations.0.weapons.0.name"));
+});
+
 test("new drafts persist an empty weapon configurations array for the picker", () => {
   const starter = createStarterPresetContent("Untitled preset");
   assert.equal(starter.versioningEnabled, false);
@@ -138,6 +150,19 @@ test("map playlist descriptions are optional for submission", () => {
   const missingDescription = structuredClone(completePreset);
   missingDescription.versions[0].mapPlaylists[0].description = "";
   assert.equal(validatePresetRevision(missingDescription).some((issue) => issue.code === "missing_playlist_description"), false);
+});
+
+test("stored thumbnail positions retain lenient coercion and centered defaults", () => {
+  for (const [position, expected] of [
+    [{ x: 24.56, y: "75.04" }, { x: 24.6, y: 75 }],
+    [{ x: -1, y: 101 }, { x: 50, y: 50 }],
+    [{}, { x: 50, y: 50 }],
+    [null, undefined],
+    ["invalid", undefined],
+    [undefined, undefined],
+  ]) {
+    assert.deepEqual(parsePresetRevisionContent({ ...completePreset, thumbnailPosition: position }).thumbnailPosition, expected);
+  }
 });
 
 test("preset and playlist descriptions keep their UI-sized limits", () => {

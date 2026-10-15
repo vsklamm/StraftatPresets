@@ -120,9 +120,11 @@ test("parseStraftatMarkup parses rich text formatting tags accurately", () => {
   assert.equal(mark.find(s => s.text === "Highlighted")?.backgroundColor, "#FF8800");
 
   // Subscript / Superscript
-  const script = parseStraftatMarkup("H<sub>2</sub>O 10<sup>2</sup>");
+  const script = parseStraftatMarkup("H<sub>2</sub>O 10<sup>3</sup>");
   assert.equal(script.find(s => s.text === "2")?.subscript, true);
   assert.equal(script.find(s => s.text === "2")?.superscript, undefined);
+  assert.equal(script.find(s => s.text === "3")?.superscript, true);
+  assert.equal(script.find(s => s.text === "3")?.subscript, undefined);
 
   // Noparse mode
   const noparse = parseStraftatMarkup("<noparse><b>Not Bold</b></noparse>");
@@ -260,7 +262,7 @@ test("Level 3 Computery Profanity Filter detects obfuscated profanity and respec
   assert.equal(res.flags.length > 0, true);
 });
 
-test("Level 4 Quality & Libraries checks mashing, caps, and language detection", () => {
+test("Level 4 quality screening flags mashing and caps while allowing clean text", () => {
   const mashingFields = extractModeratableFields({
     ...sampleValidPreset,
     description: "aaaaaaaaaaahhhhhh",

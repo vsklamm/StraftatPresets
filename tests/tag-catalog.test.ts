@@ -3,6 +3,10 @@ import test from "node:test";
 import { tagCatalogEntries, TAG_CATEGORIES } from "../src/domain/tag-catalog";
 import { MAX_PRESET_TAGS, MAX_VISIBLE_PRESET_TAGS, validatePresetTagSlugs } from "../src/domain/tag-policy";
 
+test("Prop Hunt is not a supported tag", () => {
+  assert.equal(tagCatalogEntries.some((tag) => tag.slug === "prop-hunt"), false);
+});
+
 test("tag catalog meets sanity and integrity contracts", () => {
   assert.deepEqual(TAG_CATEGORIES, ["lobby", "gameplay", "weapons", "maps"]);
 

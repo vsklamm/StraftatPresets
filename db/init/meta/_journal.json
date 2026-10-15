@@ -36,6 +36,13 @@
       "when": 1789173508094,
       "tag": "0004_faithful_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792104434104,
+      "tag": "0005_retire_prop_hunt",
+      "breakpoints": true
     }
   ]
 }

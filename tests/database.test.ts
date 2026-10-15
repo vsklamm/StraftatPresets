@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { getPlatformProxy, type PlatformProxy } from "wrangler";
+import { createDatabase } from "../db";
+import { D1Repository } from "../src/infrastructure/d1-repository";
+import { PresetLimitReachedError } from "../src/domain/preset-policy";
 import { prepareThumbnail } from "../src/lib/image-moderation";
 import { MAX_THUMBNAIL_UPLOAD_BYTES } from "../src/domain/thumbnail-policy";
 import { MAX_PRESET_TAGS } from "../src/domain/tag-policy";
+import { env } from "../src/env";
 
 type QueryResult<Row> = { results: Row[] };
 
@@ -22,6 +27,36 @@ function runD1(stateDirectory: string, args: string[]) {
 function queryD1<Row>(stateDirectory: string, sql: string): QueryResult<Row> {
   return JSON.parse(runD1(stateDirectory, ["execute", "DB", "--command", sql, "--json"]))[0] as QueryResult<Row>;
 }
+
+async function withLocalRepository(run: (repository: D1Repository, binding: D1Database) => Promise<void>) {
+  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-repository-"));
+  let platform: PlatformProxy<{ DB: D1Database }> | undefined;
+  try {
+    runD1(stateDirectory, ["migrations", "apply", "DB"]);
+    const { compatibility_date, d1_databases } = JSON.parse(readFileSync("wrangler.jsonc", "utf8"));
+    const configPath = path.join(stateDirectory, "wrangler.json");
+    writeFileSync(configPath, JSON.stringify({ name: "preset-repository-test", compatibility_date, d1_databases }));
+    platform = await getPlatformProxy<{ DB: D1Database }>({
+      configPath, envFiles: [], remoteBindings: false, persist: { path: path.join(stateDirectory, "v3") },
+    });
+    await run(new D1Repository(createDatabase(platform.env.DB)), platform.env.DB);
+  } finally {
+    await platform?.dispose();
+    rmSync(stateDirectory, { recursive: true, force: true });
+  }
+}
+
+test("retiring Prop Hunt hides it and rejects assignments without affecting other tags", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    await binding.prepare("INSERT INTO tags (slug, label) VALUES ('prop-hunt', 'Prop Hunt'), ('custom-tag', 'Custom Tag')").run();
+    await binding.prepare(readFileSync("db/init/0005_retire_prop_hunt.sql", "utf8")).run();
+
+    assert.deepEqual(await repository.listActiveTags(), [{ slug: "custom-tag", label: "Custom Tag" }]);
+    await assert.rejects(repository.replacePresetTags("unused-preset", ["prop-hunt"]), /Unknown or inactive tags: prop-hunt/);
+    await binding.prepare(readFileSync("db/init/0005_retire_prop_hunt.sql", "utf8")).run();
+    assert.deepEqual(await repository.listActiveTags(), [{ slug: "custom-tag", label: "Custom Tag" }]);
+  });
+});
 
 test("the initializer creates the application tables in D1", () => {
   const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-d1-"));
@@ -174,39 +209,29 @@ test("thumbnail uploads are capped at two megabytes before decoding", async () =
   );
 });
 
-test("author preset limit allows up to four presets and rejects the fifth", () => {
-  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-limit-"));
-  try {
-    runD1(stateDirectory, ["migrations", "apply", "DB"]);
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('author-1', 'Creator')"]);
-    for (let i = 1; i <= 4; i++) {
-      runD1(stateDirectory, [
-        "execute",
-        "DB",
-        "--command",
-        `INSERT INTO presets (id, slug, author_id, title, status) VALUES ('p-${i}', 'slug-${i}', 'author-1', 'Preset ${i}', 'draft')`,
-      ]);
-    }
-    const countResult = queryD1<{ count: number }>(stateDirectory, "SELECT COUNT(*) AS count FROM presets WHERE author_id = 'author-1'").results[0].count;
-    assert.equal(countResult, 4);
+test("author preset limit allows four presets, rejects the fifth and frees a slot after deletion", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    const created = [];
+    for (let i = 1; i <= 4; i++) created.push(await repository.createPresetDraft("author-1", `Preset ${i}`));
+    await assert.rejects(repository.createPresetDraft("author-1", "Fifth preset"), PresetLimitReachedError);
+    assert.equal((await repository.listDashboardPresets("mine", "author-1", 48, 0)).total, 4);
 
-    // Drafting revisions for an existing preset does not increase preset count
-    runD1(stateDirectory, [
-      "execute",
-      "DB",
-      "--command",
-      "INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('r-extra', 'p-1', 2, 'draft', '{}', 'hash')",
-    ]);
-    const countAfterRevision = queryD1<{ count: number }>(stateDirectory, "SELECT COUNT(*) AS count FROM presets WHERE author_id = 'author-1'").results[0].count;
-    assert.equal(countAfterRevision, 4);
+    const first = created[0];
+    await binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(first.revisionId).run();
+    const saved = await repository.savePresetDraft({
+      presetId: first.id, userId: "author-1", revisionId: first.revisionId, editVersion: first.editVersion,
+      content: { ...first.content, title: "Revised preset" },
+    });
+    assert.equal(saved.result, "updated");
+    if (saved.result !== "updated") assert.fail("Drafting a revision must remain possible at the preset limit");
+    assert.notEqual(saved.preset.revisionId, first.revisionId);
+    assert.equal((await repository.listDashboardPresets("mine", "author-1", 48, 0)).total, 4);
 
-    // Deleting a preset decrements count to 3
-    runD1(stateDirectory, ["execute", "DB", "--command", "DELETE FROM presets WHERE id = 'p-4'"]);
-    const countAfterDelete = queryD1<{ count: number }>(stateDirectory, "SELECT COUNT(*) AS count FROM presets WHERE author_id = 'author-1'").results[0].count;
-    assert.equal(countAfterDelete, 3);
-  } finally {
-    rmSync(stateDirectory, { recursive: true, force: true });
-  }
+    assert.deepEqual(await repository.deletePreset(created[3].id, "author-1"), { result: "deleted" });
+    assert.equal((await repository.listDashboardPresets("mine", "author-1", 48, 0)).total, 3);
+    await repository.createPresetDraft("author-1", "Replacement preset");
+    assert.equal((await repository.listDashboardPresets("mine", "author-1", 48, 0)).total, 4);
+  });
 });
 
 test("preset limit migration backfills existing authors and only raises the limit", () => {
@@ -245,87 +270,190 @@ test("preset limit migration backfills existing authors and only raises the limi
   }
 });
 
-test("submission rate limit queries calculate per-preset cooldown and author hourly cap", () => {
-  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-sublimit-"));
-  try {
-    runD1(stateDirectory, ["migrations", "apply", "DB"]);
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('author-1', 'Creator')"]);
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO presets (id, slug, author_id, title, status) VALUES ('p-1', 'slug-1', 'author-1', 'Preset 1', 'published')"]);
+test("submission enforces the preset cooldown and author hourly cap before validating incomplete drafts", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    const now = Date.UTC(2026, 0, 1, 12);
+    const draft = await repository.createPresetDraft("author-1", "Incomplete preset", new Date(now));
+    const another = await repository.createPresetDraft("author-1", "Another preset", new Date(now));
+    const history = (id: string, number: number, submittedAt: number, presetId = draft.id) => binding.prepare(
+      "INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, submitted_at) VALUES (?, ?, ?, 'archived', ?, 'hash', ?)",
+    ).bind(id, presetId, number, JSON.stringify(draft.content), submittedAt);
+    await binding.batch([history("old", 2, now - 7_200_000), history("recent", 3, now - 10_000)]);
+    const submit = (time: number) => repository.submitPreset({
+      presetId: draft.id, userId: "author-1", revisionId: draft.revisionId, editVersion: draft.editVersion, now: new Date(time),
+    });
 
-    const now = Date.now();
-    const tenSecondsAgo = now - 10_000;
-    const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+    const cooldown = await submit(now);
+    assert.equal(cooldown.result, "rate_limited");
+    if (cooldown.result !== "rate_limited") assert.fail("A recent submission must start a cooldown");
+    assert.equal(cooldown.retryAfterSeconds, 10);
+    const justBefore = await submit(now + 9_999);
+    assert.equal(justBefore.result, "rate_limited");
+    if (justBefore.result !== "rate_limited") assert.fail("The cooldown must last the full twenty seconds");
+    assert.equal(justBefore.retryAfterSeconds, 1);
+    assert.equal((await submit(now + 10_000)).result, "invalid");
 
-    // Insert historical submissions
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, submitted_at) VALUES ('r-old', 'p-1', 1, 'published', '{}', 'hash1', ${twoHoursAgo})`]);
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, submitted_at) VALUES ('r-recent', 'p-1', 2, 'published', '{}', 'hash2', ${tenSecondsAgo})`]);
-
-    // 1. Last submission on preset (within 20s cooldown)
-    const lastSub = queryD1<{ submitted_at: number }>(stateDirectory, "SELECT submitted_at FROM preset_revisions WHERE preset_id = 'p-1' AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1").results[0];
-    assert.ok(lastSub);
-    const elapsed = now - lastSub.submitted_at;
-    assert.ok(elapsed < 20_000, "Should detect submission within 20s cooldown window");
-
-    // 2. Author submissions within the last hour
-    const oneHourAgo = now - 3_600_000;
-    const hourlyCount = queryD1<{ count: number }>(stateDirectory, `SELECT COUNT(*) AS count FROM preset_revisions INNER JOIN presets ON presets.id = preset_revisions.preset_id WHERE presets.author_id = 'author-1' AND preset_revisions.submitted_at >= ${oneHourAgo}`).results[0].count;
-    assert.equal(hourlyCount, 1, "Should only count submissions within the last hour (excluding 2h ago)");
-  } finally {
-    rmSync(stateDirectory, { recursive: true, force: true });
-  }
+    await binding.batch(Array.from({ length: 7 }, (_, i) => history(`hourly-${i}`, i + 4, now - 30_000, another.id)));
+    const hourly = await submit(now + 10_000);
+    assert.equal(hourly.result, "rate_limited");
+    if (hourly.result !== "rate_limited") assert.fail("Eight submissions in an hour must reach the author cap");
+    assert.match(hourly.message, /8 submissions per hour/);
+    assert.equal(hourly.retryAfterSeconds, undefined);
+    const afterHourlyHistoryExpires = now + 60 * 60 * 1000 - 30_000 + 1;
+    assert.equal((await submit(afterHourlyHistoryExpires)).result, "invalid");
+  });
 });
 
-test("updated view sorts presets strictly by updated_at timestamp rather than creation or publication time", () => {
-  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-sort-"));
-  try {
-    runD1(stateDirectory, ["migrations", "apply", "DB"]);
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('author-1', 'Creator')"]);
-
-    const now = Date.now();
+test("updated dashboard sorts by update time rather than creation or publication time", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    const now = Date.UTC(2026, 0, 1, 12);
     const older = now - 100_000;
     const newer = now - 10_000;
+    const a = await repository.createPresetDraft("author-1", "Preset A", new Date(older));
+    const b = await repository.createPresetDraft("author-1", "Preset B", new Date(older + 50_000));
+    for (const [preset, publishedAt, updatedAt] of [[a, older, newer], [b, older + 50_000, older + 50_000]] as const) {
+      await binding.batch([
+        binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(preset.revisionId),
+        binding.prepare("UPDATE preset_revisions SET status = 'published' WHERE id = ?").bind(preset.revisionId),
+        binding.prepare("UPDATE presets SET status = 'published', published_revision_id = ?, working_revision_id = NULL, published_at = ?, updated_at = ? WHERE id = ?")
+          .bind(preset.revisionId, publishedAt, updatedAt, preset.id),
+      ]);
+    }
+    const sorted = await repository.listDashboardPresets("updated", undefined, 48, 0);
+    assert.equal(sorted.total, 2);
+    assert.deepEqual(sorted.items.map((preset) => preset.id), [a.id, b.id]);
+  });
+});
 
-    // Preset A was created early and published early, but updated recently
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-a', 'preset-a', 'author-1', 'Preset A', 'published', 'rev-a', ${older}, ${older}, ${newer})`]);
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-a', 'preset-a', 1, 'published', '{}', 'hash-a')`]);
+test("retraction removes the published preset and blocks submissions for seven days", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    const now = Date.UTC(2026, 0, 1, 12);
+    const weekLater = now + 7 * 24 * 60 * 60 * 1000;
+    const preset = await repository.createPresetDraft("author-1", "Published preset", new Date(now));
+    await binding.batch([
+      binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(preset.revisionId),
+      binding.prepare("UPDATE preset_revisions SET status = 'published' WHERE id = ?").bind(preset.revisionId),
+      binding.prepare("UPDATE presets SET status = 'published', published_revision_id = ?, working_revision_id = NULL, published_at = ? WHERE id = ?")
+        .bind(preset.revisionId, now, preset.id),
+    ]);
+    const published = await binding.prepare("SELECT content_json, content_hash FROM preset_revisions WHERE id = ?").bind(preset.revisionId).first();
+    await binding.prepare("INSERT INTO preset_search_documents (preset_id, published_revision_id, schema_version, title, author, description, secondary_text) VALUES (?, ?, 1, 'Published preset', 'Creator', '', '')")
+      .bind(preset.id, preset.revisionId).run();
 
-    // Preset B was created later and published later, but has older updated_at
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-b', 'preset-b', 'author-1', 'Preset B', 'published', 'rev-b', ${older + 50_000}, ${older + 50_000}, ${older + 50_000})`]);
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-b', 'preset-b', 1, 'published', '{}', 'hash-b')`]);
+    const result = await repository.retractPreset({ identifier: `https://straftatpresets.com/p/${preset.slug}`, reason: "Invalid content", now: new Date(now) });
+    assert.equal(result.result, "retracted");
+    if (result.result !== "retracted") assert.fail("A published preset must be retractable");
+    assert.equal(result.preset.canEdit, true);
+    assert.equal(result.preset.workingStatus, "rejected");
+    assert.equal(result.preset.hasPublishedRevision, false);
+    assert.notEqual(result.preset.revisionId, preset.revisionId);
+    assert.equal(result.preset.revisionNumber, 2);
+    assert.deepEqual(result.preset.content, preset.content);
+    assert.ok(result.preset.issues.some((issue) => issue.code === "retracted"));
+    assert.deepEqual(await binding.prepare("SELECT status, content_json, content_hash FROM preset_revisions WHERE id = ?").bind(preset.revisionId).first(), { ...published, status: "archived" });
+    const updated = await binding.prepare("SELECT status, published_revision_id, resubmission_blocked_until, retracted_reason FROM presets WHERE id = ?").bind(preset.id).first();
+    assert.deepEqual(updated, { status: "draft", published_revision_id: null, resubmission_blocked_until: weekLater, retracted_reason: "Invalid content" });
+    assert.equal(await binding.prepare("SELECT suspended_until FROM users WHERE id = 'author-1'").first("suspended_until"), weekLater);
+    assert.equal(await repository.getPresetForViewer(preset.id), undefined);
+    assert.equal((await repository.listDashboardPresets("updated", undefined, 48, 0)).total, 0);
+    assert.equal(await binding.prepare("SELECT count(*) AS count FROM preset_search_documents WHERE preset_id = ?").bind(preset.id).first("count"), 0);
 
-    // Query sorted by updated_at DESC
-    const sorted = queryD1<{ id: string }>(stateDirectory, "SELECT id FROM presets WHERE status = 'published' AND published_revision_id IS NOT NULL ORDER BY updated_at DESC, id ASC").results;
-    assert.deepEqual(sorted.map((r) => r.id), ["preset-a", "preset-b"], "Preset A (recently updated) should appear before Preset B");
-  } finally {
-    rmSync(stateDirectory, { recursive: true, force: true });
+    const draft = await repository.savePresetDraft({
+      presetId: preset.id, userId: "author-1", revisionId: result.preset.revisionId, editVersion: result.preset.editVersion,
+      content: { ...preset.content, title: "Revised preset" }, now: new Date(now + 1_000),
+    });
+    assert.equal(draft.result, "updated");
+    if (draft.result !== "updated") assert.fail("The creator must be able to edit a retracted preset");
+    assert.equal(draft.preset.slug, preset.slug);
+    const submit = (time: number) => repository.submitPreset({
+      presetId: preset.id, userId: "author-1", revisionId: draft.preset.revisionId, editVersion: draft.preset.editVersion, now: new Date(time),
+    });
+    assert.equal((await submit(now + 1_000)).result, "rate_limited");
+    assert.equal((await submit(weekLater)).result, "invalid");
+    assert.deepEqual(await repository.retractPreset({ identifier: preset.id }), { result: "not_published" });
+    assert.deepEqual(await repository.retractPreset({ identifier: "missing" }), { result: "not_found" });
+  });
+});
+
+test("retraction preserves existing edits and invalidates pending Telegram reviews", async (t) => {
+  const tokenDescriptor = Object.getOwnPropertyDescriptor(env, "TELEGRAM_BOT_TOKEN");
+  Object.defineProperty(env, "TELEGRAM_BOT_TOKEN", { configurable: true, writable: true, value: "fixture-token" });
+  t.after(() => {
+    if (tokenDescriptor) Object.defineProperty(env, "TELEGRAM_BOT_TOKEN", tokenDescriptor);
+    else Reflect.deleteProperty(env, "TELEGRAM_BOT_TOKEN");
+  });
+  const deletedMessages: unknown[] = [];
+  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    assert.equal(new URL(String(input)).pathname.endsWith("/deleteMessage"), true);
+    deletedMessages.push(JSON.parse(String(init?.body)));
+    return Response.json({ ok: true });
+  });
+  for (const status of ["draft", "pending", "rejected"] as const) {
+    await t.test(status, async () => {
+      await withLocalRepository(async (repository, binding) => {
+        const now = new Date("2026-01-01T12:00:00Z");
+        const preset = await repository.createPresetDraft("author-1", "Published preset", now);
+        await binding.batch([
+          binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(preset.revisionId),
+          binding.prepare("UPDATE preset_revisions SET status = 'published' WHERE id = ?").bind(preset.revisionId),
+          binding.prepare("UPDATE presets SET status = 'published', published_revision_id = ?, working_revision_id = NULL, published_at = ? WHERE id = ?")
+            .bind(preset.revisionId, now.getTime(), preset.id),
+        ]);
+        const saved = await repository.savePresetDraft({
+          presetId: preset.id, userId: "author-1", revisionId: preset.revisionId, editVersion: preset.editVersion,
+          content: { ...preset.content, title: "Unpublished edits" }, now,
+        });
+        assert.equal(saved.result, "updated");
+        if (saved.result !== "updated") assert.fail("The published preset must support a working revision");
+        const revisionId = saved.preset.revisionId;
+        if (status !== "draft") await binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(revisionId).run();
+        if (status === "rejected") await binding.prepare("UPDATE preset_revisions SET status = 'rejected' WHERE id = ?").bind(revisionId).run();
+        if (status === "pending") {
+          await binding.prepare("UPDATE preset_revisions SET telegram_chat_id = 'fixture-chat', telegram_message_id = 42, telegram_message_kind = 'text', telegram_message_html = 'Pending review' WHERE id = ?")
+            .bind(revisionId).run();
+        }
+
+        const result = await repository.retractPreset({ identifier: preset.slug, now });
+        assert.equal(result.result, "retracted");
+        if (result.result !== "retracted") assert.fail("Retraction must preserve the working revision");
+        assert.equal(result.preset.revisionId, revisionId);
+        assert.deepEqual(result.preset.content, saved.preset.content);
+        assert.equal(result.preset.workingStatus, status === "draft" ? "draft" : "rejected");
+        assert.ok(result.preset.issues.some((issue) => issue.code === "retracted"));
+        assert.equal(await binding.prepare("SELECT revision_counter FROM presets WHERE id = ?").bind(preset.id).first("revision_counter"), 2);
+        assert.equal(await binding.prepare("SELECT status FROM preset_revisions WHERE id = ?").bind(preset.revisionId).first("status"), "archived");
+        assert.equal(await repository.getPresetForViewer(preset.id), undefined);
+        if (status === "pending") {
+          assert.deepEqual(deletedMessages, [{ chat_id: "fixture-chat", message_id: 42 }]);
+          assert.equal((await repository.getRevisionModerationContext(revisionId))?.message, undefined);
+          assert.deepEqual(await repository.reviewPreset({ presetId: preset.id, revisionId, reviewerId: null, decision: "approve", issues: [], now }), { result: "conflict" });
+        }
+      });
+    });
   }
 });
 
-test("retraction sets resubmission_blocked_until on preset and suspended_until on author", () => {
-  const stateDirectory = mkdtempSync(path.join(tmpdir(), "straftat-presets-retract-"));
-  try {
-    runD1(stateDirectory, ["migrations", "apply", "DB"]);
-    runD1(stateDirectory, ["execute", "DB", "--command", "INSERT INTO users (id, name) VALUES ('bad-actor', 'Spammer')"]);
+test("retraction rolls back every database change if its batch fails", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    const now = new Date("2026-01-01T12:00:00Z");
+    const preset = await repository.createPresetDraft("author-1", "Published preset", now);
+    await binding.batch([
+      binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(preset.revisionId),
+      binding.prepare("UPDATE preset_revisions SET status = 'published' WHERE id = ?").bind(preset.revisionId),
+      binding.prepare("UPDATE presets SET status = 'published', published_revision_id = ?, working_revision_id = NULL, published_at = ? WHERE id = ?")
+        .bind(preset.revisionId, now.getTime(), preset.id),
+      binding.prepare("INSERT INTO preset_search_documents (preset_id, published_revision_id, schema_version, title, author, description, secondary_text) VALUES (?, ?, 1, 'Published preset', 'Creator', '', '')")
+        .bind(preset.id, preset.revisionId),
+    ]);
+    await binding.exec("CREATE TRIGGER fail_test_suspension BEFORE UPDATE OF suspended_until ON users BEGIN SELECT RAISE(ABORT, 'fixture suspension failure'); END;");
 
-    const now = Date.now();
-    const weekLater = now + 7 * 24 * 60 * 60 * 1000;
-
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO presets (id, slug, author_id, title, status, published_revision_id, created_at, published_at, updated_at) VALUES ('preset-bad', 'preset-bad', 'bad-actor', 'Bad Preset', 'published', 'rev-bad', ${now}, ${now}, ${now})`]);
-    runD1(stateDirectory, ["execute", "DB", "--command", `INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash) VALUES ('rev-bad', 'preset-bad', 1, 'published', '{}', 'hash-bad')`]);
-
-    // Retract preset and suspend author for 1 week
-    runD1(stateDirectory, ["execute", "DB", "--command", `UPDATE presets SET status = 'draft', published_revision_id = NULL, published_at = NULL, resubmission_blocked_until = ${weekLater}, retracted_at = ${now}, retracted_reason = 'Hate speech' WHERE id = 'preset-bad'`]);
-    runD1(stateDirectory, ["execute", "DB", "--command", `UPDATE users SET suspended_until = ${weekLater} WHERE id = 'bad-actor'`]);
-
-    const updatedPreset = queryD1<{ status: string; published_revision_id: string | null; resubmission_blocked_until: number; retracted_reason: string }>(stateDirectory, "SELECT status, published_revision_id, resubmission_blocked_until, retracted_reason FROM presets WHERE id = 'preset-bad'").results[0];
-    assert.equal(updatedPreset.status, "draft");
-    assert.equal(updatedPreset.published_revision_id, null);
-    assert.equal(updatedPreset.resubmission_blocked_until, weekLater);
-    assert.equal(updatedPreset.retracted_reason, "Hate speech");
-
-    const updatedUser = queryD1<{ suspended_until: number }>(stateDirectory, "SELECT suspended_until FROM users WHERE id = 'bad-actor'").results[0];
-    assert.equal(updatedUser.suspended_until, weekLater);
-  } finally {
-    rmSync(stateDirectory, { recursive: true, force: true });
-  }
+    await assert.rejects(repository.retractPreset({ identifier: preset.id, now }), /fixture suspension failure/);
+    assert.equal((await repository.getPresetForViewer(preset.id))?.revisionId, preset.revisionId);
+    assert.equal(await binding.prepare("SELECT status FROM preset_revisions WHERE id = ?").bind(preset.revisionId).first("status"), "published");
+    assert.equal(await binding.prepare("SELECT count(*) AS count FROM preset_search_documents WHERE preset_id = ?").bind(preset.id).first("count"), 1);
+    assert.deepEqual(await binding.prepare("SELECT revision_counter, working_revision_id, resubmission_blocked_until, retracted_at FROM presets WHERE id = ?").bind(preset.id).first(), {
+      revision_counter: 1, working_revision_id: null, resubmission_blocked_until: null, retracted_at: null,
+    });
+    assert.equal(await binding.prepare("SELECT suspended_until FROM users WHERE id = 'author-1'").first("suspended_until"), null);
+  });
 });

@@ -107,39 +107,6 @@ export async function decodeSwapperExport(encodedValue: string): Promise<Decoded
   };
 }
 
-export async function validateSwapperExport(encodedValue: string): Promise<{
-  valid: boolean;
-  name?: string;
-  errors: string[];
-  decoded?: DecodedSwapper;
-}> {
-  const trimmed = encodedValue.trim();
-  if (!trimmed) return { valid: false, errors: ["Missing swapper encoded value."] };
-  try {
-    const decoded = await decodeSwapperExport(trimmed);
-    const errors: string[] = [];
-    if (!decoded.name.trim()) errors.push("Swapper preset name is missing.");
-    if (decoded.remapCount === 0) errors.push("Swapper preset contains no weapon remap rules.");
-    if (decoded.invalidMaps.length > 0) {
-      errors.push(`Swapper references unsupported map(s): ${decoded.invalidMaps.join(", ")}`);
-    }
-    if (decoded.invalidWeapons.length > 0) {
-      errors.push(`Swapper references unsupported weapon(s): ${decoded.invalidWeapons.join(", ")}`);
-    }
-    return {
-      valid: errors.length === 0,
-      name: decoded.name,
-      errors,
-      decoded,
-    };
-  } catch (error) {
-    return {
-      valid: false,
-      errors: [error instanceof Error ? error.message : "Invalid swapper export."],
-    };
-  }
-}
-
 export type SwapperInputRule = {
   mapString: string;
   swaps: Array<{ precursor: string; result: string }>;

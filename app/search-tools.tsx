@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { weaponAssetUrl } from "@/src/domain/game-weapons";
 import { TAG_CATEGORIES, type TagCatalogEntry } from "@/src/domain/tag-catalog";
+import { observePickerDismissal } from "@/src/lib/picker-dismissal";
 
 const RADIAL_ORIGIN_X_OFFSET = 8;
 const RADIAL_ORIGIN_Y_OFFSET = -8;
@@ -33,25 +34,7 @@ export function RadialWeaponPicker({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target) && !triggerRef.current?.contains(target)) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose, triggerRef]);
+  useEffect(() => observePickerDismissal(containerRef, triggerRef, onClose), [onClose, triggerRef]);
 
   // Fit below the search bar on laptop-height viewports.
   const dishDimension = useMemo(() => {
@@ -262,25 +245,7 @@ export function SearchTagPicker({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target) && !triggerRef.current?.contains(target)) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose, triggerRef]);
+  useEffect(() => observePickerDismissal(containerRef, triggerRef, onClose), [onClose, triggerRef]);
 
   return (
     <div ref={containerRef} className="search-tag-picker" role="dialog" aria-label="Tag filter picker">

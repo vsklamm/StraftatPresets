@@ -16,10 +16,10 @@ test("preset import guides are configured for randomizer, swapper, and playlist"
     assert.ok(guide.tabLabel.length > 0, `Tab label should be non-empty for ${topic}`);
     assert.ok(guide.estimatedTime.length > 0, `Estimated time should be non-empty for ${topic}`);
 
-    // Steps count: 5 to 6 steps
+    // Steps count: 4 to 6 steps
     assert.ok(
       guide.steps.length >= 4 && guide.steps.length <= 6,
-      `Guide for ${topic} should have 5-6 steps, but has ${guide.steps.length}`
+      `Guide for ${topic} should have 4-6 steps, but has ${guide.steps.length}`
     );
 
     // Each step must have valid numbering, title, description, and imageSrc
@@ -57,13 +57,14 @@ test("preset import guides are configured for randomizer, swapper, and playlist"
 
 test("how-to-import page renders Home and valid metadata", async () => {
   const { default: HowToImportPage, metadata } = await import("../app/how-to-import/page");
+  const { default: Home } = await import("../app/page");
   assert.ok(metadata.title, "Metadata should have a title");
   assert.ok(metadata.description, "Metadata should have a description");
   assert.equal(metadata.alternates?.canonical, "/how-to-import");
 
   const vnode = HowToImportPage();
   assert.ok(vnode, "Page should render a valid React element");
-  assert.equal(typeof vnode.type, "function");
+  assert.equal(vnode.type, Home);
 });
 
 test("how-to-import has a dedicated large link preview with a valid image", async () => {

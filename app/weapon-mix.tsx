@@ -4,7 +4,7 @@ import { WeaponImage } from "@/app/weapon-image";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { getWeaponImage } from "@/src/domain/game-weapons";
 import { MAX_SWAPPER_RESULT_WEAPONS } from "@/src/domain/swapper-result-weapons";
-import { calculateWeaponChances, type WeightedWeapon } from "@/src/domain/weapon-weights";
+import type { WeightedWeapon } from "@/src/domain/weapon-weights";
 import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
 
 const MAX_VISIBLE_WEAPONS = 18;
@@ -219,7 +219,7 @@ export function WeaponMix({
   }, [weapons, variant]);
 
   const visibleLimit = variant === "swapper" ? MAX_SWAPPER_RESULT_WEAPONS : MAX_VISIBLE_WEAPONS;
-  const weighted = calculateWeaponChances(weapons)
+  const weighted = weapons
     .filter((weapon) => getWeaponImage(weapon.name))
     .sort((left, right) => right.weight - left.weight)
     .slice(0, visibleLimit);

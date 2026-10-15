@@ -24,11 +24,12 @@ const event = (actorHash: string, kind: RankingEvent["kind"] = "copy", createdAt
 const projection = (events: RankingEvent[], time = now) => buildRankingProjection([preset()], events, tags, { first: null, second: null }, time)[0];
 const hash = async (value: string) => createHash("sha256").update(value).digest("hex");
 const migrationFiles = readdirSync("db/init").filter((name) => name.endsWith(".sql")).sort();
+const firstPublicationMigration = "0004_faithful_human_torch.sql";
 
 function fixture(upgrade = false) {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  for (const file of upgrade ? migrationFiles.slice(0, -1) : migrationFiles) db.exec(readFileSync(`db/init/${file}`, "utf8"));
+  for (const file of upgrade ? migrationFiles.slice(0, migrationFiles.indexOf(firstPublicationMigration)) : migrationFiles) db.exec(readFileSync(`db/init/${file}`, "utf8"));
   const statements: string[] = [];
   const query: RankingQuery = async <T>(sql: string, params: readonly (string | number | null)[] = []) => {
     statements.push(sql);
@@ -308,7 +309,7 @@ test("upgrade backfills earliest publication, ignores rejected reviews and prese
       UPDATE preset_revisions SET status = 'archived' WHERE id = 'r-p';
       INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, reviewed_at)
         VALUES ('rejected', 'p', 2, 'rejected', '{}', 'hash', ${now - 20 * DAY});`);
-    f.db.exec(readFileSync(`db/init/${migrationFiles.at(-1)}`, "utf8"));
+    f.db.exec(readFileSync(`db/init/${firstPublicationMigration}`, "utf8"));
     const first = () => f.db.prepare("SELECT first_published_at AS first FROM presets WHERE id = 'p'").get()?.first;
     assert.equal(first(), now - 10 * DAY);
     f.db.exec(`UPDATE presets SET status = 'published', published_at = ${now} WHERE id = 'p'`);
