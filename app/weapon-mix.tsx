@@ -163,6 +163,18 @@ export function WeaponMix({
   const [patternSeed] = useState(() => Math.floor(Math.random() * FLOAT_PATTERN_COUNT));
   const [atmosphereHeight, setAtmosphereHeight] = useState<number>(380);
   const [atmosphereWidth, setAtmosphereWidth] = useState<number>(600);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => {
+      setReducedMotion(preference.matches);
+      if (preference.matches) setIsCollecting(false);
+    };
+    update();
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (rootRef.current) return observeAnimationVisibility(rootRef.current);
@@ -216,6 +228,7 @@ export function WeaponMix({
   useEffect(() => {
     if (copyBurst === undefined || copyBurst === previousBurst.current) return;
     previousBurst.current = copyBurst;
+    if (reducedMotion) return;
 
     const button = copyButtonRef?.current;
     const root = rootRef.current;
@@ -256,7 +269,7 @@ export function WeaponMix({
       window.cancelAnimationFrame(animationFrame);
       window.clearTimeout(timer);
     };
-  }, [copyBurst, copyButtonRef]);
+  }, [copyBurst, copyButtonRef, reducedMotion]);
 
   const orbitRx = Math.round(Math.min(220, Math.max(120, atmosphereWidth * 0.29)));
   const orbitRy = Math.round(84 * (atmosphereHeight / 360));
@@ -276,14 +289,14 @@ export function WeaponMix({
   >
     {weighted.map((weapon, index) => {
       const hash = hashName(`${weapon.name}:${layoutSeed}`);
-      const layoutType = layoutSeed % WEAPON_LAYOUTS.length;
+      const layoutType = reducedMotion ? 5 : layoutSeed % WEAPON_LAYOUTS.length;
       const xJitter = ((hash % 17) - 8) * 0.7;
       const yJitter = (((hash >> 5) % 27) - 13) * 1.2;
 
       const floatPatternIndex = (patternSeed % FLOAT_PATTERN_COUNT) + 1;
-      const isLemniscate = floatPatternIndex === 16 || (layoutType === 6 && (patternSeed % 2 === 0)) || (layoutType === 5 && (patternSeed % 4 === 2));
-      const isMobius = !isLemniscate && (floatPatternIndex === 15 || (layoutType === 5 && (patternSeed % 4 === 1)));
-      const isCarousel = !isLemniscate && !isMobius && (floatPatternIndex === 14 || (layoutType === 5 && (patternSeed % 4 === 0)));
+      const isLemniscate = !reducedMotion && (floatPatternIndex === 16 || (layoutType === 6 && (patternSeed % 2 === 0)) || (layoutType === 5 && (patternSeed % 4 === 2)));
+      const isMobius = !reducedMotion && !isLemniscate && (floatPatternIndex === 15 || (layoutType === 5 && (patternSeed % 4 === 1)));
+      const isCarousel = !reducedMotion && !isLemniscate && !isMobius && (floatPatternIndex === 14 || (layoutType === 5 && (patternSeed % 4 === 0)));
 
       // Logarithmic sizing preserves a visible difference across the weight range.
       let size = variant === "swapper"
@@ -343,10 +356,12 @@ export function WeaponMix({
 
         // Keep moving images safely inside the visible card bounds without clipping or peeking over borders.
         x = Math.max(18, Math.min(82, x));
-        const visualHalfHeight = Math.max(36, (size * 0.55) / 2 + 16);
-        const minY = visualHalfHeight + 24;
-        const maxY = Math.max(minY, atmosphereHeight - visualHalfHeight - 20);
-        y = Math.max(minY, Math.min(maxY, y));
+        if (!reducedMotion) {
+          const visualHalfHeight = Math.max(36, (size * 0.55) / 2 + 16);
+          const minY = visualHalfHeight + 24;
+          const maxY = Math.max(minY, atmosphereHeight - visualHalfHeight - 20);
+          y = Math.max(minY, Math.min(maxY, y));
+        }
 
         if (layoutType === 5) {
           // Stationed along tilted circular path: depth scale, layering (z-index), and opacity

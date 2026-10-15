@@ -14,6 +14,7 @@ export const authOptions: NextAuthOptions = {
     clientId: env.DISCORD_CLIENT_ID ?? "discord-not-configured",
     clientSecret: env.DISCORD_CLIENT_SECRET ?? "discord-not-configured",
     authorization: { params: { scope: "identify" } },
+    httpOptions: { timeout: 10_000 },
   })],
   callbacks: {
     async signIn({ user, account }) {

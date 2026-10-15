@@ -17,6 +17,19 @@ type AuthControlProps = {
   onNameDialogClose?: () => void;
 };
 
+export function SubmitPresetButton({ status, isCreating, onClick }: {
+  status: ReturnType<typeof useSession>["status"];
+  isCreating: boolean;
+  onClick: () => void;
+}) {
+  return <button className="submit-preset" type="button" disabled={status === "loading" || isCreating} onClick={onClick}>
+    {isCreating ? "Opening draft…" : <>
+      {status === "unauthenticated" ? <><span>Sign in</span><span className="submit-preset-divider" aria-hidden="true" />{" "}</> : null}
+      <span>Submit preset</span>
+    </>}
+  </button>;
+}
+
 export function AuthControl({ onProfileChange, nameDialogRequested = false, onNameDialogClose }: AuthControlProps) {
   const { data: session, status } = useSession();
 
@@ -64,7 +77,6 @@ function AuthenticatedAuthControl({ session, onProfileChange, nameDialogRequeste
   };
   return <>
     <div className="user-menu" onBlur={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setIsOpen(false); }}>
-      <span className="credit-separator" aria-hidden="true" />
       <button className="user-menu-trigger" type="button" aria-haspopup="menu" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} onKeyDown={(event) => { if (event.key === "Escape") setIsOpen(false); }}>
         <span><StraftatText text={visibleName} /></span>
       </button>

@@ -25,6 +25,7 @@ export type Preset = {
   tags: string[];
   views: number;
   copies: number;
+  updatedAt?: Date | string;
   versioningEnabled: boolean;
   versions: PresetVersion[];
   persisted?: boolean;

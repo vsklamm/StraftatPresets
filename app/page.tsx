@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
-import { AuthControl } from "@/app/auth-control";
+import { AuthControl, SubmitPresetButton } from "@/app/auth-control";
 import { SeasonalEffects } from "@/src/seasonal/seasonal-effects";
 import { ProjectInfo } from "@/app/project-info";
 import { WeaponMix } from "@/app/weapon-mix";
@@ -14,9 +14,11 @@ import { preloadCatalogWeapons } from "@/src/domain/weapon-image-sizes";
 import { SwapperWeaponMix } from "@/app/swapper-weapon-mix";
 import { ScrollingContent } from "@/app/scrolling-content";
 import { observeAnimationVisibility } from "@/src/lib/animation-visibility";
+import { observeResponsiveToolLinks } from "@/src/lib/header-tool-links";
 import { useBodyScrollLock } from "@/src/lib/body-scroll-lock";
 import { StraftatText } from "./straftat-text";
 import { PresetContentLabel } from "./preset-content-label";
+import { PresetUpdatedAt } from "./preset-updated-at";
 import { PresetContentEditor, starterPresetContent, type PresetContentUpdate } from "@/app/preset-editor";
 import { MAX_VISIBLE_PRESET_TAGS } from "@/src/domain/tag-policy";
 import {
@@ -186,6 +188,7 @@ function dashboardItemToPreset(item: PresetDashboardItem, tagLabels: ReadonlyMap
     tags: content.tags.map((tag) => labelFromSlug(tag, tagLabels)),
     views: item.views,
     copies: item.copies,
+    updatedAt: item.updatedAt,
     versioningEnabled: content.versioningEnabled,
     versions: versions.length ? versions : [{ label: "-", released: "Draft" }],
     persisted: true,
@@ -220,6 +223,11 @@ export default function Home() {
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const isHeaderCompactRef = useRef(false);
   const isModalOpenRef = useRef(false);
+  const toolTabsRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (toolTabsRef.current) return observeResponsiveToolLinks(toolTabsRef.current);
+  }, []);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -249,7 +257,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       void Promise.resolve().then(() => {
         setIsMounted(true);
-        if (window.sessionStorage.getItem("justLoggedIn") === "true") {
+        if (window.sessionStorage.getItem("justLoggedIn") === "true" || new URL(window.location.href).searchParams.get("create") === "1") {
           window.sessionStorage.removeItem("justLoggedIn");
           window.sessionStorage.setItem("dashboardView", "mine");
           setDashboardView("mine");
@@ -817,11 +825,6 @@ export default function Home() {
 
   const exitEditMode = useCallback(async () => {
     const content = draftContentRef.current ?? draftContent;
-    if (selected?.persisted && selected.canEdit && selected.state === "draft" && content &&
-      isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
-      if (await discardUnmodifiedDraft(selected)) dismissPreset();
-      return;
-    }
     if (await flushSelectedDraft()) {
       const savedContent = draftContentRef.current ?? content;
       setSubmissionReminderRequested(Boolean(savedContent && JSON.stringify(savedContent) !== editStartContentRef.current));
@@ -829,15 +832,15 @@ export default function Home() {
     } else {
       setActionError("Changes are safe on this device, but could not be synced. Try again.");
     }
-  }, [selected, draftContent, discardUnmodifiedDraft, dismissPreset, flushSelectedDraft]);
+  }, [draftContent, flushSelectedDraft]);
 
   const closePreset = useCallback(async () => {
     if (isSubmitting) return;
     const content = draftContentRef.current ?? draftContent;
-    if (isEditing && selected?.persisted && selected.canEdit && content) {
+    if (selected?.persisted && selected.canEdit && content) {
       if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
         if (!await discardUnmodifiedDraft(selected)) return;
-      } else {
+      } else if (isEditing) {
         if (!await flushSelectedDraft()) {
           setActionError("Changes are safe on this device, but could not be synced. Try closing again.");
           return;
@@ -851,10 +854,10 @@ export default function Home() {
     if (!openPresetIdRef.current) return;
     openPresetIdRef.current = "";
     const content = draftContentRef.current ?? draftContent;
-    if (isEditing && selected?.persisted && selected.canEdit && content) {
+    if (selected?.persisted && selected.canEdit && content) {
       if (selected.state === "draft" && isUnmodifiedStarterDraft(content, serverContentByPresetRef.current.get(selected.id))) {
         await discardUnmodifiedDraft(selected);
-      } else if (!await flushSelectedDraft()) {
+      } else if (isEditing && !await flushSelectedDraft()) {
         setActionError("Changes are safe on this device, but could not be synced. Try again.");
       }
     }
@@ -1300,13 +1303,14 @@ export default function Home() {
   };
   useEffect(() => {
     if (authStatus !== "authenticated" || isCreating || accountProfile?.userId !== authSession?.user.id || !accountProfile.profile.hasConfiguredDisplayName) return;
+    if (!itemsByView.mine || dashboardLoading || dashboardError) return;
     const url = new URL(window.location.href);
     if (url.searchParams.get("create") !== "1") return;
     url.searchParams.delete("create");
     window.history.replaceState(null, "", url);
-    window.queueMicrotask(() => void createPreset());
+    if (itemsByView.mine.length === 0) window.queueMicrotask(() => void createPreset());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession?.user.id, isCreating, accountProfile]);
+  }, [authStatus, authSession?.user.id, isCreating, accountProfile, itemsByView.mine, dashboardLoading, dashboardError]);
 
   const submitSelectedPreset = async () => {
     if (!selected?.revisionId || selected.editVersion === undefined || isSubmitting) return;
@@ -1468,7 +1472,7 @@ export default function Home() {
           <Link className="wordmark" href="/" aria-label="STRAFTATpresets">
             <span className="wordmark-game">STR<span className="wordmark-a">A</span>FT<span className="wordmark-a">A</span>T</span><span className="wordmark-presets">presets</span>
           </Link>
-          <nav className="tool-tabs" aria-label="STRAFTATpresets sections" onFocus={(event) => {
+          <nav ref={toolTabsRef} className="tool-tabs" aria-label="STRAFTATpresets sections" onFocus={(event) => {
             if (event.currentTarget.scrollWidth > event.currentTarget.clientWidth) {
               event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
             }
@@ -1498,19 +1502,19 @@ export default function Home() {
               </Link>
             </div>
             <a className="tool-tab-link" href="https://straftools.vercel.app/" target="_blank" rel="noreferrer">
-              <span className="tab-title-row">Preset Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Preset<span className="tool-tab-break"> </span>Builder<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
             </a>
             <a className="tool-tab-link" href="https://matthewknorr.github.io/StraftatFX/" target="_blank" rel="noreferrer">
-              <span className="tab-title-row"><span className="fx-link-text">Text Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label"><span className="fx-link-text">Text<span className="tool-tab-break"> </span>Colors</span><svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
             </a>
             <a className="tool-tab-link community-discord-link" href="https://discord.gg/qeMEaMEkDa" target="_blank" rel="noreferrer" aria-label="Official STRAFTAT Discord" title="Official STRAFTAT Discord (opens in a new tab)">
-              <span>Official</span><span className="tab-title-row">Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Official<span className="tool-tab-break"> </span>Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
             </a>
             <a className="tool-tab-link community-discord-link" href="https://discord.gg/KN53t2R2BJ" target="_blank" rel="noreferrer" aria-label="Competitive STRAFTAT Discord" title="Competitive STRAFTAT Discord (opens in a new tab)">
-              <span>Competitive</span><span className="tab-title-row">Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+              <span className="tool-tab-label">Competitive<span className="tool-tab-break"> </span>Discord<svg className="external-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
             </a>
           </nav>
-          <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span></p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
+          <div className="topbar-meta"><p><span>made by <strong>klammvs</strong></span>{isLoggedIn ? <span className="credit-separator" aria-hidden="true" /> : null}</p><AuthControl onProfileChange={handleProfileChange} nameDialogRequested={isProfileEditorRequested} onNameDialogClose={() => setIsProfileEditorRequested(false)} /></div>
         </header>
           <div className="dashboard-toolbar">
             <div className="dashboard-views" role="group" aria-label="Preset order">
@@ -1561,7 +1565,7 @@ export default function Home() {
                 }} onClose={() => setWeaponPickerOpen(false)} /> : null}
               </div>
             </div>
-            <button className="submit-preset" type="button" disabled={authStatus === "loading" || isCreating} onClick={submitPreset}>{isCreating ? "Opening draft…" : "＋ Submit preset"}</button>
+            <SubmitPresetButton status={authStatus} isCreating={isCreating} onClick={submitPreset} />
           </div>
       </div>
 
@@ -1740,7 +1744,7 @@ export default function Home() {
               : !isEditing && selectedVersion.swapper?.length
                 ? <SwapperWeaponMix key={`${selected.id}-${selectedVersion.label}`} encodedValues={selectedSwapperCodes} />
                 : null}
-            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{displayedPresetState ? <><span className="byline-separator" aria-hidden="true" /><PresetStatus preset={selected} hasLocalChanges={hasLocalPresetChanges} /></> : selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}</p></div><div className="dialog-actions">
+            <div className="dialog-heading"><div className="dialog-title-block"><div className="dialog-title-line">{isEditing && draftContent ? <input id="dialog-title" className="dialog-title-input" aria-label="Preset name" maxLength={MAX_PRESET_TITLE_CHARACTERS} value={draftContent.title} onChange={(event) => updateDraftContent((content) => ({ ...content, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /> : <h2 id="dialog-title"><StraftatText text={selected.title} /></h2>}{(isEditing ? draftContent?.versioningEnabled : selected.versioningEnabled) ? <span className="version-badge">{formatPresetVersionLabel(isEditing && draftContent ? draftContent.versions[editorVersionIndex]?.label || "-" : selectedVersion.label)}</span> : null}</div><p><span className="byline-author">by <StraftatText text={selected.author} /></span>{displayedPresetState ? <><span className="byline-separator" aria-hidden="true" /><PresetStatus preset={selected} hasLocalChanges={hasLocalPresetChanges} /></> : selectedVersion.released && selectedVersion.released !== "Published" ? <><span className="byline-separator" aria-hidden="true" />{selectedVersion.released}</> : null}<PresetUpdatedAt updatedAt={selected.updatedAt} /></p></div><div className="dialog-actions">
               <div className="dialog-actions-main">
                 {!isEditing && presetHasPublishedLink(selected) ? (
                   <button
@@ -1857,7 +1861,7 @@ export default function Home() {
         onClose={closeGuideModal}
       />
       {authPrompt ? <AuthDialog onClose={() => setAuthPrompt(null)} onContinue={() => {
-        const callbackUrl = new URL(window.location.href);
+        const callbackUrl = new URL("/", window.location.origin);
         callbackUrl.searchParams.set("create", "1");
         window.sessionStorage.setItem("justLoggedIn", "true");
         void signIn("discord", { callbackUrl: callbackUrl.toString() });
