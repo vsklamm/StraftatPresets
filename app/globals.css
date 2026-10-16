@@ -394,7 +394,7 @@ button { color: inherit; }
 .search-input-wrap input::placeholder { color: var(--ui-text-dim); font-size: 15px; }
 
 .search-tools-right { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 3px; z-index: 10; }
-.search-tool-btn { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--ui-text-dim); cursor: pointer; transition: color .15s ease, background .15s ease, border-color .15s ease; }
+.search-tool-btn { display: grid; width: 28px; height: 28px; place-items: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ui-text-dim); cursor: pointer; transition: color .15s ease, background .15s ease, border-color .15s ease; }
 .search-tool-btn:hover, .search-tool-btn.active { color: #ffffff; background: transparent; }
 .search-tool-btn svg { display: block; flex: 0 0 auto; }
 
@@ -638,12 +638,97 @@ button { color: inherit; }
 }
 .card-open { display: flex; flex-direction: column; flex: 1; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .card-open:focus-visible { outline: 2px solid var(--frame-warm-strong); outline-offset: -2px; }
-.preset-image { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-bottom: 1px solid var(--frame-warm-soft); background: transparent; }
+.preset-image { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-bottom: 1px solid transparent; background: transparent; }
 .preset-image img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.75); transition: transform .28s cubic-bezier(.2, .82, .2, 1); }
 .preset-card:hover .preset-image img { transform: scale(1.014); }
 .preset-thumbnail-image { z-index: 2; opacity: 0; clip-path: polygon(47% 47%, 53% 47%, 53% 53%, 47% 53%); transform: scale(1.035); }
 .preset-image.is-arriving .preset-thumbnail-image { animation: thumbnail-tunnel-arrival .52s cubic-bezier(.18,.72,.18,1) both; }
 .preset-image.is-ready .preset-thumbnail-image { opacity: 1; clip-path: none; transform: none; }
+/* Thumbnail-local adaptation of Afterglow CRT (MIT); see THIRD_PARTY_NOTICES.md. */
+.thumbnail-crt { display: none; }
+.preset-grid .has-thumbnail.is-ready {
+  --thumbnail-corner-mask:
+    radial-gradient(ellipse 18px 6px at 18px 6px, transparent calc(100% - .5px), #000) left bottom / 18px 6px no-repeat,
+    radial-gradient(ellipse 18px 6px at 0 6px, transparent calc(100% - .5px), #000) right bottom / 18px 6px no-repeat;
+  isolation: isolate;
+  overflow: visible;
+}
+.preset-grid .preset-card .has-thumbnail.is-ready .preset-thumbnail-image {
+  transform: none;
+}
+/* Repeat only the bottom pixels into two shallow concave flares, without resizing the photo. */
+.thumbnail-corner-extension {
+  position: absolute;
+  inset: 0 0 -5px;
+  z-index: 2;
+  pointer-events: none;
+  mask: var(--thumbnail-corner-mask);
+}
+.preset-grid .preset-card .thumbnail-corner-extension img {
+  position: absolute;
+  top: 5px;
+  height: calc(100% - 5px);
+  transform: none;
+}
+.preset-grid .has-thumbnail.is-ready .thumbnail-crt {
+  display: block;
+  position: absolute;
+  inset: 0 0 -5px;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  mask: linear-gradient(#000 0 0) top / 100% calc(100% - 5px) no-repeat, var(--thumbnail-corner-mask);
+  opacity: .28;
+  background:
+    radial-gradient(ellipse at 44% 38%, #ffffff0a 15%, transparent 50%, #00000045 88%, #00000099 100%),
+    linear-gradient(118deg, #ffffff14, transparent 38%, transparent 72%, #b8d8e508),
+    repeating-linear-gradient(to bottom, #00000024 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, #ff675706 0 1px, #75edb504 1px 2px, #669cff06 2px 3px);
+  box-shadow: inset 0 0 16px #00000070, inset 0 0 2px #d5e2d64d;
+  transition: opacity .22s ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  html:not(.modal-open) .preset-grid .preset-card:hover .has-thumbnail.is-ready :is(.preset-thumbnail-image, .thumbnail-corner-image) {
+    filter: saturate(.85) contrast(1.08) brightness(1.04);
+  }
+  html:not(.modal-open) .preset-grid .preset-card:hover .has-thumbnail.is-ready .thumbnail-crt { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.modal-open) .preset-grid .has-thumbnail.is-ready :is(.preset-thumbnail-image, .thumbnail-corner-image) {
+    animation: thumbnail-crt-jitter var(--thumbnail-crt-duration, 13s) linear var(--thumbnail-crt-delay, 0s) infinite;
+    animation-play-state: var(--ambient-animation-state, paused);
+  }
+  html:not(.modal-open) .preset-grid .has-thumbnail.is-ready .thumbnail-crt::after {
+    content: "";
+    position: absolute;
+    inset: -35% 0 auto;
+    height: 30%;
+    background: linear-gradient(to bottom, transparent, #d7efe30a 45%, #cce6dc24 50%, #00000019 54%, transparent 75%);
+    opacity: 0;
+    animation: thumbnail-crt-roll var(--thumbnail-crt-duration, 13s) linear calc(var(--thumbnail-crt-delay, 0s) - 3s) infinite;
+    animation-play-state: var(--ambient-animation-state, paused);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html:not(.modal-open) .preset-grid .preset-card:hover .has-thumbnail.is-ready {
+    --thumbnail-crt-shift: .9px;
+  }
+  html:not(.modal-open) .preset-grid .preset-card:hover .has-thumbnail.is-ready :is(.preset-thumbnail-image, .thumbnail-corner-image),
+  html:not(.modal-open) .preset-grid .preset-card:hover .has-thumbnail.is-ready .thumbnail-crt::after {
+    animation-duration: 5.6s;
+  }
+}
+@keyframes thumbnail-crt-jitter {
+  0%, 8%, 10%, 64%, 67%, 100% { transform: none; }
+  8.5%, 65% { transform: translateX(var(--thumbnail-crt-shift, .45px)); }
+  9%, 66% { transform: translateX(calc(var(--thumbnail-crt-shift, .45px) * -.7)); }
+}
+@keyframes thumbnail-crt-roll {
+  0%, 12% { transform: translateY(0); opacity: 0; }
+  18% { opacity: .6; }
+  45% { transform: translateY(450%); opacity: .35; }
+  46%, 100% { transform: translateY(450%); opacity: 0; }
+}
 .thumbnail-tunnel-loader { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; overflow: hidden; opacity: 1; background: color-mix(in srgb, var(--bg) 94%, var(--frame-warm-deep)); transition: opacity .34s ease .14s, visibility 0s linear .5s; }
 .preset-image:is(.is-arriving, .is-ready) .thumbnail-tunnel-loader { visibility: hidden; opacity: 0; }
 .preset-image.is-ready .thumbnail-tunnel-loader { transition: none; }

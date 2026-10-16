@@ -1528,10 +1528,10 @@ export default function Home() {
                 <div className="search-tools-right">
                   {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><CloseIcon width={16} height={16} /></button> : null}
                   <button ref={tagPickerTriggerRef} className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
-                    <TagIcon width={15} height={15} />
+                    <TagIcon width={18} height={18} />
                   </button>
                   <button ref={weaponPickerTriggerRef} className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
-                    <WeaponFilterIcon width={15} height={15} />
+                    <WeaponFilterIcon width={18} height={18} />
                   </button>
                 </div>
                 {searchTagPickerOpen ? <SearchTagPicker triggerRef={tagPickerTriggerRef} tags={tagCatalogEntries} onSelect={(tag) => {
@@ -2045,8 +2045,13 @@ function CardThumbnail({ title, src, priority, onError, children }: { title: str
   }, [priority, src]);
 
   useEffect(() => {
-    if (phase !== "ready" && rootRef.current) return observeAnimationVisibility(rootRef.current);
-  }, [phase]);
+    const root = rootRef.current;
+    if (!root) return;
+    // Assign once after hydration so cards keep independent CRT rhythms across renders.
+    root.style.setProperty("--thumbnail-crt-duration", `${10 + Math.random() * 6}s`);
+    root.style.setProperty("--thumbnail-crt-delay", `${-Math.random() * 16}s`);
+    return observeAnimationVisibility(root);
+  }, []);
   useEffect(() => {
     if (phase !== "arriving") return;
     // Reduced motion or overridden CSS may prevent animationend from firing.
@@ -2090,6 +2095,17 @@ function CardThumbnail({ title, src, priority, onError, children }: { title: str
         }}
         onError={onError}
       />
+      {phase === "ready" ? <span className="thumbnail-corner-extension" aria-hidden="true">
+        <Image
+          className="thumbnail-corner-image"
+          src={src}
+          alt=""
+          width={640}
+          height={360}
+          sizes="(max-width: 480px) 100vw, (max-width: 720px) 50vw, (max-width: 980px) 33vw, 25vw"
+        />
+      </span> : null}
+      <span className="thumbnail-crt" aria-hidden="true" />
       {children}
     </div>
   );
