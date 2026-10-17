@@ -113,9 +113,9 @@ test("maximum rounded components fit the total score bound", () => {
   const metric = { total: 0, uniqueAnonymous: 0, uniqueAuthenticated: 0, effective: 10000 };
   const now = Date.UTC(2026, 8, 22);
   const score = calculatePresetRanking(full, { copies: metric, opens: metric, linkOpens: metric }, now, now, { surge: 16, lucky: 24 });
-  assert.deepEqual(score, { quality: 36.996, engagement: 44, freshness: 12, surge: 16, lucky: 24, total: 132.996 });
-  assert.equal(scoreToMilli(score.total), 132996);
-  assert.equal(scoreToMilli(200), 133000);
+  assert.deepEqual(score, { quality: 36.996, engagement: 44, freshness: 12, surge: 8, lucky: 24, total: 124.996 });
+  assert.equal(scoreToMilli(score.total), 124996);
+  assert.equal(scoreToMilli(200), 125000);
 });
 
 test("one browser cannot turn repeated clicks into fake unique engagement", () => {

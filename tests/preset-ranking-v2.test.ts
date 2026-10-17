@@ -190,33 +190,31 @@ test("copies dedupe across targets, opens union both kinds, repeats only refresh
   assert.ok(projection([{ ...event("a"), isAuthenticated: true }]).engagement > projection([event("a")]).engagement);
 });
 
-test("surge handles sparse days, relative leaders, midnight continuity and a one-day half-life", () => {
-  assert.equal(dailySurgePoints(1, 1), 0);
-  assert.ok(Math.abs(dailySurgePoints(2, 3) - 3.703) < 0.001);
-  assert.ok(Math.abs(dailySurgePoints(6, 13) - 8.817) < 0.001);
-  for (let u = 2; u < 30; u++) assert.ok(dailySurgePoints(u, 30) < dailySurgePoints(u + 1, 30));
-  const events = [event("a"), event("b")];
-  const midnight = Math.floor(now / DAY) * DAY + DAY;
-  assert.equal(projection(events, midnight - 1).surge, projection(events, midnight).surge);
-  assert.ok(Math.abs(projection(events, midnight + DAY).surge - projection(events, midnight).surge / 2) < 0.001);
-  assert.equal(projection([...events, ...events.map((e) => ({ ...e, createdAt: e.createdAt - DAY }))]).surge, projection(events).surge);
+test("daily copying credit gives a small low-count uplift and grows slowly toward eight", () => {
+  assert.equal(dailySurgePoints(0, 3), 0);
+  for (const [actors, expected] of [[1, 0.4], [2, 1.451], [3, 2.771], [4, 3.61], [10, 6.678]]) {
+    assert.ok(Math.abs(dailySurgePoints(actors, 3) - expected) < 0.001);
+  }
+  for (let u = 1; u < 30; u++) assert.ok(dailySurgePoints(u, 30) < dailySurgePoints(u + 1, 30));
+  assert.ok(dailySurgePoints(2, 20) < dailySurgePoints(2, 3));
+  assert.ok(dailySurgePoints(1, 20) < dailySurgePoints(1, 3));
 });
 
-test("surge halves the frozen top four and boosts others independently of luck and input order", () => {
+test("surge excludes the frozen top four and boosts others independently of luck and input order", () => {
   const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
   const events = presets.flatMap(({ id }) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
   const winners = { first: "f", second: "f" };
   const ranked = buildRankingProjection(presets, events, tags, winners, now);
   assert.equal(ranked[0].id, "f");
-  for (const id of ["a", "b", "c", "d"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 1.852);
-  for (const id of ["e", "f"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 4.074);
+  for (const id of ["a", "b", "c", "d"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 0);
+  for (const id of ["e", "f"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 1.813);
   assert.deepEqual(buildRankingProjection([...presets].reverse(), [...events].reverse(), tags, winners, now), ranked);
   const withoutLuck = buildRankingProjection(presets, events, tags, { first: null, second: null }, now);
   assert.equal(withoutLuck[0].id, "e");
   assert.deepEqual(withoutLuck.map((p) => [p.id, p.surge]).sort(), ranked.map((p) => [p.id, p.surge]).sort());
 });
 
-test("leader selection includes simple credit, engagement and freshness and breaks base-score ties by quality", () => {
+test("leader selection includes simple credit and engagement, ignores freshness and breaks ties by quality", () => {
   const ids = ["a", "b", "c", "d", "e"];
   const presets = ids.map((id) => preset(id));
   const events = ids.flatMap((id) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
@@ -226,18 +224,81 @@ test("leader selection includes simple credit, engagement and freshness and brea
       ...content.versions[0].mapPlaylists[0], mapNames: p.id === "e" ? ["A"] : ["A", "B", "C", "D", "E"],
     }] }],
   }) })));
-  assert.equal(simple.find((p) => p.id === "e")!.surge, 1.852);
-  assert.equal(simple.find((p) => p.id === "d")!.surge, 4.074);
+  assert.equal(simple.find((p) => p.id === "e")!.surge, 0);
+  assert.equal(simple.find((p) => p.id === "d")!.surge, 1.813);
   const engaged = run(presets, [...events, { ...event("visitor", "view"), presetId: "e" }]);
-  assert.equal(engaged.find((p) => p.id === "e")!.surge, 1.852);
+  assert.equal(engaged.find((p) => p.id === "e")!.surge, 0);
   const fresh = run(presets.map((p) => ({ ...p, firstPublishedAt: p.id === "e" ? now : now - DAY })));
-  assert.equal(fresh.find((p) => p.id === "e")!.surge, 1.852);
+  assert.equal(fresh.find((p) => p.id === "e")!.surge, 1.813);
+  // One older view earns 1.000 engagement points, matching the extra tag's quality credit.
+  const onePointViewAt = now - 2_674_457_795;
   const tied = run(presets.map((p) => ({
-    ...p, firstPublishedAt: now - 3 * DAY * Math.log2(12 / (p.id === "e" ? 9 : 10)),
+    ...p,
     contentJson: JSON.stringify({ ...content, tags: p.id === "e" ? ["a", "b", "c"] : ["a", "b"] }),
-  })));
-  assert.equal(tied.find((p) => p.id === "e")!.surge, 1.852);
-  assert.equal(tied.find((p) => p.id === "d")!.surge, 4.074);
+  })), [...events, ...ids.filter((id) => id !== "e").map((id) => ({
+    ...event("older-view", "view", onePointViewAt), presetId: id,
+  }))]);
+  const qualityLeader = tied.find((p) => p.id === "e")!;
+  const engagementLeader = tied.find((p) => p.id === "d")!;
+  assert.equal(qualityLeader.quality + qualityLeader.engagement, engagementLeader.quality + engagementLeader.engagement);
+  assert.ok(qualityLeader.quality > engagementLeader.quality);
+  assert.equal(qualityLeader.surge, 0);
+  assert.equal(engagementLeader.surge, 1.813);
+});
+
+test("top-four copying activity does not set the surge benchmark for the remaining presets", () => {
+  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
+  const run = (leaderCopies: number) => buildRankingProjection(presets, presets.flatMap(({ id }) =>
+    Array.from({ length: id === "e" ? 2 : id === "f" ? 3 : leaderCopies }, (_, i) => ({ ...event(String(i)), presetId: id })),
+  ), tags, { first: null, second: null }, now);
+  for (const ranked of [run(10), run(1000)]) {
+    for (const id of ["a", "b", "c", "d"]) assert.equal(ranked.find((p) => p.id === id)!.surge, 0);
+    assert.equal(ranked.find((p) => p.id === "e")!.surge, 1.813);
+    assert.equal(ranked.find((p) => p.id === "f")!.surge, 3.463);
+  }
+});
+
+test("catalogs of at most four presets have no surge recipients", () => {
+  for (const count of [0, 1, 2, 3, 4]) {
+    const presets = Array.from({ length: count }, (_, i) => preset(String(i)));
+    const events = presets.flatMap(({ id }) => ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
+    assert.ok(buildRankingProjection(presets, events, tags, { first: null, second: null }, now).every((p) => p.surge === 0));
+  }
+});
+
+test("surge opportunity decreases as quality and engagement rise", () => {
+  const anchors = ["a", "b", "c", "d"].map((id) => preset(id));
+  const anchorEvents = anchors.flatMap(({ id }) => Array.from({ length: 100 }, (_, i) =>
+    (["copy", "view"] as const).map((kind) => ({ ...event(String(i), kind), presetId: id })),
+  ).flat());
+  const copies = [event("one"), event("two")];
+  const run = (revision: PresetRevisionContent, views = 0) => buildRankingProjection(
+    [...anchors, { ...preset(), contentJson: JSON.stringify(revision) }],
+    [...anchorEvents, ...copies, ...Array.from({ length: views }, (_, i) => event(`viewer-${i}`, "view"))],
+    tags, { first: null, second: null }, now,
+  ).find((p) => p.id === "p")!;
+  const minimal = run(content);
+  const illustrated = run({ ...content, thumbnailKey: "image", description: "x".repeat(250) });
+  const popular = run({ ...content, thumbnailKey: "image", description: "x".repeat(250) }, 100);
+  assert.ok(illustrated.quality > minimal.quality);
+  assert.equal(illustrated.engagement, minimal.engagement);
+  assert.ok(popular.engagement > illustrated.engagement);
+  assert.equal(popular.quality, illustrated.quality);
+  assert.ok(minimal.surge > illustrated.surge && illustrated.surge > popular.surge && popular.surge > 0);
+});
+
+test("one daily copier earns a small surge and repeated copies cannot increase it", () => {
+  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
+  const leaderEvents = presets.slice(0, 4).flatMap(({ id }) =>
+    ["one", "two"].map((actor) => ({ ...event(actor), presetId: id })));
+  const copy = { ...event("visitor"), presetId: "e" };
+  const run = (copies: RankingEvent[]) => buildRankingProjection(
+    presets, [...leaderEvents, ...copies], tags, { first: null, second: null }, now,
+  );
+  const once = run([copy]);
+  assert.equal(once.find((p) => p.id === "e")!.surge, 0.5);
+  assert.equal(once.find((p) => p.id === "f")!.surge, 0);
+  assert.deepEqual(run(Array.from({ length: 10 }, () => ({ ...copy }))), once);
 });
 
 test("surge retains midnight continuity, a 36-hour nonleader half-life and cuts tiny tails before rounding", () => {
@@ -246,31 +307,38 @@ test("surge retains midnight continuity, a 36-hour nonleader half-life and cuts 
   const midnight = Math.floor(now / DAY) * DAY + DAY;
   const run = (time: number) => buildRankingProjection(presets, events, tags, { first: null, second: null }, time);
   const surge = (time: number, id: string) => run(time).find((p) => p.id === id)!.surge;
-  assert.equal(surge(midnight - 1, "e"), 4.074);
-  assert.equal(surge(midnight, "e"), 4.074);
-  assert.equal(surge(midnight + DAY, "a"), 0.926);
-  assert.equal(surge(midnight + DAY, "e"), 2.566);
-  assert.equal(surge(midnight + 1.5 * DAY, "e"), 2.037);
-  assert.equal(surge(midnight + 5.21 * DAY, "a"), 0.05);
-  assert.equal(surge(midnight + 5.22 * DAY, "a"), 0);
+  assert.equal(surge(midnight - 1, "e"), 1.813);
+  assert.equal(surge(midnight, "e"), 1.813);
+  assert.equal(surge(midnight + DAY, "a"), 0);
+  assert.equal(surge(midnight + DAY, "e"), 1.142);
+  assert.equal(surge(midnight + 1.5 * DAY, "e"), 0.907);
+  assert.equal(surge(midnight + 7.77 * DAY, "e"), 0.05);
+  assert.equal(surge(midnight + 7.78 * DAY, "e"), 0);
   assert.equal(surge(midnight + 30 * DAY, "e"), 0);
+  const repeatedDays = [...events, ...events.map((e) => ({ ...e, createdAt: e.createdAt - DAY }))];
+  assert.equal(buildRankingProjection(presets, repeatedDays, tags, { first: null, second: null }, now).find((p) => p.id === "e")!.surge, surge(now, "e"));
 });
 
-test("surge stays capped at sixteen and a single copier earns zero outside the leaders", () => {
-  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => preset(id));
+test("surge caps each copying day at eight before decay and gives a single copier a small bonus", () => {
+  const presets = ["a", "b", "c", "d", "e", "f"].map((id) => ({
+    ...preset(id), contentJson: JSON.stringify({ ...content, description: "x".repeat(40) }),
+  }));
   const events = presets.flatMap(({ id }) => Array.from({ length: id === "f" ? 1 : 100 }, (_, i) => ({ ...event(String(i)), presetId: id })));
   const ranked = buildRankingProjection(presets, events, tags, { first: null, second: null }, now);
-  assert.equal(ranked.find((p) => p.id === "a")!.surge, 8);
-  assert.equal(ranked.find((p) => p.id === "e")!.surge, 16);
-  assert.equal(ranked.find((p) => p.id === "f")!.surge, 0);
+  assert.equal(ranked.find((p) => p.id === "a")!.surge, 0);
+  assert.equal(ranked.find((p) => p.id === "e")!.surge, 8);
+  assert.equal(ranked.find((p) => p.id === "f")!.surge, 0.087);
+  const midnight = Math.floor(now / DAY) * DAY + DAY;
+  const later = buildRankingProjection(presets, events, tags, { first: null, second: null }, midnight + 1.5 * DAY);
+  assert.equal(later.find((p) => p.id === "e")!.surge, 4);
   for (const p of ranked) assert.equal(p.total, Math.round((p.quality + p.engagement + p.freshness + p.surge + p.lucky) * 1000) / 1000);
 });
 
-test("scores may exceed 100, never 133, and future timestamps do not amplify freshness", () => {
+test("scores may exceed 100, never 125, and future timestamps do not amplify freshness", () => {
   const full = { ...preset(), firstPublishedAt: now, contentJson: JSON.stringify({ ...content, thumbnailKey: "image", description: "x".repeat(300), tags: [...tags] }) };
   const events = Array.from({ length: 100 }, (_, i) => [event(String(i)), event(String(i), "link_open")]).flat();
   const ranked = buildRankingProjection([full], events, tags, { first: "p", second: "p" }, now)[0];
-  assert.ok(ranked.total > 100 && ranked.total <= 133);
+  assert.ok(ranked.total > 100 && ranked.total <= 125);
   assert.equal(ranked.lucky, 24);
   assert.equal(scoreToMilli(ranked.total), Math.round(ranked.total * 1000));
   assert.equal(calculateFreshnessScore(now + DAY, now), 12);
@@ -358,7 +426,7 @@ test("lottery persists across concurrent refreshes and hiding a winner does not 
   } finally { f.db.close(); }
 });
 
-test("formula revision 5 replaces a revision 4 cache without changing content, counters or lucky winners", async () => {
+test("formula revision 6 replaces a revision 5 cache without changing content, counters or lucky winners", async () => {
   const f = fixture();
   try {
     const published: PresetRevisionContent = {
@@ -373,11 +441,11 @@ test("formula revision 5 replaces a revision 4 cache without changing content, c
     f.db.exec("INSERT INTO preset_statistics (preset_id, views_total, copies_total) VALUES ('p', 20, 10)");
     const first = await f.store.get(now);
     const winners = f.db.prepare("SELECT * FROM preset_ranking_lottery").all();
-    const stale = { ...first, version: 4, items: first.items.map((p) => ({ ...p, quality: 999, score: 999 })) };
-    f.db.prepare("UPDATE preset_ranking_cache SET formula_version = 4, payload = ?").run(JSON.stringify(stale));
+    const stale = { ...first, version: 5, items: first.items.map((p) => ({ ...p, quality: 999, score: 999 })) };
+    f.db.prepare("UPDATE preset_ranking_cache SET formula_version = 5, payload = ?").run(JSON.stringify(stale));
     const refreshed = await f.store.get(now + 1000);
-    assert.equal(PRESET_RANKING_VERSION, 5);
-    assert.equal(refreshed.version, 5);
+    assert.equal(PRESET_RANKING_VERSION, 6);
+    assert.equal(refreshed.version, 6);
     assert.equal(refreshed.items[0].quality, 35.3);
     assert.equal(refreshed.items[0].lucky, first.items[0].lucky);
     assert.deepEqual(f.db.prepare("SELECT * FROM preset_ranking_lottery").all(), winners);
@@ -478,20 +546,26 @@ test("search keeps relevance first and uses score ties without launch promotions
   } finally { f.db.close(); }
 });
 
-test("restoring a day's leader restores comparisons and hidden leaders retain their historical cohort", async () => {
+test("restoring a nonleader's copying activity restores comparisons and hidden presets retain their historical cohort", async () => {
   const f = fixture();
   try {
     f.add(); f.add("leader");
+    for (const id of ["a", "b", "c", "d"]) {
+      f.add(id);
+      for (let i = 0; i < 30; i++) f.addEvent(`reader-${i}`, now, { presetId: id });
+    }
     f.addEvent("a"); f.addEvent("b");
     for (let i = 0; i < 13; i++) f.addEvent(`reader-${i}`, now, { presetId: "leader" });
     f.db.exec("INSERT INTO preset_statistics (preset_id, views_total, copies_total) VALUES ('p', 20, 10)");
     const baseline = (await f.store.get(now)).items.find((p) => p.id === "p")!.surge;
+    assert.ok(baseline > 0);
+    const surge = async () => (await f.store.get(now)).items.find((p) => p.id === "p")!.surge;
     f.db.exec("UPDATE presets SET status = 'hidden' WHERE id = 'leader'");
-    assert.equal((await f.store.get(now)).items[0].surge, baseline);
+    assert.equal(await surge(), baseline);
     f.db.exec("UPDATE preset_events SET is_invalidated = 1 WHERE preset_id = 'leader'");
-    assert.ok((await f.store.get(now)).items[0].surge > baseline);
+    assert.ok(await surge() > baseline);
     f.db.exec("UPDATE preset_events SET is_invalidated = 0 WHERE preset_id = 'leader'");
-    assert.equal((await f.store.get(now)).items[0].surge, baseline);
+    assert.equal(await surge(), baseline);
     const counters = f.db.prepare("SELECT views_total, copies_total FROM preset_statistics WHERE preset_id = 'p'").get();
     assert.equal(counters?.views_total, 20);
     assert.equal(counters?.copies_total, 10);

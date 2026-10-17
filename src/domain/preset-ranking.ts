@@ -16,16 +16,16 @@ import {
 import { MAX_PRESET_TAGS } from "./tag-policy";
 import { stripColorAndFormattingTags } from "./straftat-markup";
 
-export const PRESET_RANKING_VERSION = 5;
+export const PRESET_RANKING_VERSION = 6;
 export const RANKING_DAY_MS = 86_400_000;
 
 export const PRESET_RANKING_LIMITS = {
   quality: 37,
   engagement: 44,
   freshness: 12,
-  surge: 16,
+  surge: 8,
   lucky: 24,
-  total: 133,
+  total: 125,
   freshnessDays: 3,
 } as const;
 

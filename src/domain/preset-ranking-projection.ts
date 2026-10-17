@@ -46,8 +46,11 @@ export function rankingContentSignals(content: PresetRevisionContent, canonicalT
 }
 
 export function dailySurgePoints(actors: number, maximum: number) {
-  if (actors <= 1) return 0;
-  return 16 * (1 - Math.exp(-(actors - 1) / 3)) * Math.sqrt(actors / Math.max(3, maximum, actors));
+  if (actors <= 0) return 0;
+  const benchmark = Math.max(3, maximum, actors);
+  const base = PRESET_RANKING_LIMITS.surge * -Math.expm1(-(actors - 1) / 5) * Math.sqrt(actors / benchmark);
+  const lowCountBonus = 0.4 * Math.max(0, 4 - actors) / 3 * Math.sqrt(3 / benchmark);
+  return base + lowCountBonus;
 }
 
 /** Input events are accepted, non-invalidated, non-owner rows. Never expose them in the projection. */
@@ -93,15 +96,24 @@ export function buildRankingProjection(
     );
     return { id: preset.id, slug: preset.slug, authorId: preset.authorId, firstPublishedAt: preset.firstPublishedAt, ...ranking, score: ranking.total };
   });
-  const leaders = new Set([...ranked].sort(compareRankedPresets).slice(0, 4).map((preset) => preset.id));
+  const leaders = new Set([...ranked].sort((a, b) =>
+    scoreToMilli(b.quality + b.engagement) - scoreToMilli(a.quality + a.engagement)
+    || b.quality - a.quality || a.id.localeCompare(b.id),
+  ).slice(0, 4).map((preset) => preset.id));
+  const surgeWeights = new Map(ranked.map((preset) => {
+    const progress = Math.max(0, Math.min(1, (preset.quality + preset.engagement - 30) / 40));
+    return [preset.id, 1.25 - 0.75 * progress * progress * (3 - 2 * progress)] as const;
+  }));
   const surges = new Map<string, number>();
   for (const [day, dayPresets] of days) {
-    const maximum = Math.max(3, ...[...dayPresets.values()].map((actors) => actors.size));
+    const candidates = [...dayPresets].filter(([id]) => !leaders.has(id));
+    const maximum = Math.max(3, ...candidates.map(([, actors]) => actors.size));
     const ageDays = Math.max(0, now - (day + 1) * RANKING_DAY_MS) / RANKING_DAY_MS;
-    for (const [id, actors] of dayPresets) {
-      const leader = leaders.has(id);
-      const decay = 2 ** (-ageDays / (leader ? 1 : 1.5));
-      const points = dailySurgePoints(actors.size, maximum) * decay * (leader ? 0.5 : 1.1);
+    for (const [id, actors] of candidates) {
+      const weight = surgeWeights.get(id);
+      if (weight === undefined) continue;
+      const decay = 2 ** (-ageDays / 1.5);
+      const points = Math.min(PRESET_RANKING_LIMITS.surge, dailySurgePoints(actors.size, maximum) * weight) * decay;
       surges.set(id, Math.max(surges.get(id) ?? 0, points));
     }
   }
