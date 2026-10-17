@@ -1529,11 +1529,11 @@ export default function Home() {
                 />
                 <div className="search-tools-right">
                   {query ? <button className="search-tool-btn search-clear-inline" type="button" aria-label="Clear search" title="Clear search" onClick={() => { setQuery(""); setSelectedSearchTags([]); setSelectedSearchWeapons([]); }}><CloseIcon width={16} height={16} /></button> : null}
-                  <button ref={tagPickerTriggerRef} className={`search-tool-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
-                    <TagIcon width={18} height={18} />
+                  <button ref={tagPickerTriggerRef} className={`search-tool-btn search-filter-btn ${searchTagPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by tag" title="Filter by tag" onClick={() => { setSearchTagPickerOpen((prev) => !prev); setWeaponPickerOpen(false); }}>
+                    <TagIcon width={18} height={18} /><span>tags</span>
                   </button>
-                  <button ref={weaponPickerTriggerRef} className={`search-tool-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
-                    <WeaponFilterIcon width={18} height={18} />
+                  <button ref={weaponPickerTriggerRef} className={`search-tool-btn search-filter-btn ${weaponPickerOpen ? "active" : ""}`} type="button" aria-label="Filter by weapon" title="Filter by weapon" onClick={() => { setWeaponPickerOpen((prev) => !prev); setSearchTagPickerOpen(false); }}>
+                    <WeaponFilterIcon width={18} height={18} /><span>weapons</span>
                   </button>
                 </div>
                 {searchTagPickerOpen ? <SearchTagPicker triggerRef={tagPickerTriggerRef} tags={tagCatalogEntries} onSelect={(tag) => {
