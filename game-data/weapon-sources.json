@@ -9,10 +9,10 @@
     "height": 645,
     "output": "/weapons/aaa12.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 358116,
-      "partialPixels": 2404
+      "transparentPixels": 357920,
+      "partialPixels": 725
     }
   },
   {
@@ -25,10 +25,10 @@
     "height": 645,
     "output": "/weapons/ak.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 369619,
-      "partialPixels": 4496
+      "transparentPixels": 365940,
+      "partialPixels": 1040
     }
   },
   {
@@ -41,10 +41,10 @@
     "height": 667,
     "output": "/weapons/ap-mine.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 355576,
-      "partialPixels": 3285
+      "transparentPixels": 355129,
+      "partialPixels": 895
     }
   },
   {
@@ -57,10 +57,10 @@
     "height": 645,
     "output": "/weapons/ar.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 370370,
-      "partialPixels": 5429
+      "transparentPixels": 368007,
+      "partialPixels": 1833
     }
   },
   {
@@ -73,10 +73,10 @@
     "height": 645,
     "output": "/weapons/baseball-bat.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 373919,
-      "partialPixels": 1238
+      "transparentPixels": 373891,
+      "partialPixels": 484
     }
   },
   {
@@ -89,10 +89,10 @@
     "height": 734,
     "output": "/weapons/bayshore.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 478273,
-      "partialPixels": 6586
+      "transparentPixels": 477415,
+      "partialPixels": 1450
     }
   },
   {
@@ -105,10 +105,10 @@
     "height": 645,
     "output": "/weapons/beam-load.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 329175,
-      "partialPixels": 643
+      "transparentPixels": 329152,
+      "partialPixels": 269
     }
   },
   {
@@ -121,10 +121,10 @@
     "height": 645,
     "output": "/weapons/bender.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 323213,
-      "partialPixels": 2986
+      "transparentPixels": 322814,
+      "partialPixels": 957
     }
   },
   {
@@ -137,10 +137,10 @@
     "height": 645,
     "output": "/weapons/blank-state.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 332865,
-      "partialPixels": 3545
+      "transparentPixels": 332286,
+      "partialPixels": 1167
     }
   },
   {
@@ -153,10 +153,10 @@
     "height": 961,
     "output": "/weapons/blister.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 772614,
-      "partialPixels": 3336
+      "transparentPixels": 771822,
+      "partialPixels": 798
     }
   },
   {
@@ -169,10 +169,10 @@
     "height": 972,
     "output": "/weapons/bublee.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
       "transparentPixels": 842819,
-      "partialPixels": 228
+      "partialPixels": 0
     }
   },
   {
@@ -185,10 +185,10 @@
     "height": 667,
     "output": "/weapons/bukanee.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 412162,
-      "partialPixels": 4495
+      "transparentPixels": 410917,
+      "partialPixels": 1412
     }
   },
   {
@@ -201,10 +201,10 @@
     "height": 645,
     "output": "/weapons/claymore.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 334693,
-      "partialPixels": 1599
+      "transparentPixels": 334513,
+      "partialPixels": 563
     }
   },
   {
@@ -217,10 +217,10 @@
     "height": 645,
     "output": "/weapons/couperet.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 334847,
-      "partialPixels": 5989
+      "transparentPixels": 330196,
+      "partialPixels": 1266
     }
   },
   {
@@ -233,10 +233,10 @@
     "height": 645,
     "output": "/weapons/crisis.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 360887,
-      "partialPixels": 3802
+      "transparentPixels": 360420,
+      "partialPixels": 1217
     }
   },
   {
@@ -249,10 +249,10 @@
     "height": 837,
     "output": "/weapons/curved-knife.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 654447,
-      "partialPixels": 1907
+      "transparentPixels": 654397,
+      "partialPixels": 513
     }
   },
   {
@@ -265,10 +265,10 @@
     "height": 868,
     "output": "/weapons/cyst.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 643680,
-      "partialPixels": 4511
+      "transparentPixels": 641069,
+      "partialPixels": 1847
     }
   },
   {
@@ -281,10 +281,10 @@
     "height": 645,
     "output": "/weapons/dispenser.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 359904,
-      "partialPixels": 3870
+      "transparentPixels": 359581,
+      "partialPixels": 1260
     }
   },
   {
@@ -297,10 +297,10 @@
     "height": 645,
     "output": "/weapons/dual-launcher.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 354734,
-      "partialPixels": 3645
+      "transparentPixels": 354321,
+      "partialPixels": 1189
     }
   },
   {
@@ -313,10 +313,10 @@
     "height": 645,
     "output": "/weapons/elephant.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 366451,
-      "partialPixels": 3291
+      "transparentPixels": 366165,
+      "partialPixels": 914
     }
   },
   {
@@ -329,10 +329,10 @@
     "height": 667,
     "output": "/weapons/fg42.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 444284,
-      "partialPixels": 3575
+      "transparentPixels": 443896,
+      "partialPixels": 1102
     }
   },
   {
@@ -345,10 +345,10 @@
     "height": 645,
     "output": "/weapons/flamberge.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 379864,
-      "partialPixels": 3411
+      "transparentPixels": 379646,
+      "partialPixels": 791
     }
   },
   {
@@ -361,10 +361,10 @@
     "height": 645,
     "output": "/weapons/flash-light.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 314137,
-      "partialPixels": 465
+      "transparentPixels": 313900,
+      "partialPixels": 218
     }
   },
   {
@@ -377,10 +377,10 @@
     "height": 645,
     "output": "/weapons/gamma.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 364483,
-      "partialPixels": 1280
+      "transparentPixels": 364390,
+      "partialPixels": 431
     }
   },
   {
@@ -393,10 +393,10 @@
     "height": 658,
     "output": "/weapons/gamma-gen-2.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 386587,
-      "partialPixels": 4412
+      "transparentPixels": 385925,
+      "partialPixels": 1297
     }
   },
   {
@@ -409,10 +409,10 @@
     "height": 645,
     "output": "/weapons/glaive-gun.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 362009,
-      "partialPixels": 2159
+      "transparentPixels": 361945,
+      "partialPixels": 558
     }
   },
   {
@@ -425,10 +425,10 @@
     "height": 645,
     "output": "/weapons/gland-grenade.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 309434,
-      "partialPixels": 1292
+      "transparentPixels": 309360,
+      "partialPixels": 415
     }
   },
   {
@@ -441,10 +441,10 @@
     "height": 645,
     "output": "/weapons/glock.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 320081,
-      "partialPixels": 3744
+      "transparentPixels": 318392,
+      "partialPixels": 1583
     }
   },
   {
@@ -457,10 +457,10 @@
     "height": 848,
     "output": "/weapons/god-sword.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 682687,
-      "partialPixels": 265
+      "transparentPixels": 682676,
+      "partialPixels": 63
     }
   },
   {
@@ -473,10 +473,10 @@
     "height": 883,
     "output": "/weapons/gust.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 693008,
-      "partialPixels": 2742
+      "transparentPixels": 692789,
+      "partialPixels": 749
     }
   },
   {
@@ -489,10 +489,10 @@
     "height": 645,
     "output": "/weapons/hand-cannon.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 305635,
-      "partialPixels": 757
+      "transparentPixels": 305601,
+      "partialPixels": 318
     }
   },
   {
@@ -505,10 +505,10 @@
     "height": 645,
     "output": "/weapons/hand-grenade.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 288990,
-      "partialPixels": 2724
+      "transparentPixels": 288518,
+      "partialPixels": 772
     }
   },
   {
@@ -521,10 +521,10 @@
     "height": 645,
     "output": "/weapons/havoc.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 334976,
-      "partialPixels": 2230
+      "transparentPixels": 334931,
+      "partialPixels": 477
     }
   },
   {
@@ -537,10 +537,10 @@
     "height": 667,
     "output": "/weapons/hill-h15.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 423124,
-      "partialPixels": 6115
+      "transparentPixels": 418648,
+      "partialPixels": 1499
     }
   },
   {
@@ -553,10 +553,10 @@
     "height": 667,
     "output": "/weapons/hk-caws.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 419811,
-      "partialPixels": 4259
+      "transparentPixels": 418950,
+      "partialPixels": 1231
     }
   },
   {
@@ -569,10 +569,10 @@
     "height": 667,
     "output": "/weapons/hk-g11.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 405933,
-      "partialPixels": 5192
+      "transparentPixels": 403935,
+      "partialPixels": 1356
     }
   },
   {
@@ -585,10 +585,10 @@
     "height": 844,
     "output": "/weapons/impetus.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 664062,
-      "partialPixels": 859
+      "transparentPixels": 664023,
+      "partialPixels": 149
     }
   },
   {
@@ -601,10 +601,10 @@
     "height": 645,
     "output": "/weapons/jahval-mahmaerd.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 383528,
-      "partialPixels": 2673
+      "transparentPixels": 383458,
+      "partialPixels": 696
     }
   },
   {
@@ -617,10 +617,10 @@
     "height": 645,
     "output": "/weapons/kanye.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 365647,
-      "partialPixels": 4014
+      "transparentPixels": 364488,
+      "partialPixels": 1320
     }
   },
   {
@@ -633,10 +633,10 @@
     "height": 633,
     "output": "/weapons/keso.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 311220,
-      "partialPixels": 10835
+      "transparentPixels": 278112,
+      "partialPixels": 2957
     }
   },
   {
@@ -649,10 +649,10 @@
     "height": 756,
     "output": "/weapons/kusma.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 506298,
-      "partialPixels": 6251
+      "transparentPixels": 505126,
+      "partialPixels": 1498
     }
   },
   {
@@ -665,10 +665,10 @@
     "height": 645,
     "output": "/weapons/m2000.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 370605,
-      "partialPixels": 4982
+      "transparentPixels": 369946,
+      "partialPixels": 1608
     }
   },
   {
@@ -681,10 +681,10 @@
     "height": 645,
     "output": "/weapons/mac10.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 322300,
-      "partialPixels": 4283
+      "transparentPixels": 322052,
+      "partialPixels": 1340
     }
   },
   {
@@ -697,10 +697,10 @@
     "height": 645,
     "output": "/weapons/minigun.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 346066,
-      "partialPixels": 4368
+      "transparentPixels": 344971,
+      "partialPixels": 1386
     }
   },
   {
@@ -713,10 +713,10 @@
     "height": 645,
     "output": "/weapons/mortini.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 360421,
-      "partialPixels": 7033
+      "transparentPixels": 356113,
+      "partialPixels": 2730
     }
   },
   {
@@ -729,10 +729,10 @@
     "height": 645,
     "output": "/weapons/nizeh.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 390573,
-      "partialPixels": 1347
+      "transparentPixels": 390449,
+      "partialPixels": 521
     }
   },
   {
@@ -745,10 +745,10 @@
     "height": 645,
     "output": "/weapons/oklahoma.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 378912,
-      "partialPixels": 3639
+      "transparentPixels": 378586,
+      "partialPixels": 1173
     }
   },
   {
@@ -761,10 +761,10 @@
     "height": 645,
     "output": "/weapons/phoenix.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 350532,
-      "partialPixels": 799
+      "transparentPixels": 350479,
+      "partialPixels": 466
     }
   },
   {
@@ -777,10 +777,10 @@
     "height": 645,
     "output": "/weapons/pistol.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 330937,
-      "partialPixels": 3524
+      "transparentPixels": 329836,
+      "partialPixels": 1106
     }
   },
   {
@@ -793,10 +793,10 @@
     "height": 645,
     "output": "/weapons/propeller.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 384890,
-      "partialPixels": 3519
+      "transparentPixels": 384719,
+      "partialPixels": 1349
     }
   },
   {
@@ -809,10 +809,10 @@
     "height": 645,
     "output": "/weapons/prophet.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 381525,
-      "partialPixels": 7813
+      "transparentPixels": 374982,
+      "partialPixels": 4044
     }
   },
   {
@@ -825,10 +825,10 @@
     "height": 645,
     "output": "/weapons/proximity-mine.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 359327,
-      "partialPixels": 2853
+      "transparentPixels": 359189,
+      "partialPixels": 607
     }
   },
   {
@@ -841,10 +841,10 @@
     "height": 667,
     "output": "/weapons/qcw05.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 427446,
-      "partialPixels": 4760
+      "transparentPixels": 425166,
+      "partialPixels": 1850
     }
   },
   {
@@ -857,10 +857,10 @@
     "height": 645,
     "output": "/weapons/repulsar.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 305570,
-      "partialPixels": 1067
+      "transparentPixels": 305549,
+      "partialPixels": 319
     }
   },
   {
@@ -873,10 +873,10 @@
     "height": 645,
     "output": "/weapons/revolver.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 353736,
-      "partialPixels": 2926
+      "transparentPixels": 353409,
+      "partialPixels": 972
     }
   },
   {
@@ -889,10 +889,10 @@
     "height": 645,
     "output": "/weapons/rocket-launcher.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 336314,
-      "partialPixels": 3500
+      "transparentPixels": 335611,
+      "partialPixels": 1241
     }
   },
   {
@@ -905,10 +905,10 @@
     "height": 645,
     "output": "/weapons/sawed-off.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 343875,
-      "partialPixels": 2725
+      "transparentPixels": 343606,
+      "partialPixels": 775
     }
   },
   {
@@ -921,10 +921,10 @@
     "height": 807,
     "output": "/weapons/serac.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 535512,
-      "partialPixels": 2913
+      "transparentPixels": 535142,
+      "partialPixels": 701
     }
   },
   {
@@ -937,10 +937,10 @@
     "height": 645,
     "output": "/weapons/shotgun.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 358272,
-      "partialPixels": 3800
+      "transparentPixels": 357951,
+      "partialPixels": 1144
     }
   },
   {
@@ -953,10 +953,10 @@
     "height": 645,
     "output": "/weapons/silenzzio.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 354453,
-      "partialPixels": 2319
+      "transparentPixels": 354097,
+      "partialPixels": 841
     }
   },
   {
@@ -969,10 +969,10 @@
     "height": 645,
     "output": "/weapons/smg.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 358219,
-      "partialPixels": 5127
+      "transparentPixels": 356050,
+      "partialPixels": 1443
     }
   },
   {
@@ -985,10 +985,10 @@
     "height": 645,
     "output": "/weapons/smith-carbine.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 378511,
-      "partialPixels": 2323
+      "transparentPixels": 378269,
+      "partialPixels": 883
     }
   },
   {
@@ -1001,10 +1001,10 @@
     "height": 658,
     "output": "/weapons/stun-grenade.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 353602,
-      "partialPixels": 2484
+      "transparentPixels": 353376,
+      "partialPixels": 837
     }
   },
   {
@@ -1017,10 +1017,10 @@
     "height": 578,
     "output": "/weapons/stun-mine.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 273900,
-      "partialPixels": 4204
+      "transparentPixels": 272455,
+      "partialPixels": 1823
     }
   },
   {
@@ -1033,10 +1033,10 @@
     "height": 645,
     "output": "/weapons/stylus.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 379735,
-      "partialPixels": 2702
+      "transparentPixels": 379132,
+      "partialPixels": 730
     }
   },
   {
@@ -1049,10 +1049,10 @@
     "height": 645,
     "output": "/weapons/taser.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 332058,
-      "partialPixels": 1270
+      "transparentPixels": 331957,
+      "partialPixels": 450
     }
   },
   {
@@ -1065,10 +1065,10 @@
     "height": 667,
     "output": "/weapons/katana.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 459812,
-      "partialPixels": 3398
+      "transparentPixels": 459149,
+      "partialPixels": 1193
     }
   },
   {
@@ -1081,10 +1081,10 @@
     "height": 868,
     "output": "/weapons/torrent.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 672050,
-      "partialPixels": 3008
+      "transparentPixels": 670743,
+      "partialPixels": 1176
     }
   },
   {
@@ -1097,10 +1097,10 @@
     "height": 645,
     "output": "/weapons/tromblonj.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 366040,
-      "partialPixels": 2885
+      "transparentPixels": 365508,
+      "partialPixels": 858
     }
   },
   {
@@ -1113,10 +1113,10 @@
     "height": 645,
     "output": "/weapons/warden.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 370719,
-      "partialPixels": 3057
+      "transparentPixels": 370350,
+      "partialPixels": 1091
     }
   },
   {
@@ -1129,10 +1129,10 @@
     "height": 667,
     "output": "/weapons/webley.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 414961,
-      "partialPixels": 3837
+      "transparentPixels": 414054,
+      "partialPixels": 1144
     }
   },
   {
@@ -1145,10 +1145,10 @@
     "height": 674,
     "output": "/weapons/yangtse.webp",
     "backgroundRemoval": {
-      "method": "border-connected-flat-v1",
+      "method": "border-connected-flat-v2",
       "keyColor": "#313131",
-      "transparentPixels": 339774,
-      "partialPixels": 6005
+      "transparentPixels": 338958,
+      "partialPixels": 1688
     }
   }
 ]

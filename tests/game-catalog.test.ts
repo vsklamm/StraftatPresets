@@ -155,6 +155,6 @@ test("wildcard expansion stays backed by the complete catalog", () => {
 });
 
 test("weaponAssetUrl appends the cache version parameter consistently", () => {
-  assert.equal(weaponAssetUrl("/weapons/ak.webp"), "/weapons/ak.webp?v=norm6");
-  assert.equal(weaponAssetUrl("/weapons/ak.webp?custom=1"), "/weapons/ak.webp?custom=1&v=norm6");
+  assert.equal(weaponAssetUrl("/weapons/ak.webp"), "/weapons/ak.webp?v=norm7");
+  assert.equal(weaponAssetUrl("/weapons/ak.webp?custom=1"), "/weapons/ak.webp?custom=1&v=norm7");
 });

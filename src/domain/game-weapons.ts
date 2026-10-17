@@ -14,7 +14,7 @@ export const supportedMapCount = rawMaps.length;
 
 export function weaponAssetUrl(path: string) {
   const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}v=norm6`;
+  return `${path}${separator}v=norm7`;
 }
 
 const weaponImageMap = new Map<string, string>();

@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const API = "https://straftat.wiki/api.php";
@@ -82,7 +83,7 @@ function smoothstep(value) {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-async function removeFlatBackground(inputPath, outputPath) {
+export async function removeFlatBackground(inputPath, outputPath) {
   const { data, info } = await sharp(inputPath).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width, height, channels } = info;
   const pixelCount = width * height;
@@ -107,11 +108,13 @@ async function removeFlatBackground(inputPath, outputPath) {
     );
   };
   const background = new Uint8Array(pixelCount);
+  const backgroundTolerance = 6;
+  const featherTolerance = 32;
   const queue = new Int32Array(pixelCount);
   let queueStart = 0;
   let queueEnd = 0;
   const addBackground = (pixel) => {
-    if (background[pixel] || colorDistance(pixel) > 8) return;
+    if (background[pixel] || colorDistance(pixel) > backgroundTolerance) return;
     background[pixel] = 1;
     queue[queueEnd++] = pixel;
   };
@@ -137,23 +140,19 @@ async function removeFlatBackground(inputPath, outputPath) {
   const alpha = new Uint8Array(pixelCount).fill(255);
   for (let pixel = 0; pixel < pixelCount; pixel += 1) if (background[pixel]) alpha[pixel] = 0;
 
-  let frontier = Array.from(queue.subarray(0, queueEnd));
   const softened = new Uint8Array(pixelCount);
-  for (let depth = 0; depth < 3; depth += 1) {
-    const next = [];
-    for (const pixel of frontier) {
-      const x = pixel % width;
-      const neighbors = [x > 0 ? pixel - 1 : -1, x + 1 < width ? pixel + 1 : -1, pixel >= width ? pixel - width : -1, pixel + width < pixelCount ? pixel + width : -1];
-      for (const neighbor of neighbors) {
-        if (neighbor < 0 || background[neighbor] || softened[neighbor]) continue;
-        const distance = colorDistance(neighbor);
-        if (distance >= 48) continue;
-        softened[neighbor] = 1;
-        alpha[neighbor] = Math.round(255 * smoothstep((distance - 8) / 40));
-        next.push(neighbor);
-      }
+  // Feather one boundary pixel so thin, low-contrast weapon parts stay opaque.
+  for (let index = 0; index < queueEnd; index += 1) {
+    const pixel = queue[index];
+    const x = pixel % width;
+    const neighbors = [x > 0 ? pixel - 1 : -1, x + 1 < width ? pixel + 1 : -1, pixel >= width ? pixel - width : -1, pixel + width < pixelCount ? pixel + width : -1];
+    for (const neighbor of neighbors) {
+      if (neighbor < 0 || background[neighbor] || softened[neighbor]) continue;
+      const distance = colorDistance(neighbor);
+      if (distance >= featherTolerance) continue;
+      softened[neighbor] = 1;
+      alpha[neighbor] = Math.round(255 * smoothstep((distance - backgroundTolerance) / (featherTolerance - backgroundTolerance)));
     }
-    frontier = next;
   }
 
   const output = Buffer.alloc(pixelCount * 4);
@@ -180,7 +179,7 @@ async function removeFlatBackground(inputPath, outputPath) {
   const transparentRatio = transparentPixels / pixelCount;
   if (transparentRatio < 0.1 || transparentRatio > 0.999) throw new Error(`Suspicious background extraction (${(transparentRatio * 100).toFixed(1)}% transparent): ${inputPath}`);
   await sharp(output, { raw: { width, height, channels: 4 } }).webp({ quality: 86, alphaQuality: 100, effort: 4 }).toFile(outputPath);
-  return { method: "border-connected-flat-v1", keyColor: `#${key.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`, transparentPixels, partialPixels };
+  return { method: "border-connected-flat-v2", keyColor: `#${key.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`, transparentPixels, partialPixels };
 }
 
 async function main() {
@@ -289,4 +288,6 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

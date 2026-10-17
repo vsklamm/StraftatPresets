@@ -15,7 +15,7 @@ test("weapon atmospheres filter unknown assets, order by weight and leave their 
   for (const variant of ["randomized", "swapper"] as const) {
     const html = renderToStaticMarkup(createElement(WeaponMix, { weapons, variant }));
     const images = [...html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)].map((match) => match[1]);
-    assert.deepEqual(images, ["/weapons/256/ak.webp?v=norm6", "/weapons/256/taser.webp?v=norm6", "/weapons/256/katana.webp?v=norm6"]);
+    assert.deepEqual(images, ["/weapons/256/ak.webp?v=norm7", "/weapons/256/taser.webp?v=norm7", "/weapons/256/katana.webp?v=norm7"]);
   }
   assert.deepEqual(weapons.map((weapon) => weapon.name), ["Katana", "Unknown weapon", "AK", "Taser"]);
 });
