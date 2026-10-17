@@ -10,7 +10,7 @@ const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost"
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
-  title: SITE_TITLE,
+  title: "STRAFTATpresets",
   description: SITE_DESCRIPTION,
   applicationName: "STRAFTATpresets",
   authors: [{ name: "STRAFTATpresets Community" }],
