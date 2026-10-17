@@ -9,6 +9,7 @@ import { signIn, useSession } from "next-auth/react";
 import { AuthControl, SubmitPresetButton } from "@/app/auth-control";
 import { SeasonalEffects } from "@/src/seasonal/seasonal-effects";
 import { ProjectInfo } from "@/app/project-info";
+import { SITE_TITLE, SITE_DESCRIPTION } from "@/src/lib/site-metadata";
 import { WeaponMix } from "@/app/weapon-mix";
 import { WeaponImage } from "@/app/weapon-image";
 import { preloadCatalogWeapons } from "@/src/domain/weapon-image-sizes";
@@ -1447,10 +1448,11 @@ export default function Home() {
     <main className="app-shell">
       <SeasonalEffects ready={isViewLoaded && !(searchActive ? searchLoading : dashboardLoading)} />
       <section className="sr-only" aria-label="About STRAFTATpresets">
-        <h1>STRAFTATpresets - Community Presets, Weapon Randomizer & Map Playlists for STRAFTAT</h1>
+        <h1>{SITE_TITLE}</h1>
+        <p>{SITE_DESCRIPTION}</p>
         <p>
-          Discover, generate, and share custom game configurations for the arena duel shooter STRAFTAT.
-          Features {supportedWeaponCount} balanced weapons, {supportedMapCount} official maps, custom weapon weight randomizers, base64 Map Playlist codes, and Swapper Settings.
+          Browse presets by tags or weapons, preview their maps and weapon settings, and copy Map Playlist and Swapper codes without signing in.
+          The import guide includes screenshots for importing playlists and weapon swaps, and entering Randomizer weapon weights in the game.
         </p>
       </section>
       <div className={`site-header ${isHeaderCompact ? "is-compact" : ""}`}>

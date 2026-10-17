@@ -1,36 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Jost } from "next/font/google";
 import { Providers } from "@/app/providers";
+import { SITE_TITLE, SITE_DESCRIPTION } from "@/src/lib/site-metadata";
 import "./globals.css";
 import "./weapon-animations.css";
 
 const geist = Geist({ subsets: ["latin"], display: "swap", fallback: ["Arimo Name Symbols", "Noto Name Symbols", "sans-serif"] });
 const jost = Jost({ subsets: ["latin"], display: "swap", variable: "--font-jost", style: ["normal", "italic"] });
 
-const previewTitle = "STRAFTATpresets - Community presets for STRAFTAT";
-const previewDescription = "A collection of map playlists, Swapper settings and Randomizer presets made by STRAFTAT players.";
-
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://straftatpresets.com"),
-  title: "STRAFTATpresets",
-  description: previewDescription,
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   applicationName: "STRAFTATpresets",
-  keywords: [
-    "STRAFTAT",
-    "STRAFTAT presets",
-    "STRAFTAT Randomizer Settings",
-    "STRAFTAT weapon randomizer",
-    "STRAFTAT Map Playlists",
-    "STRAFTAT Swapper Settings",
-    "STRAFTAT swapper settings",
-    "STRAFTAT custom game",
-    "STRAFTAT codes",
-    "STRAFTAT weapons",
-    "STRAFTAT maps",
-    "STRAFTAT duel presets",
-    "STRAFTAT community",
-    "STRAFTAT base64",
-  ],
   authors: [{ name: "STRAFTATpresets Community" }],
   creator: "STRAFTATpresets",
   publisher: "STRAFTATpresets",
@@ -48,8 +30,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://straftatpresets.com",
     siteName: "STRAFTATpresets",
-    title: previewTitle,
-    description: previewDescription,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: [
       {
         url: "/android-chrome-512x512.png",
@@ -61,8 +43,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: previewTitle,
-    description: previewDescription,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: ["/android-chrome-512x512.png"],
   },
   robots: {
@@ -92,7 +74,7 @@ const jsonLd = {
       "url": "https://straftatpresets.com",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Windows, Linux",
-      "description": "Community-made STRAFTAT Map Playlists, Randomizer Settings, and Swapper Settings with one-click copy codes for custom duel match setups.",
+      "description": SITE_DESCRIPTION,
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -110,7 +92,7 @@ const jsonLd = {
       "@id": "https://straftatpresets.com/#website",
       "url": "https://straftatpresets.com",
       "name": "STRAFTATpresets",
-      "description": "Browse and share custom Randomizer Settings, Map Playlists, and Swapper Settings for STRAFTAT.",
+      "description": SITE_DESCRIPTION,
       "publisher": {
         "@type": "Organization",
         "name": "STRAFTATpresets",
