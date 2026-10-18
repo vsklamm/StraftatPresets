@@ -1,6 +1,6 @@
 {
   "name": "straftat-presets",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "private": true,
   "type": "module",
   "packageManager": "npm@12.0.2",
@@ -32,6 +32,7 @@
     "search:rebuild": "wrangler d1 migrations apply DB --local && tsx scripts/rebuild-preset-search.ts",
     "search:rebuild:remote": "tsx scripts/rebuild-preset-search.ts remote --confirm rebuild-published-search",
     "stats": "tsx scripts/preset-stats.ts",
+    "slugs": "tsx scripts/preset-slugs.ts",
     "ranks:local": "tsx scripts/preset-stats.ts local list",
     "ranks:prod": "tsx scripts/preset-stats.ts remote list"
   },

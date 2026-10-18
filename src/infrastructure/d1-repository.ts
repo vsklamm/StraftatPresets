@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { AppDatabase } from "@/db";
@@ -7,6 +7,7 @@ import {
   presetAbuseSignals,
   presetEvents,
   presetRevisions,
+  presetSlugs,
   presetSearchDocuments,
   presetSearchTerms,
   presetStatistics,
@@ -42,7 +43,7 @@ import type {
   UserRepository,
   UserRole,
 } from "@/src/application/ports";
-import { createStarterPresetContent, parsePresetRevisionContent, resolvePresetSlug, slugifyPresetTitle, type PresetRevisionContent } from "@/src/domain/preset-content";
+import { createStarterPresetContent, parsePresetIdentifier, parsePresetRevisionContent, presetSlugCandidates, type PresetRevisionContent } from "@/src/domain/preset-content";
 import {
   buildFtsMatch,
   buildPresetSearchProjection,
@@ -65,6 +66,7 @@ import {
 import { applyLaunchPlacement } from "@/src/domain/preset-ranking-projection";
 import { PresetRankingStore } from "@/src/infrastructure/preset-ranking-store";
 import { analyticsHash } from "@/src/lib/analytics-hash";
+import { availablePresetSlug, isPresetSlugConflict, presetIdentifierCondition } from "@/src/infrastructure/preset-slugs";
 import { sha256Hex } from "@/src/lib/crypto-utils";
 import { validatePresetTagSlugs } from "@/src/domain/tag-policy";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
@@ -470,10 +472,11 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const presetId = crypto.randomUUID();
     const revisionId = crypto.randomUUID();
     const validationIssues = validatePresetRevision(content);
+    const slug = await availablePresetSlug(this.database, content.title, presetId, false);
     await this.database.batch([
       this.database.insert(presets).values({
         id: presetId,
-        slug: slugifyPresetTitle(content.title, presetId),
+        slug,
         authorId: userId,
         title: content.title,
         description: content.description,
@@ -610,7 +613,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       status: presets.status,
       workingRevisionId: presets.workingRevisionId,
       publishedRevisionId: presets.publishedRevisionId,
-    }).from(presets).where(or(eq(presets.id, presetId), eq(presets.slug, presetId))).get();
+    }).from(presets).where(presetIdentifierCondition(presetId)).get();
     if (!envelope) return undefined;
     const isOwner = envelope.authorId === userId;
     if (!isOwner && envelope.status !== "published") return undefined;
@@ -620,7 +623,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .innerJoin(users, eq(users.id, presets.authorId))
       .innerJoin(dashboardRevision, eq(dashboardRevision.id, revisionId))
       .leftJoin(presetStatistics, eq(presetStatistics.presetId, presets.id))
-      .where(eq(presets.id, envelope.id)).get();
+      .where(and(eq(presets.id, envelope.id), eq(dashboardRevision.presetId, presets.id),
+        isOwner ? undefined : eq(dashboardRevision.status, "published"))).get();
     return row ? this.toDashboardItem(row as DashboardRow, userId) : undefined;
   }
 
@@ -771,12 +775,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       thumbnailModerationData: null,
       thumbnailModeratedAt: null,
     } : { thumbnailKey: content.thumbnailKey };
-    const slug = resolvePresetSlug(
-      envelope.slug,
-      content.title,
-      input.presetId,
-      Boolean(envelope.publishedRevisionId || envelope.retractedAt),
-    );
+    const slug = envelope.publishedRevisionId || envelope.retractedAt
+      || presetSlugCandidates(content.title, input.presetId, false).includes(envelope.slug) ? envelope.slug
+      : await availablePresetSlug(this.database, content.title, input.presetId, false);
 
     if (plan === "update_draft") {
       const update = await this.database.update(presetRevisions).set({
@@ -1085,12 +1086,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     const validationIssues = [...validatePresetRevision(content, { isInitialPublication: !revision.publishedRevisionId }), ...await this.validateActiveTags(content.tags)];
     if (validationIssues.length) return { result: "invalid", issues: validationIssues };
     const searchProjection = await buildPresetSearchProjection(content, revision.authorName);
-    const slug = resolvePresetSlug(
-      revision.slug,
-      content.title,
-      input.presetId,
-      Boolean(revision.publishedRevisionId || revision.retractedAt),
-    );
+    const keepSlug = Boolean(revision.publishedRevisionId || revision.retractedAt);
 
     const statements: BatchItem<"sqlite">[] = [
       this.database.delete(presetSearchDocuments).where(eq(presetSearchDocuments.presetId, input.presetId)),
@@ -1155,11 +1151,16 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       }
     }
 
-    if (revision.publishedRevisionId) statements.push(this.database.update(presetRevisions).set({
+    const publication: [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]] = [this.database.insert(presetSlugs).values({
+      slug: sql`(SELECT p.slug FROM presets p INNER JOIN preset_revisions r ON r.id = p.working_revision_id
+        WHERE p.id = ${input.presetId} AND p.working_revision_id = ${input.revisionId} AND r.status = 'pending')`,
+      presetId: input.presetId,
+    }).onConflictDoUpdate({ target: presetSlugs.slug, set: { presetId: input.presetId } })];
+    if (revision.publishedRevisionId) publication.push(this.database.update(presetRevisions).set({
       status: "archived",
       updatedAt: now,
     }).where(and(eq(presetRevisions.id, revision.publishedRevisionId), eq(presetRevisions.status, "published"))));
-    statements.push(
+    publication.push(
       this.database.update(presetRevisions).set({
         status: "published",
         validationIssuesJson: "[]",
@@ -1170,21 +1171,22 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         reviewedAt: now,
         updatedAt: now,
       }).where(and(eq(presetRevisions.id, input.revisionId), eq(presetRevisions.status, "pending"))),
-      this.database.update(presets).set({
-        title: content.title,
-        description: content.description,
-        slug,
-        thumbnailKey: content.thumbnailKey,
-        thumbnailModerationStatus: content.thumbnailKey === null ? "not_submitted" as const : "approved" as const,
-        thumbnailModerationData: content.thumbnailKey === null ? null : JSON.stringify({ provider: "manual_telegram_review", decision: "approved" }),
-        thumbnailModeratedAt: content.thumbnailKey === null ? null : now,
-        status: "published",
-        workingRevisionId: null,
-        publishedRevisionId: input.revisionId,
-        publishedAt: revision.publishedAt ?? now,
-        updatedAt: now,
-      }).where(and(eq(presets.id, input.presetId), eq(presets.workingRevisionId, input.revisionId))),
     );
+
+    const finishPublication = (slug: string) => this.database.update(presets).set({
+      title: content.title,
+      description: content.description,
+      slug,
+      thumbnailKey: content.thumbnailKey,
+      thumbnailModerationStatus: content.thumbnailKey === null ? "not_submitted" as const : "approved" as const,
+      thumbnailModerationData: content.thumbnailKey === null ? null : JSON.stringify({ provider: "manual_telegram_review", decision: "approved" }),
+      thumbnailModeratedAt: content.thumbnailKey === null ? null : now,
+      status: "published",
+      workingRevisionId: null,
+      publishedRevisionId: input.revisionId,
+      publishedAt: revision.publishedAt ?? now,
+      updatedAt: now,
+    }).where(and(eq(presets.id, input.presetId), eq(presets.workingRevisionId, input.revisionId)));
 
     const BATCH_CHUNK_SIZE = 50;
     try {
@@ -1192,8 +1194,19 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
         const chunk = statements.slice(i, i + BATCH_CHUNK_SIZE);
         await this.database.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
       }
+      for (let attempt = 0; ; attempt++) {
+        const slug = keepSlug ? revision.slug : await availablePresetSlug(this.database, content.title, input.presetId);
+        try {
+          await this.database.batch([...publication, finishPublication(slug)]);
+          break;
+        } catch (error) {
+          if (!keepSlug && attempt < 2 && isPresetSlugConflict(error)) continue;
+          throw error;
+        }
+      }
     } catch (error) {
-      if (isUniqueConstraintError(error)) return { result: "conflict" };
+      if (isUniqueConstraintError(error) || isPresetSlugConflict(error)
+        || /NOT NULL constraint failed: preset_slugs.slug/.test(String(error))) return { result: "conflict" };
       throw error;
     }
     await this.recalculatePresetStatistics(input.presetId, now);
@@ -1221,7 +1234,8 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
     now?: Date;
   }): Promise<PresetRetractResult> {
     const now = input.now ?? new Date();
-    const cleanId = input.identifier.trim().replace(/^https?:\/\/[^/]+\/(?:\?p=|p\/|api\/presets\/)?/i, "").replace(/^\?p=/, "").trim();
+    const cleanId = parsePresetIdentifier(input.identifier);
+    if (!cleanId) return { result: "not_found" };
 
     const preset = await this.database.select({
       id: presets.id,
@@ -1235,7 +1249,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       authorName: effectiveUserName,
     }).from(presets)
       .innerJoin(users, eq(users.id, presets.authorId))
-      .where(or(eq(presets.id, cleanId), eq(presets.slug, cleanId)))
+      .where(presetIdentifierCondition(cleanId))
       .get();
 
     if (!preset) return { result: "not_found" };
@@ -1363,7 +1377,9 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       id: presets.id,
       status: presets.status,
       publishedRevisionId: presets.publishedRevisionId,
-    }).from(presets).where(or(eq(presets.id, input.presetId), eq(presets.slug, input.presetId))).get();
+    }).from(presets).innerJoin(presetRevisions, and(
+      eq(presetRevisions.id, presets.publishedRevisionId), eq(presetRevisions.presetId, presets.id), eq(presetRevisions.status, "published"),
+    )).where(presetIdentifierCondition(input.presetId)).get();
     if (!preset || preset.status !== "published") return { result: input.kind === "copy" ? "ignored" : "not_found" };
 
     const resolvedPresetId = preset.id;

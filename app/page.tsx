@@ -55,7 +55,7 @@ import { SerializedTaskQueue } from "@/src/lib/serialized-task-queue";
 import { PendingTaskTracker } from "@/src/lib/pending-task-tracker";
 import { straftoolsImportUrl } from "@/src/lib/straftools-deep-link";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
-import { configLabels, presetStatusLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetIsReadyToSubmit, presetUrlPath, replaceOrPrependPreset, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
+import { configLabels, presetStatusLabels, presetHasPublishedLink, presetIdentifierFromUrl, presetIsReadyToSubmit, presetUrlPath, presetUrlWithContext, replaceOrPrependPreset, urlWithoutPreset, type MapPlaylist, type Preset, type PresetVersion, type SortDirection, type WeaponSortKey } from "@/src/application/preset-view";
 import type { UserProfile } from "@/src/domain/user-profile";
 import { GuideTriggerButton, PresetImportGuideModal, PresetImportGuideView, type GuideTopic } from "./preset-import-guide";
 
@@ -551,6 +551,30 @@ export default function Home() {
   const [revalidationFailedId, setRevalidationFailedId] = useState<string | null>(null);
   const revalidateTimerRef = useRef<number | null>(null);
 
+  const dismissPreset = useCallback((clearUrl = true) => {
+    clearAttentionTimers();
+    if (revalidateTimerRef.current !== null) {
+      window.clearTimeout(revalidateTimerRef.current);
+      revalidateTimerRef.current = null;
+    }
+    setIsRevalidating(false);
+    setRevalidationFailedId(null);
+    openPresetIdRef.current = "";
+    draftContentRef.current = null;
+    setSelected(null);
+    setActiveGuide(null);
+    setIsEditing(false);
+    setSubmissionReminderRequested(false);
+    setIsDraggingThumbnail(false);
+    dragStartRef.current = null;
+    setDraftContent(null);
+    setShowSubmissionIssues(false);
+    if (clearUrl) {
+      const url = new URL(window.location.href);
+      window.history.replaceState({}, "", urlWithoutPreset(url));
+    }
+  }, [clearAttentionTimers]);
+
   const revalidatePreset = useCallback(async (presetId: string) => {
     if (revalidateTimerRef.current !== null) {
       window.clearTimeout(revalidateTimerRef.current);
@@ -579,6 +603,14 @@ export default function Home() {
       setIsRevalidating(false);
 
       if (!response.ok) {
+        if (response.status === 404) {
+          updateDashboardItems((current) => current.filter((item) => item.id !== presetId));
+          if (openPresetIdRef.current === presetId) {
+            dismissPreset();
+            setActionError("This preset does not exist or has been removed.");
+          }
+          return;
+        }
         setRevalidationFailedId(presetId);
         return;
       }
@@ -598,6 +630,8 @@ export default function Home() {
       updateDashboardItems((current) => replaceOrPrependPreset(current, effectiveItem));
 
       if (openPresetIdRef.current === presetId) {
+        const url = new URL(window.location.href);
+        window.history.replaceState(null, "", presetUrlWithContext(updated, url));
         setSelected((current) => {
           if (!current || current.id !== presetId) return current;
           return updated;
@@ -616,7 +650,7 @@ export default function Home() {
       setIsRevalidating(false);
       setRevalidationFailedId(presetId);
     }
-  }, [tagLabels, updateDashboardItems]);
+  }, [tagLabels, updateDashboardItems, dismissPreset]);
 
   const trackPresetView = useCallback((preset: Preset, kind: "view" | "link_open") => {
     let optimistic = false;
@@ -702,7 +736,7 @@ export default function Home() {
       serverContentByPresetRef.current.set(savedPreset.id, savedSignature);
       if (openPresetIdRef.current === savedPreset.id) {
         const url = new URL(window.location.href);
-        const path = presetUrlPath(updated);
+        const path = presetUrlWithContext(updated, url);
         if (presetIdentifierFromUrl(url) !== presetIdentifierFromUrl(new URL(path, url.origin))) {
           window.history.replaceState(null, "", path);
         }
@@ -778,30 +812,6 @@ export default function Home() {
       setDraftContent(selected.content ?? null);
     }
   }, [selected, draftContent]);
-
-  const dismissPreset = useCallback((clearUrl = true) => {
-    clearAttentionTimers();
-    if (revalidateTimerRef.current !== null) {
-      window.clearTimeout(revalidateTimerRef.current);
-      revalidateTimerRef.current = null;
-    }
-    setIsRevalidating(false);
-    setRevalidationFailedId(null);
-    openPresetIdRef.current = "";
-    draftContentRef.current = null;
-    setSelected(null);
-    setActiveGuide(null);
-    setIsEditing(false);
-    setSubmissionReminderRequested(false);
-    setIsDraggingThumbnail(false);
-    dragStartRef.current = null;
-    setDraftContent(null);
-    setShowSubmissionIssues(false);
-    if (clearUrl) {
-      const url = new URL(window.location.href);
-      window.history.replaceState({}, "", urlWithoutPreset(url));
-    }
-  }, [clearAttentionTimers]);
 
   const discardUnmodifiedDraft = useCallback(async (preset: Preset) => {
     try {
@@ -957,6 +967,7 @@ export default function Home() {
       let linked = dashboardPresets.find((preset) => (preset.slug && preset.slug === identifier) || preset.id === identifier);
 
       if (linked) {
+        window.history.replaceState(null, "", presetUrlWithContext(linked, url));
         if (openPresetIdRef.current === linked.id) return;
         openPresetIdRef.current = linked.id;
         setSelected(linked);
@@ -987,6 +998,7 @@ export default function Home() {
               const localContent = readLocalDraft(data.preset);
               const effectiveItem = localContent ? { ...data.preset, content: localContent } : data.preset;
               linked = dashboardItemToPreset(effectiveItem, tagLabels);
+              window.history.replaceState(null, "", presetUrlWithContext(linked, url));
               openPresetIdRef.current = linked.id;
               updateDashboardItems((current) => replaceOrPrependPreset(current, effectiveItem));
               setSelected(linked);

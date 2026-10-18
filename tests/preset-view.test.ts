@@ -7,6 +7,7 @@ import {
   presetIdentifierFromUrl,
   presetUrlIdentifier,
   presetUrlPath,
+  presetUrlWithContext,
   urlWithoutPreset,
   replaceOrPrependPreset,
   type Preset,
@@ -15,6 +16,12 @@ import {
 import { stripColorAndFormattingTags } from "../src/domain/straftat-markup";
 import type { PresetRevisionContent } from "../src/domain/preset-content";
 import { validatePresetRevision } from "../src/domain/preset-workflow";
+
+test("canonical preset navigation preserves filters and fragments without the legacy identifier", () => {
+  const url = new URL("https://example.com/?p=old-title&q=duel&tags=practice#v2");
+  assert.equal(presetUrlWithContext({ id: "id", slug: "arena" }, url), "/p/arena?q=duel&tags=practice#v2");
+  assert.equal(presetUrlWithContext({ id: "id", canEdit: true, state: "draft", hasPublishedRevision: false }, url), "/?q=duel&tags=practice&p=id#v2");
+});
 
 test("replacing a dashboard preset preserves its position and unrelated entries", () => {
   const first = { id: "first", title: "First" };

@@ -26,7 +26,8 @@ export async function getPublishedPresetPreview(
     INNER JOIN preset_revisions r ON r.id = p.published_revision_id
     WHERE p.status = 'published'
       AND p.published_revision_id IS NOT NULL
-      AND (p.id = ?1 OR p.slug = ?1)
+      AND r.status = 'published' AND r.preset_id = p.id
+      AND (p.id = ?1 OR p.slug = ?1 OR p.id = (SELECT preset_id FROM preset_slugs WHERE slug = ?1))
     LIMIT 1
   `).bind(identifier).first<PublishedPresetPreviewRow>();
   if (!row) return undefined;
@@ -39,4 +40,13 @@ export async function getPublishedPresetPreview(
     authorName: row.author_name,
     thumbnailKey: row.thumbnail_key,
   };
+}
+
+export async function listPublishedPresetUrls(database: D1Database) {
+  const result = await database.prepare(`
+    SELECT p.slug, p.updated_at AS updatedAt FROM presets p
+    INNER JOIN preset_revisions r ON r.id = p.published_revision_id AND r.preset_id = p.id
+    WHERE p.status = 'published' AND r.status = 'published' ORDER BY p.id
+  `).all<{ slug: string; updatedAt: number }>();
+  return result.results;
 }

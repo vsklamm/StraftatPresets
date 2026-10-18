@@ -226,23 +226,36 @@ export function formatCardDescriptionPreview(description: string): string {
   return `${first} ${paragraphs[1]}`;
 }
 
-export function slugifyPresetTitle(title: string, id: string): string {
+function presetSlugBase(title: string): string {
   const cleanTitle = stripColorAndFormattingTags(title);
-  const base = cleanTitle
+  return cleanTitle
     .trim()
     .toLocaleLowerCase("en-US")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 50) || "preset";
-  const shortId = id.replace(/-/g, "").slice(0, 7);
-  return `${base}-${shortId}`;
+    .slice(0, 50)
+    .replace(/-+$/g, "");
 }
 
-export function resolvePresetSlug(
-  currentSlug: string,
-  title: string,
-  id: string,
-  wasPublished: boolean,
-): string {
-  return wasPublished ? currentSlug : slugifyPresetTitle(title, id);
+export function presetSlugCandidates(title: string, id: string, includeName = true): string[] {
+  const base = presetSlugBase(title);
+  const suffix = id.replace(/-/g, "");
+  const candidates = includeName && base && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(base) ? [base] : [];
+  for (let length = Math.min(7, suffix.length); length <= suffix.length; length++) {
+    candidates.push(`${base || "preset"}-${suffix.slice(0, length)}`);
+  }
+  return candidates;
+}
+
+export function parsePresetIdentifier(value: string): string | null {
+  let identifier = value.trim();
+  if (/^https?:\/\//i.test(identifier) || identifier.startsWith("?p=") || identifier.startsWith("/")) {
+    try {
+      const url = new URL(identifier, "https://straftatpresets.com/");
+      if (url.hostname !== "straftatpresets.com") return null;
+      const match = /^\/(?:p|api\/presets)\/([^/]+)\/?$/.exec(url.pathname);
+      identifier = match ? decodeURIComponent(match[1]) : url.pathname === "/" ? url.searchParams.get("p") ?? "" : "";
+    } catch { return null; }
+  }
+  return /^[a-z0-9][a-z0-9-]*$/.test(identifier) ? identifier : null;
 }

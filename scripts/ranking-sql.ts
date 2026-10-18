@@ -1,4 +1,4 @@
-/** Wrangler lacks parameter binding. Only use with fixed ranking SQL templates. */
+/** Wrangler lacks parameter binding. Only use with trusted SQL templates. */
 export function bindRankingSql(statement: string, params: readonly (string | number | null)[]) {
   let index = 0;
   const result = statement.replace(/\?/g, () => {

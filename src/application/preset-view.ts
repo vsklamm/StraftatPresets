@@ -81,6 +81,14 @@ export function presetUrlPath(preset: LinkablePreset): string {
   return presetHasPublishedLink(preset) ? `/p/${identifier}` : `/?p=${identifier}`;
 }
 
+export function presetUrlWithContext(preset: LinkablePreset, url: URL): string {
+  const target = new URL(presetUrlPath(preset), url.origin);
+  const search = new URLSearchParams(url.search);
+  search.delete("p");
+  for (const [key, value] of target.searchParams) search.set(key, value);
+  return `${target.pathname}${search.size ? `?${search}` : ""}${url.hash}`;
+}
+
 export function presetIdentifierFromUrl(url: Pick<URL, "pathname" | "searchParams">): string | null {
   const match = /^\/p\/([^/]+)\/?$/.exec(url.pathname);
   if (match) {

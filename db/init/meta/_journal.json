@@ -43,6 +43,13 @@
       "when": 1792104434104,
       "tag": "0005_retire_prop_hunt",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792281007601,
+      "tag": "0006_amazing_vargas",
+      "breakpoints": true
     }
   ]
 }

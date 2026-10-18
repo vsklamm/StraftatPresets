@@ -5,11 +5,13 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import Home from "@/app/page";
 import { stripColorAndFormattingTags } from "@/src/domain/straftat-markup";
 import { getPublishedPresetPreview } from "@/src/infrastructure/d1-published-preset-preview";
+import { presetUrlWithContext } from "@/src/application/preset-view";
 
 export const dynamic = "force-dynamic";
 
 type PresetPageProps = {
   params: Promise<{ presetId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const getPublishedPreview = cache(async (identifier: string) => {
@@ -62,11 +64,17 @@ export async function generateMetadata({ params }: PresetPageProps): Promise<Met
   };
 }
 
-export default async function PresetPage({ params }: PresetPageProps) {
+export default async function PresetPage({ params, searchParams }: PresetPageProps) {
   const { presetId } = await params;
   const preset = await getPublishedPreview(presetId);
   if (!preset) notFound();
-  if (presetId !== preset.slug) permanentRedirect(`/p/${encodeURIComponent(preset.slug)}`);
+  if (presetId !== preset.slug) {
+    const url = siteUrl();
+    for (const [key, values] of Object.entries(await searchParams)) {
+      for (const value of Array.isArray(values) ? values : values === undefined ? [] : [values]) url.searchParams.append(key, value);
+    }
+    permanentRedirect(presetUrlWithContext(preset, url));
+  }
 
   const baseUrl = siteUrl();
   const presetName = stripColorAndFormattingTags(preset.title);

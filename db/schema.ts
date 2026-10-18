@@ -95,6 +95,11 @@ export const presets = sqliteTable("presets", {
   index("idx_presets_status_published_at").on(table.status, table.publishedAt),
 ]);
 
+export const presetSlugs = sqliteTable("preset_slugs", {
+  slug: text("slug").primaryKey(),
+  presetId: text("preset_id").references(() => presets.id, { onDelete: "set null" }),
+}, (table) => [index("idx_preset_slugs_preset_id").on(table.presetId)]);
+
 export const presetRevisions = sqliteTable("preset_revisions", {
   id: text("id").primaryKey(),
   presetId: text("preset_id").notNull().references(() => presets.id, { onDelete: "cascade" }),

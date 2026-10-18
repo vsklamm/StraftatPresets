@@ -7,6 +7,7 @@ import test from "node:test";
 import { getPlatformProxy, type PlatformProxy } from "wrangler";
 import { createDatabase } from "../db";
 import { D1Repository } from "../src/infrastructure/d1-repository";
+import { getPublishedPresetPreview, listPublishedPresetUrls } from "../src/infrastructure/d1-published-preset-preview";
 import { PresetLimitReachedError } from "../src/domain/preset-policy";
 import { prepareThumbnail } from "../src/lib/image-moderation";
 import { MAX_THUMBNAIL_UPLOAD_BYTES } from "../src/domain/thumbnail-policy";
@@ -45,6 +46,91 @@ async function withLocalRepository(run: (repository: D1Repository, binding: D1Da
     rmSync(stateDirectory, { recursive: true, force: true });
   }
 }
+
+test("short public slugs preserve aliases and disappear on retraction or deletion", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    await binding.prepare("INSERT INTO tags (slug, label) VALUES ('practice', 'Practice'), ('duel', 'Duel')").run();
+    async function publish(title: string, author: string) {
+      const draft = await repository.createPresetDraft(author, title);
+      const content = { ...draft.content, description: "Selected arenas for practicing movement and close-range duels.", tags: ["practice", "duel"], versions: [{
+        ...draft.content.versions[0], mapPlaylists: [{ name: "Arena", description: "", encodedValue: "code", mapNames: ["Arena_00"] }],
+      }] };
+      await binding.prepare("UPDATE preset_revisions SET content_json = ?, status = 'pending' WHERE id = ?")
+        .bind(JSON.stringify(content), draft.revisionId).run();
+      const result = await repository.reviewPreset({ presetId: draft.id, revisionId: draft.revisionId, reviewerId: null, decision: "approve", issues: [] });
+      assert.equal(result.result, "updated", JSON.stringify(result));
+      if (result.result !== "updated") assert.fail("Valid preset must publish");
+      return { draft, preset: result.preset };
+    }
+    const first = await publish("Practice Arena", "author-1");
+    assert.equal(first.preset.slug, "practice-arena");
+    for (const identifier of [first.draft.slug, first.preset.slug, first.preset.id]) {
+      assert.equal((await getPublishedPresetPreview(binding, identifier))?.id, first.preset.id);
+      assert.equal((await repository.getPresetForViewer(identifier))?.slug, "practice-arena");
+    }
+    const occurredAt = new Date();
+    const day = occurredAt.toISOString().slice(0, 10);
+    const interaction = { kind: "link_open" as const, actorHash: "visitor", isAuthenticated: false,
+      clientEventId: crypto.randomUUID(), dedupeBucket: day, dayBucket: day, occurredAt };
+    assert.equal((await repository.recordPresetEvent({ ...interaction, presetId: first.draft.slug })).result, "counted");
+    assert.equal((await repository.recordPresetEvent({ ...interaction, clientEventId: crypto.randomUUID(), presetId: first.preset.slug })).result, "duplicate");
+    const duplicate = await publish("Practice Arena", "author-2");
+    assert.equal(duplicate.preset.slug, `practice-arena-${duplicate.preset.id.replaceAll("-", "").slice(0, 7)}`);
+    const revised = await repository.savePresetDraft({ presetId: first.preset.id, userId: "author-1", revisionId: first.preset.revisionId,
+      editVersion: first.preset.editVersion, content: { ...first.preset.content, title: "Private changes" } });
+    assert.equal(revised.result, "updated");
+    assert.equal((await getPublishedPresetPreview(binding, first.draft.slug))?.title, "Practice Arena");
+    assert.equal((await repository.retractPreset({ identifier: first.draft.slug })).result, "retracted");
+    for (const identifier of [first.draft.slug, first.preset.slug, first.preset.id]) {
+      assert.equal(await getPublishedPresetPreview(binding, identifier), undefined);
+      assert.equal(await repository.getPresetForViewer(identifier), undefined);
+    }
+    assert.ok(await repository.getPresetForViewer(first.preset.id, "author-1"));
+    assert.equal((await repository.recordPresetEvent({ ...interaction, clientEventId: crypto.randomUUID(), presetId: first.draft.slug })).result, "not_found");
+    assert.deepEqual((await listPublishedPresetUrls(binding)).map(p => p.slug), [duplicate.preset.slug]);
+    const retracted = await repository.getPresetForViewer(first.preset.id, "author-1");
+    await binding.prepare("UPDATE preset_revisions SET status='pending' WHERE id=?").bind(retracted!.revisionId).run();
+    const republished = await repository.reviewPreset({ presetId: first.preset.id, revisionId: retracted!.revisionId, reviewerId: null, decision: "approve", issues: [] });
+    assert.equal(republished.result, "updated");
+    if (republished.result !== "updated") assert.fail("A retracted preset must be publishable again");
+    assert.equal(republished.preset.slug, "practice-arena");
+    assert.equal((await getPublishedPresetPreview(binding, first.draft.slug))?.title, "Private changes");
+    assert.deepEqual(await repository.deletePreset(first.preset.id, "author-1"), { result: "deleted" });
+    const claims = await binding.prepare("SELECT slug, preset_id FROM preset_slugs WHERE slug IN (?, ?)")
+      .bind(first.draft.slug, first.preset.slug).all();
+    assert.equal(claims.results.length, 2);
+    assert.ok(claims.results.every(row => row.preset_id === null));
+    const replacement = await publish("Practice Arena", "author-3");
+    assert.notEqual(replacement.preset.slug, "practice-arena");
+    assert.equal(await getPublishedPresetPreview(binding, "practice-arena"), undefined);
+    await assert.rejects(binding.prepare("UPDATE presets SET slug = 'practice-arena' WHERE id = ?").bind(replacement.preset.id).run(), /preset slug unavailable/);
+  });
+});
+
+test("large publications reserve their public slug only in the final atomic batch", async () => {
+  await withLocalRepository(async (repository, binding) => {
+    await binding.prepare("INSERT INTO tags (slug,label) VALUES ('practice','Practice'),('duel','Duel')").run();
+    const draft = await repository.createPresetDraft("author-1", "Large Arena");
+    const content = { ...draft.content, description: "Selected arenas for practicing movement and close-range duels.", tags: ["practice", "duel"], versioningEnabled: true,
+      versions: Array.from({ length: 10 }, (_, index) => ({ label: `v1.0.${9 - index}`, weaponConfigurations: [],
+        mapPlaylists: Array.from({ length: 7 }, (_, playlist) => ({ name: `Arena ${playlist}`, description: "", encodedValue: "code", mapNames: ["Arena_00"] })),
+      })),
+    };
+    await binding.prepare("UPDATE preset_revisions SET content_json=?, status='pending' WHERE id=?").bind(JSON.stringify(content), draft.revisionId).run();
+    await binding.prepare("CREATE TRIGGER fixture_publication_failure BEFORE UPDATE OF status ON preset_revisions WHEN NEW.status='published' BEGIN SELECT RAISE(ABORT,'fixture publication failure'); END").run();
+    const approve = () => repository.reviewPreset({ presetId: draft.id, revisionId: draft.revisionId, reviewerId: null, decision: "approve", issues: [] });
+    const failed = await approve();
+    assert.deepEqual(failed, { result: "conflict" }, JSON.stringify(failed));
+    assert.equal(await getPublishedPresetPreview(binding, "large-arena"), undefined);
+    assert.equal(await binding.prepare("SELECT count(*) AS count FROM preset_slugs WHERE preset_id=?").bind(draft.id).first("count"), 0);
+    assert.equal(await binding.prepare("SELECT status FROM preset_revisions WHERE id=?").bind(draft.revisionId).first("status"), "pending");
+    await binding.prepare("DROP TRIGGER fixture_publication_failure").run();
+    const result = await approve();
+    assert.equal(result.result, "updated");
+    assert.equal((await getPublishedPresetPreview(binding, "large-arena"))?.id, draft.id);
+    assert.deepEqual(await approve(), { result: "not_found" });
+  });
+});
 
 test("retiring Prop Hunt hides it and rejects assignments without affecting other tags", async () => {
   await withLocalRepository(async (repository, binding) => {
