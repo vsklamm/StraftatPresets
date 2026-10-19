@@ -390,7 +390,7 @@ test("submission enforces the preset cooldown and author hourly cap before valid
   });
 });
 
-test("updated dashboard sorts by update time rather than creation or publication time", async () => {
+test("updated dashboard sorts by published revision updates rather than creation or preset timestamps", async () => {
   await withLocalRepository(async (repository, binding) => {
     const now = Date.UTC(2026, 0, 1, 12);
     const older = now - 100_000;
@@ -400,9 +400,9 @@ test("updated dashboard sorts by update time rather than creation or publication
     for (const [preset, publishedAt, updatedAt] of [[a, older, newer], [b, older + 50_000, older + 50_000]] as const) {
       await binding.batch([
         binding.prepare("UPDATE preset_revisions SET status = 'pending' WHERE id = ?").bind(preset.revisionId),
-        binding.prepare("UPDATE preset_revisions SET status = 'published' WHERE id = ?").bind(preset.revisionId),
+        binding.prepare("UPDATE preset_revisions SET status = 'published', updated_at = ? WHERE id = ?").bind(updatedAt, preset.revisionId),
         binding.prepare("UPDATE presets SET status = 'published', published_revision_id = ?, working_revision_id = NULL, published_at = ?, updated_at = ? WHERE id = ?")
-          .bind(preset.revisionId, publishedAt, updatedAt, preset.id),
+          .bind(preset.revisionId, publishedAt, preset.id === b.id ? now : older, preset.id),
       ]);
     }
     const sorted = await repository.listDashboardPresets("updated", undefined, 48, 0);

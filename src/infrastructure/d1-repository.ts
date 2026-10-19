@@ -531,7 +531,7 @@ export class D1Repository implements HealthRepository, PresetInteractionReposito
       .where(condition);
     let rows: DashboardRow[];
     if (view === "newest" || view === "updated") {
-      rows = await baseQuery().orderBy(desc(presets.updatedAt), asc(presets.id)).limit(limit).offset(offset).all() as DashboardRow[];
+      rows = await baseQuery().orderBy(desc(dashboardRevision.updatedAt), asc(presets.id)).limit(limit).offset(offset).all() as DashboardRow[];
     } else {
       const projection = await this.rankingStore().get();
       const order = applyLaunchPlacement(projection.items, projection.generatedAt);

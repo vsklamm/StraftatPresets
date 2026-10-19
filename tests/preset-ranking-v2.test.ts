@@ -410,6 +410,24 @@ test("store excludes invalid and owner events, caches globally, invalidates imme
   } finally { f.db.close(); }
 });
 
+test("Popular freshness uses first publication and ignores later revision and draft timestamps", async () => {
+  const f = fixture();
+  try {
+    f.add("p", now - 12 * DAY);
+    f.addEvent("reader", now - DAY);
+    const before = await f.store.get(now);
+    assert.equal(before.items[0].firstPublishedAt, now - 12 * DAY);
+    assert.equal(before.items[0].freshness, 0.75);
+
+    f.db.prepare("INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, updated_at) VALUES ('draft-p', 'p', 2, 'draft', ?, 'hash', ?)")
+      .run(JSON.stringify({ ...content, description: "x".repeat(250), thumbnailKey: "private-image" }), now);
+    f.db.prepare("UPDATE presets SET working_revision_id = 'draft-p', published_at = ?, updated_at = ? WHERE id = 'p'").run(now, now);
+    f.db.prepare("UPDATE preset_revisions SET updated_at = ? WHERE id = 'r-p'").run(now);
+
+    assert.deepEqual((await f.store.get(now, true)).items, before.items);
+  } finally { f.db.close(); }
+});
+
 test("lottery persists across concurrent refreshes and hiding a winner does not redraw", async () => {
   const f = fixture();
   try {
@@ -499,6 +517,32 @@ test("dashboard and order endpoint share projection before pagination and ignore
   } finally { f.db.close(); }
 });
 
+test("Updated uses published revision dates before pagination, while My presets uses working revision dates", async () => {
+  const f = fixture();
+  try {
+    f.add("older", now - 20 * DAY);
+    f.add("newer", now - 10 * DAY);
+    f.db.prepare("UPDATE preset_revisions SET updated_at = ? WHERE id = 'r-older'").run(now - 20 * DAY);
+    f.db.prepare("UPDATE preset_revisions SET updated_at = ? WHERE id = 'r-newer'").run(now - DAY);
+    f.db.prepare("INSERT INTO preset_revisions (id, preset_id, revision_number, status, content_json, content_hash, updated_at) VALUES ('draft-older', 'older', 2, 'draft', ?, 'hash', ?)")
+      .run(JSON.stringify({ ...content, title: "Unpublished changes" }), now);
+    f.db.prepare("UPDATE presets SET working_revision_id = 'draft-older', updated_at = ? WHERE id = 'older'").run(now);
+    f.db.prepare("UPDATE presets SET updated_at = ? WHERE id = 'newer'").run(now - DAY);
+
+    for (const view of ["updated", "newest"] as const) {
+      const result = await f.repository.listDashboardPresets(view, "author-older", 48, 0);
+      assert.deepEqual(result.items.map((p) => p.id), ["newer", "older"]);
+      assert.equal(result.items[1].updatedAt.getTime(), now - 20 * DAY);
+      assert.equal(result.items[1].content.title, content.title);
+      const page = await f.repository.listDashboardPresets(view, undefined, 1, 1);
+      assert.equal(page.items[0].id, "older");
+    }
+    const mine = await f.repository.listDashboardPresets("mine", "author-older", 48, 0);
+    assert.equal(mine.items[0].updatedAt.getTime(), now);
+    assert.equal(mine.items[0].content.title, "Unpublished changes");
+  } finally { f.db.close(); }
+});
+
 test("simple credit follows the published snapshot, never a pending or draft revision", async () => {
   const f = fixture();
   try {
@@ -540,7 +584,7 @@ test("search keeps relevance first and uses score ties without launch promotions
     f.db.prepare("UPDATE preset_search_documents SET title = CASE WHEN preset_id = ? THEN 'Needle' ELSE 'Other' END, description = 'Needle'").run(least);
     const relevant = await f.repository.searchPublishedPresets({ ...searchInput, query: "Needle", tagSlugs: [] });
     assert.equal(relevant.items[0].id, least);
-    f.db.prepare("UPDATE presets SET updated_at = ? WHERE id = ?").run(time + 1000, least);
+    f.db.prepare("UPDATE preset_revisions SET updated_at = ? WHERE id = ?").run(time + 1000, `r-${least}`);
     const updated = await f.repository.listDashboardPresets("updated", undefined, 48, 0);
     assert.equal(updated.items[0].id, least);
   } finally { f.db.close(); }
